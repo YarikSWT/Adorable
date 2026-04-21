@@ -8,6 +8,15 @@
     "dev": "npm run dev --workspace ./adorable",
     "build": "npm run build --workspace ./adorable",
     "start": "npm run start --workspace ./adorable",
-    "lint": "npm run lint --workspace ./adorable"
+    "lint": "npm run lint --workspace ./adorable",
+    "test": "npm run test --workspace ./adorable",
+    "dev:infra:up": "bash scripts/dev-infra.sh up",
+    "dev:infra:down": "bash scripts/dev-infra.sh down",
+    "dev:infra:logs": "bash scripts/dev-infra.sh logs",
+    "dev:infra:status": "bash scripts/dev-infra.sh status",
+    "dev:infra:wait": "bash scripts/dev-infra.sh wait-healthy",
+    "dev:infra:init-gitea": "bash scripts/init-gitea.sh --write-env",
+    "prod:up": "docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d",
+    "prod:down": "docker compose -f docker-compose.yml -f docker-compose.prod.yml down"
   }
 }

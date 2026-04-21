@@ -1,0 +1,21 @@
+{
+  "admin": {
+    "listen": "0.0.0.0:2019",
+    "disabled": false
+  },
+  "logging": {
+    "logs": {
+      "default": { "level": "INFO" }
+    }
+  },
+  "apps": {
+    "http": {
+      "servers": {
+        "preview": {
+          "listen": [":80"],
+          "routes": []
+        }
+      }
+    }
+  }
+}

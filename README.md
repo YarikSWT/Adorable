@@ -1,33 +1,108 @@
-# Adorable
+# Adorable (fork — self-hosted)
 
 ![Adorable](screen-shot.png)
 
-An open-source AI app builder. Describe what you want, and Adorable builds it for you in real time — complete with a live preview, terminal, and one-click publishing.
+Self-hosted форк [freestyle-sh/Adorable](https://github.com/freestyle-sh/Adorable). Цель форка — полностью убрать зависимости от SaaS-сервисов Freestyle и предоставить стек, который разворачивается одной командой на собственной инфраструктуре. Целевой рынок — Россия, поэтому LLM-провайдер — GLM от Z.ai (доступен и оплачивается из РФ).
 
-## Features
+Upstream-фичи: чат с AI, live preview, embedded-терминал, one-click publish, persistent git-проекты — сохранены.
 
-- **Conversational app building** — Chat with an AI that writes, edits, and runs code inside a sandboxed VM
-- **Live preview & terminal** — See your app update in real time with an embedded browser and terminal
-- **One-click publish** — Deploy to a production domain with a single click
-- **Persistent projects** — Every project is backed by a git repo; conversations and history are preserved across sessions
-- **GitHub Sync** — Create projects from existing GitHub repositories with bidirectional sync (see https://docs.freestyle.sh/v2/git/github-sync for setup)
+## Отличия от upstream
 
-## Tech Stack
+| Было (upstream) | Стало (fork) |
+|---|---|
+| Freestyle VMs (SaaS sandbox) | **Docker + dockerode** с жёсткими лимитами |
+| Freestyle Git (SaaS) | **Gitea** (REST API v1) |
+| Freestyle Deploy (SaaS serverless) | **Kamal** (CLI через child_process) |
+| Freestyle preview-домены | **Caddy** + Admin API для динамических роутов |
+| Anthropic Claude API | **GLM-5.1 от Z.ai** через OpenAI-совместимый endpoint (с fallback на OpenRouter / Anthropic) |
 
-- **Framework:** [Next.js](https://nextjs.org) (App Router, TypeScript, Turbopack)
-- **AI:** [Vercel AI SDK](https://sdk.vercel.ai) with OpenAI and Anthropic support
-- **Chat UI:** [assistant-ui](https://github.com/Yonom/assistant-ui)
-- **Sandboxing:** [Freestyle](https://freestyle.sh) cloud VMs with git-backed persistence
-- **Styling:** Tailwind CSS + shadcn/ui
+Детальный diff — в [FORK_CHANGES.md](./FORK_CHANGES.md). Модель угроз и меры — в [SECURITY.md](./SECURITY.md). Решения — в [decisions.md](./decisions.md).
 
-## Getting Started
+## Архитектура запуска
+
+### Инфра-сервисы — всегда в docker-compose
+`docker-compose.yml` поднимает Postgres (app), Postgres (Gitea), Gitea и Caddy.
 
 ```bash
-cd adorable
-cp .env.example .env.local  # add your API keys
+cp .env.example .env
+# заполнить секреты; см. раздел «Секреты» ниже
+npm run dev:infra:up
+npm run dev:infra:wait
+npm run dev:infra:init-gitea   # создаст admin-юзера и токен, запишет GITEA_TOKEN в .env
+```
+
+### Билдер (Next.js) — локально для dev
+```bash
 npm install
 npm run dev
 ```
+Открыть [http://localhost:3000](http://localhost:3000).
 
-Open [http://localhost:3000](http://localhost:3000) to start building.
+### Prod-симуляция (билдер в compose)
+```bash
+npm run prod:up
+```
 
+## Секреты
+
+| Переменная | Как получить |
+|---|---|
+| `Z_AI_API_KEY` | [z.ai/model-api](https://z.ai/model-api) → Get API Key. Без него чат не работает. |
+| `BETTER_AUTH_SECRET` | `openssl rand -hex 32` |
+| `GITEA_ADMIN_PASSWORD` | `openssl rand -base64 24` |
+| `GITEA_TOKEN` | автоматически создаётся `scripts/init-gitea.sh --write-env` |
+| `OPENROUTER_API_KEY` | [openrouter.ai](https://openrouter.ai) если хотите вместо zai |
+| `ANTHROPIC_API_KEY` | опционально, для fallback |
+
+## LLM provider
+
+Переключается через `LLM_PROVIDER`:
+- `zai` (default) — Z.ai прямой endpoint, модели `glm-5.1` (main) и `glm-4.5-air` (fast).
+- `openrouter` — любые модели через OpenRouter (`z-ai/glm-5.1`, `anthropic/claude-sonnet-4.5` и т.д.).
+- `anthropic` — fallback на прямой Anthropic API.
+- `openai` — fallback на OpenAI.
+- `mock` — для тестов, возвращает фиксированный текст.
+
+См. [ANTHROPIC_INVENTORY.md](./ANTHROPIC_INVENTORY.md) для деталей адаптера.
+
+## Структура
+
+```
+.
+├── adorable/                 # Next.js приложение (upstream source)
+│   ├── app/                  # App Router (API routes, страницы)
+│   ├── components/           # UI
+│   ├── lib/
+│   │   ├── adapters/         # SandboxProvider, GitProvider, ProxyProvider, LLMProvider, DeployProvider
+│   │   ├── sandbox/          # cleanup-воркер, audit-log
+│   │   └── ...               # upstream helpers
+│   └── tests/                # vitest (security, integration, contract)
+├── config/
+│   ├── caddy/                # initial Caddy JSON config
+│   └── deploy.yml            # Kamal шаблон
+├── scripts/
+│   ├── dev-infra.sh          # up/down/logs/status/wait-healthy
+│   └── init-gitea.sh         # idempotent admin+token bootstrap
+├── verification/screenshots/ # Playwright MCP артефакты
+├── docker-compose.yml        # Postgres×2 + Gitea + Caddy
+├── docker-compose.prod.yml   # override: + builder
+├── Dockerfile                # образ билдера (prod-симуляция)
+├── MIGRATION_PLAN.md         # что сделано, что нет
+├── STATE.md / PROGRESS.md    # состояние форка
+├── FREESTYLE_INVENTORY.md    # все точки интеграции
+├── ANTHROPIC_INVENTORY.md    # точки импорта LLM-провайдеров
+├── decisions.md              # ADR
+├── SECURITY.md               # модель угроз + меры
+├── FORK_CHANGES.md           # diff vs upstream
+└── VERIFICATION_LOG.md       # лог Playwright-проверок
+```
+
+## Статус миграции
+
+Активная миграция. См. [MIGRATION_PLAN.md](./MIGRATION_PLAN.md) и [PROGRESS.md](./PROGRESS.md).
+
+## Оригинал
+
+Upstream: https://github.com/freestyle-sh/Adorable
+
+Лицензия: MIT (см. [LICENSE](./LICENSE)).

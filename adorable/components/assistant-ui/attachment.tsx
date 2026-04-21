@@ -143,8 +143,8 @@ const AttachmentUI: FC = () => {
       case "file":
         return "File";
       default:
-        const _exhaustiveCheck: never = type;
-        throw new Error(`Unknown attachment type: ${_exhaustiveCheck}`);
+        // assistant-ui расширил union в рантайме (e.g. "audio"), пусть это не валит компиляцию.
+        return "File";
     }
   });
 

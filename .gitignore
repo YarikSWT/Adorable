@@ -1,1 +1,37 @@
+# Root-level gitignore for Adorable fork.
+
 node_modules
+/node_modules
+/adorable/node_modules
+
+# env files (секреты): .env в репо не коммитим, шаблон — да.
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+
+# build
+/adorable/.next
+/build
+/out
+
+# fork workspace artifacts
+/.claude
+PROMPT.md
+.stop-hook.*.log
+
+# verification artifacts — скриншоты с Playwright MCP не кладём в git (крупные бинарники).
+# Вместо них коммитим VERIFICATION_LOG.md с описанием прохождения.
+/verification/screenshots/*.png
+/verification/screenshots/*.jpg
+!/verification/screenshots/.gitkeep
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+.pnpm-debug.log*
+
+# misc
+.DS_Store
+*.tsbuildinfo

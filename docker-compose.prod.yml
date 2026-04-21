@@ -1,0 +1,80 @@
+# Prod-симуляция: поднимает сам билдер Adorable как сервис в compose.
+# Использование: docker compose -f docker-compose.yml -f docker-compose.prod.yml up
+#
+# В dev билдер запускается локально через `npm run dev` для быстрого HMR.
+# Этот override используется только для финального e2e перед релизом.
+
+services:
+  builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: adorable-builder
+    restart: unless-stopped
+    depends_on:
+      postgres-app:
+        condition: service_healthy
+      gitea:
+        condition: service_healthy
+      caddy:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      # БД приложения
+      DATABASE_URL: postgres://adorable:${APP_POSTGRES_PASSWORD:-adorable_dev_password}@postgres-app:5432/adorable
+      # Gitea (внутренний адрес)
+      GIT_PROVIDER: gitea
+      GITEA_BASE_URL: http://gitea:3001
+      GITEA_TOKEN: ${GITEA_TOKEN}
+      GITEA_ADMIN_USER: ${GITEA_ADMIN_USER:-adorable}
+      GITEA_ADMIN_PASSWORD: ${GITEA_ADMIN_PASSWORD}
+      # Sandbox
+      SANDBOX_PROVIDER: docker
+      SANDBOX_NETWORK_NAME: adorable_sandboxes
+      SANDBOX_CPU_LIMIT: ${SANDBOX_CPU_LIMIT:-2}
+      SANDBOX_MEMORY_LIMIT: ${SANDBOX_MEMORY_LIMIT:-2147483648}
+      SANDBOX_PIDS_LIMIT: ${SANDBOX_PIDS_LIMIT:-512}
+      SANDBOX_STORAGE_LIMIT: ${SANDBOX_STORAGE_LIMIT:-5368709120}
+      SANDBOX_MAX_LIFETIME_MIN: ${SANDBOX_MAX_LIFETIME_MIN:-120}
+      SANDBOX_IDLE_TIMEOUT_MIN: ${SANDBOX_IDLE_TIMEOUT_MIN:-30}
+      SANDBOX_CLEANUP_INTERVAL_SEC: ${SANDBOX_CLEANUP_INTERVAL_SEC:-60}
+      SANDBOX_AUDIT_LOG: /var/log/adorable/sandbox-audit.log
+      # Proxy (Caddy — внутренний адрес)
+      PROXY_PROVIDER: caddy
+      CADDY_ADMIN_URL: http://caddy:2019
+      PREVIEW_DOMAIN_SUFFIX: ${PREVIEW_DOMAIN_SUFFIX:-preview.localhost}
+      # LLM
+      LLM_PROVIDER: ${LLM_PROVIDER:-zai}
+      Z_AI_API_KEY: ${Z_AI_API_KEY}
+      Z_AI_BASE_URL: ${Z_AI_BASE_URL:-https://api.z.ai/api/paas/v4}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LLM_MAIN_MODEL: ${LLM_MAIN_MODEL:-glm-5.1}
+      LLM_FAST_MODEL: ${LLM_FAST_MODEL:-glm-4.5-air}
+      # Auth
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+    ports:
+      - "${BUILDER_PORT:-3000}:3000"
+    volumes:
+      # Docker daemon хоста — для dockerode.
+      # Всё известно, что это расширение attack surface. Для scale — TCP+TLS к отдельному sandbox-host.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - adorable_audit_logs:/var/log/adorable
+    networks:
+      - adorable_infra
+      # Билдер должен достучаться до sandbox-контейнеров через Caddy,
+      # но и напрямую (для exec / logs / fs) — dockerode делает это через docker socket.
+      - adorable_sandboxes
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  adorable_audit_logs:

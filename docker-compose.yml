@@ -1,0 +1,151 @@
+# Инфра-сервисы Adorable fork: Postgres (app), Postgres (Gitea), Gitea, Caddy.
+# Всегда поднимается этим файлом. Билдер Adorable запускается в dev локально,
+# для prod-симуляции используется ещё docker-compose.prod.yml override.
+#
+# Использование:
+#   docker compose up -d              # поднять всё
+#   docker compose down               # остановить
+#   docker compose logs -f gitea      # логи конкретного сервиса
+#
+# Скрипты: pnpm dev:infra:up / pnpm dev:infra:down (они же npm run).
+
+name: adorable
+
+x-healthcheck-postgres: &healthcheck-postgres
+  test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+  interval: 5s
+  timeout: 5s
+  retries: 10
+  start_period: 10s
+
+services:
+  # Postgres для Adorable приложения (Better Auth, sessions, permissions)
+  postgres-app:
+    image: postgres:16-alpine
+    container_name: adorable-postgres-app
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: adorable
+      POSTGRES_PASSWORD: ${APP_POSTGRES_PASSWORD:-adorable_dev_password}
+      POSTGRES_DB: adorable
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - adorable_postgres_data:/var/lib/postgresql/data
+    networks:
+      - adorable_infra
+    healthcheck: *healthcheck-postgres
+
+  # Postgres под Gitea
+  postgres-gitea:
+    image: postgres:16-alpine
+    container_name: adorable-postgres-gitea
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gitea
+      POSTGRES_PASSWORD: ${GITEA_POSTGRES_PASSWORD:-gitea_dev_password}
+      POSTGRES_DB: gitea
+    volumes:
+      - gitea_postgres_data:/var/lib/postgresql/data
+    networks:
+      - adorable_infra
+    healthcheck: *healthcheck-postgres
+
+  # Gitea — git server, замена Freestyle Git
+  gitea:
+    image: gitea/gitea:1.22.3
+    container_name: adorable-gitea
+    restart: unless-stopped
+    depends_on:
+      postgres-gitea:
+        condition: service_healthy
+    environment:
+      USER_UID: "1000"
+      USER_GID: "1000"
+      GITEA__database__DB_TYPE: postgres
+      GITEA__database__HOST: postgres-gitea:5432
+      GITEA__database__NAME: gitea
+      GITEA__database__USER: gitea
+      GITEA__database__PASSWD: ${GITEA_POSTGRES_PASSWORD:-gitea_dev_password}
+      GITEA__server__DOMAIN: ${GITEA_DOMAIN:-localhost}
+      GITEA__server__ROOT_URL: ${GITEA_ROOT_URL:-http://localhost:3001/}
+      GITEA__server__HTTP_PORT: "3001"
+      GITEA__server__SSH_PORT: "2222"
+      GITEA__server__START_SSH_SERVER: "false"
+      GITEA__service__DISABLE_REGISTRATION: "true"
+      GITEA__service__REQUIRE_SIGNIN_VIEW: "false"
+      GITEA__security__INSTALL_LOCK: "true"
+      GITEA__openid__ENABLE_OPENID_SIGNIN: "false"
+      GITEA__log__MODE: console
+      GITEA__log__LEVEL: info
+    ports:
+      - "127.0.0.1:3001:3001"
+      - "127.0.0.1:2222:2222"
+    volumes:
+      - gitea_data:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - adorable_infra
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3001/api/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  # Caddy 2 — reverse proxy, замена Freestyle preview URLs/domain mapping.
+  # Admin API биндится только внутри Docker-сети + на 127.0.0.1 хоста (никогда 0.0.0.0).
+  # Роуты добавляются динамически через lib/adapters/proxy-caddy.ts.
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: adorable-caddy
+    restart: unless-stopped
+    # JSON — нативный формат Caddy, --adapter не нужен (json-adapter встроен).
+    command: ["caddy", "run", "--config", "/etc/caddy/caddy.init.json"]
+    ports:
+      # HTTP/HTTPS для preview-роутов.
+      - "${CADDY_HTTP_PORT:-8080}:80"
+      - "${CADDY_HTTPS_PORT:-8443}:443"
+      # Admin API — только на localhost хоста, не на 0.0.0.0.
+      - "127.0.0.1:2019:2019"
+    environment:
+      CADDY_ADMIN: "0.0.0.0:2019"
+    volumes:
+      - ./config/caddy/caddy.init.json:/etc/caddy/caddy.init.json:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      adorable_infra:
+        aliases:
+          - caddy
+      adorable_sandboxes:
+        aliases:
+          - caddy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:2019/config/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+networks:
+  adorable_infra:
+    name: adorable_infra
+    driver: bridge
+  # Изолированная сеть для sandbox-контейнеров.
+  # Создаётся здесь чтобы dockerode подключал к ней созданные контейнеры.
+  # Caddy тоже в этой сети (для reverse proxy), но ничего другого из infra здесь нет.
+  adorable_sandboxes:
+    name: adorable_sandboxes
+    driver: bridge
+    # internal: false — нужен наружу, чтобы sandbox мог ставить npm packages.
+    # Для усиления изоляции в prod переключить на true + добавить исходящий egress proxy.
+    internal: false
+
+volumes:
+  adorable_postgres_data:
+  gitea_postgres_data:
+  gitea_data:
+  caddy_data:
+  caddy_config:

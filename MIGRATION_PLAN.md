@@ -1,0 +1,72 @@
+# План миграции Adorable fork → self-hosted
+
+Этот план живёт вместе с форком. Задачи помечаются `[ ]` (открыто), `[x]` (закрыто), `[!]` (блокер), `[→v2]` (отложено на v2). Итерация Ralph закрывает максимум один логически связанный блок задач.
+
+## Phase 0: Инвентаризация
+- [x] grep freestyle → FREESTYLE_INVENTORY.md.
+- [x] grep @ai-sdk/anthropic, @anthropic-ai/sdk → ANTHROPIC_INVENTORY.md.
+- [x] Список npm-пакетов freestyle-*, @anthropic-ai/*, @ai-sdk/anthropic.
+- [x] Картирование зон: sandbox / git / deploy / preview-proxy / llm.
+
+## Phase 1: Инфраструктура разработки
+- [x] `docker-compose.yml`: Postgres (app) + Postgres (Gitea) + Gitea + Caddy + сети `adorable_infra` и `adorable_sandboxes`.
+- [x] `docker-compose.prod.yml` override с сервисом билдера для prod-симуляции (монтирование /var/run/docker.sock, сборка образа из `Dockerfile`).
+- [x] Caddy стартует с включённым Admin API на `localhost:2019` и пустым начальным конфигом, persistent volume для certmagic.
+- [x] `.env.example` актуальный и задокументирован.
+- [x] `scripts/dev-infra.sh` + npm-скрипты `dev:infra:up` / `dev:infra:down`.
+- [x] `scripts/init-gitea.sh` для автосоздания admin-юзера и токена (идемпотентный).
+- [x] `Dockerfile` для образа билдера (использует `node:22-slim`, включает `ruby + kamal` как dev-зависимость).
+- [x] Verification: Gitea API+UI доступны, Caddy Admin API отвечает (см. VERIFICATION_LOG.md 2026-04-21).
+- [x] README: раздел «Локальная разработка» (переписан полностью).
+
+## Phase 1.5: Замена LLM-провайдера (Anthropic → GLM/Z.ai)
+- [ ] `adorable/lib/adapters/llm.ts` — интерфейс `LLMProvider` + фабрика `createLLM()`.
+- [ ] Провайдеры: `zai` (через `@ai-sdk/openai-compatible`), `openrouter` (через `@openrouter/ai-sdk-provider`), `anthropic` (fallback).
+- [ ] `adorable/lib/adapters/llm-mock.ts` для тестов.
+- [ ] `adorable/tests/llm-adapter.test.ts` — контракт + переключение по env.
+- [ ] Переписать `adorable/lib/llm-provider.ts` чтобы использовать адаптер. Все импорты `@ai-sdk/anthropic` в бизнес-коде → через адаптер (кроме самого модуля адаптера).
+- [ ] Убедиться что tool use / function calling корректны у GLM.
+- [ ] Playwright MCP: создание проекта → промпт → GLM отвечает → server log показывает z-ai endpoint.
+- [ ] README: раздел про `LLM_PROVIDER` и ключи.
+
+## Phase 2: Замена Sandbox (Freestyle VMs → Docker)
+- [ ] `adorable/lib/adapters/sandbox.ts` — интерфейс `SandboxProvider` (create / destroy / exec / readFile / writeFile / listRepos / status).
+- [ ] `adorable/lib/adapters/sandbox-mock.ts` + контрактные тесты.
+- [ ] `adorable/lib/adapters/sandbox-docker.ts` — реализация через dockerode. ВСЕ 15 ограничений из чек-листа в PROMPT.md.
+- [ ] `adorable/lib/sandbox/cleanup-worker.ts` — TTL + idle detection + cascade через ProxyProvider.
+- [ ] `adorable/lib/sandbox/audit-log.ts` — structured JSON log.
+- [ ] `adorable/tests/sandbox-security.test.ts` — 9 security-тестов.
+- [ ] Замена `adorable-vm.ts`, `create-tools.ts`, `chat/route.ts`, `repos/route.ts` на использование адаптера.
+- [ ] Playwright MCP: создание проекта → `docker inspect` видит все лимиты.
+- [ ] Удаление `freestyle-sandboxes`, `@freestyle-sh/*` из `adorable/package.json`.
+
+## Phase 3: Замена Git (Freestyle Git → Gitea)
+- [ ] `adorable/lib/adapters/git.ts` — интерфейс `GitProvider` (createRepo, ref, commits.list, contents.get, commits.create, branches.getDefault, githubSync.enable|disable).
+- [ ] `adorable/lib/adapters/git-mock.ts` + контрактные тесты.
+- [ ] `adorable/lib/adapters/git-gitea.ts` — через Gitea REST API v1 (fetch + токен из env).
+- [ ] Замена всех freestyle.git.* вызовов (`repo-storage.ts`, `deployment-status.ts`, `repos/route.ts`, `identity-session.ts`).
+- [ ] Упрощение identity-session.ts — Gitea auth через server-side token + per-user cookie identity (без Freestyle identity).
+- [ ] Playwright MCP: создание проекта → репо в Gitea UI видно.
+
+## Phase 4: Preview URLs через Caddy
+- [ ] `adorable/lib/adapters/proxy.ts` — интерфейс `ProxyProvider` (addRoute, removeRoute, listRoutes, healthCheck).
+- [ ] `adorable/lib/adapters/proxy-mock.ts`.
+- [ ] `adorable/lib/adapters/proxy-caddy.ts` — управление через Caddy Admin API (PUT на `/config/apps/http/servers/<server>/routes/<id>`).
+- [ ] Sandbox lifecycle hooks: при create контейнера → addRoute, при destroy → removeRoute.
+- [ ] `adorable/tests/proxy-security.test.ts` + `proxy-integration.test.ts` (5 тестов).
+- [ ] Playwright MCP: AI генерирует Express-сервер → `*.preview.localhost` через Caddy отдаёт HTML.
+
+## Phase 5: Замена Deploy (опционально v2)
+- [ ] `adorable/lib/adapters/deploy.ts` — интерфейс `DeployProvider`.
+- [ ] `adorable/lib/adapters/deploy-kamal.ts` через `child_process.execFile`.
+- [ ] `config/deploy.yml` шаблон для пользовательских проектов.
+- [ ] Мок-тест Kamal-адаптера.
+
+## Phase 6: Финальная уборка
+- [ ] Удалить всё `freestyle-*` и (если не fallback) `@ai-sdk/anthropic` из `adorable/package.json`.
+- [ ] Полное обновление README.
+- [ ] `FORK_CHANGES.md` с diff vs upstream.
+- [ ] `SECURITY.md` с моделью угроз.
+- [ ] CI workflow GitHub Actions (tests + Playwright e2e + security tests).
+- [ ] `config/deploy.yml` для самого билдера Adorable.
+- [ ] Финальный e2e в prod-профиле + `verification/screenshots/final-e2e-prod.png`.
