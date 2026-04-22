@@ -1,6 +1,6 @@
 # Текущее состояние
 
-**Итерация:** 12 завершена, идёт 13
+**Итерация:** 13 завершена, идёт 14
 **Дата:** 2026-04-22
 
 ## Окружение
@@ -27,9 +27,10 @@
 - **Готово (iter 9, Phase 3 start):** GitProvider интерфейс + in-memory mock + placeholder gitea + 14 contract-тестов.
 - **Готово (iter 10):** Gitea REST API v1 реализация + 4 интеграционных теста.
 - **Готово (iter 11):** callers мигрированы на GitProvider + identity упрощена.
-- **Готово (iter 12, Phase 4 start):** ProxyProvider. `lib/adapters/proxy.ts` interface (addRoute, removeRoute, removeSandboxRoutes, listRoutes, healthCheck) + `proxy-mock.ts` (9 contract tests) + `proxy-caddy.ts` через Caddy Admin API. Использует Caddy `@id` feature для idempotent операций: PATCH /id/<@id> replaces в месте, POST /routes/... appends при 404. Retry с Connection:close решил UND_ERR_SOCKET. `tests/proxy-caddy-integration.test.ts` — 6/6 зелёные против Caddy 2.8.
-- **Следующее (iter 13):** sandbox lifecycle hooks — при create sandbox вызывать `proxy.addRoute` для каждого domain; при destroy и в cleanup-worker — `proxy.removeSandboxRoutes`. Также ProxyProvider singleton.
-- **После:** proxy security tests (admin-not-exposed, lifecycle-sync), Phase 5 (Kamal→v2), Phase 6 (docs + final e2e + удаление freestyle deps).
+- **Готово (iter 12):** ProxyProvider interface + mock + Caddy impl + 6 live integration-тестов.
+- **Готово (iter 13):** `lib/proxy/provider-singleton.ts` HMR-safe. Sandbox lifecycle hooks: `adorable-vm.ts` после sandbox.create → proxy.addRoute для каждого domain. `lib/sandbox/provider-singleton.ts ensureCleanupWorkerRunning` — инъектит ProxyProvider в cleanup-worker (cascade removeSandboxRoutes при TTL/idle reap). `tests/proxy-security.test.ts` — 3 теста: sandboxLifecycleSyncsProxy (через cleanup-worker + mock), unrelated-sandbox-preserved, adminApiNotExposedExpectation. 105/105 unit tests green. tsc --noEmit clean. Build OOM-killed из-за параллельных Claude сессий в 3.7G хосте — не регрессия, просто нет свободной памяти.
+- **Следующее (iter 14):** Phase 5 [→v2] либо Phase 6 начать: FORK_CHANGES.md, SECURITY.md, README обновление, удаление `freestyle-sandboxes` + `@freestyle-sh/*` из package.json. Проверить что build работает после освобождения памяти.
+- **После:** Phase 5 DeployProvider (можно [→v2] полностью), финальный e2e через Playwright MCP, CI workflow.
 
 ## Суммарные тесты
 - `tests/llm-adapter.test.ts` — 17 тестов.
@@ -42,7 +43,8 @@
 - `tests/git-gitea-integration.test.ts` — 4 теста (gated `RUN_GITEA_TESTS=1`, на живом Gitea).
 - `tests/proxy-contract.test.ts` — 9 тестов (mock).
 - `tests/proxy-caddy-integration.test.ts` — 6 тестов (gated `RUN_CADDY_TESTS=1`, на живом Caddy).
-- **Всего:** 102/102 без внешних сервисов + 9/9 на Docker + 4/4 на Gitea + 6/6 на Caddy (gated).
+- `tests/proxy-security.test.ts` — 3 теста (sandbox lifecycle sync + admin api expectation).
+- **Всего:** 105/105 без внешних сервисов + 9/9 на Docker + 4/4 на Gitea + 6/6 на Caddy (gated).
 - `npm run build` — зелёный (NODE_OPTIONS=--max-old-space-size=4096 из-за Next 16 Turbopack).
 
 ## Что сделано

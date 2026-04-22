@@ -12,6 +12,7 @@ import {
   createCleanupWorker,
   type CleanupWorker,
 } from "@/lib/sandbox/cleanup-worker";
+import { getProxyProvider } from "@/lib/proxy/provider-singleton";
 
 type SingletonCache = {
   providerPromise?: Promise<SandboxProvider>;
@@ -32,13 +33,24 @@ export const getSandboxProvider = async (): Promise<SandboxProvider> => {
 
 /**
  * Ensure the sandbox cleanup worker is running. Called once per server
- * boot. HMR-safe: idempotent.
+ * boot. HMR-safe: idempotent. Wires the proxy provider so that when a
+ * sandbox expires its Caddy routes are removed in the same sweep.
  */
 export const ensureCleanupWorkerRunning = async (): Promise<void> => {
   if (cache.cleanupWorker?.running) return;
   const provider = await getSandboxProvider();
   if (!cache.cleanupWorker) {
-    cache.cleanupWorker = createCleanupWorker({ provider });
+    const proxy = await getProxyProvider().catch(() => null);
+    cache.cleanupWorker = createCleanupWorker({
+      provider,
+      ...(proxy
+        ? {
+            proxyProvider: {
+              removeSandboxRoutes: (id) => proxy.removeSandboxRoutes(id),
+            },
+          }
+        : {}),
+    });
   }
   cache.cleanupWorker.start();
 };

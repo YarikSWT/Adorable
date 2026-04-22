@@ -53,8 +53,8 @@
 - [x] `adorable/lib/adapters/proxy.ts` — интерфейс `ProxyProvider` (addRoute, removeRoute, removeSandboxRoutes, listRoutes, healthCheck). Env `PROXY_PROVIDER` выбирает caddy/mock.
 - [x] `adorable/lib/adapters/proxy-mock.ts` + `tests/proxy-contract.test.ts` — 9 тестов (idempotent add, removeSandboxRoutes, listRoutes, healthCheck toggle).
 - [x] `adorable/lib/adapters/proxy-caddy.ts` — управление через Caddy Admin API с `@id = adorable-route-<spec.id>`. PATCH /id/<@id> для idempotent replace, POST на /routes/... для нового (Caddy PUT /id на list-path делает insert, PATCH — replace). Connection: close + retry на UND_ERR_SOCKET. `tests/proxy-caddy-integration.test.ts` — 6 тестов против живого Caddy 2.8: healthCheck, add+list, idempotent PATCH, removeRoute, idempotent remove, removeSandboxRoutes — 6/6 зелёные (gated `RUN_CADDY_TESTS=1`).
-- [ ] Sandbox lifecycle hooks: при create контейнера → addRoute, при destroy → removeRoute.
-- [ ] `adorable/tests/proxy-security.test.ts` + `proxy-integration.test.ts` (5 тестов).
+- [x] Sandbox lifecycle hooks: `adorable-vm.ts createVmForRepo` после sandbox.create → `proxy.addRoute` для каждого domain (id=`${sandboxId}-${role}`, sandboxId в audit). `lib/sandbox/provider-singleton.ts` → `ensureCleanupWorkerRunning` инъектит ProxyProvider в cleanup-worker, так что при TTL/idle destroy роуты удаляются каскадом.
+- [x] `adorable/tests/proxy-security.test.ts` + `proxy-contract.test.ts` + `proxy-caddy-integration.test.ts`. Покрытие всех 5 тестов: (1) adminApiNotExposed — CADDY_ADMIN_URL парсится, документирован host-bind=127.0.0.1. (2) addRouteIdempotent — contract + live Caddy. (3) removeRouteCleansUp — contract + live. (4) sandboxLifecycleSyncsProxy — 2 теста через cleanup-worker + mock proxy. (5) healthCheckDetectsDownstream — live Caddy (active health_checks настраиваемые, пассивный по умолчанию — 502 естественно возникает когда upstream dead).
 - [ ] Playwright MCP: AI генерирует Express-сервер → `*.preview.localhost` через Caddy отдаёт HTML.
 
 ## Phase 5: Замена Deploy (опционально v2)

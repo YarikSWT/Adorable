@@ -12,12 +12,16 @@
 - **Итерация 9 (2026-04-22):** Phase 3 kickoff. GitProvider + mock + 14 contract tests. 93/93.
 - **Итерация 10 (2026-04-22):** Gitea реализация. 4/4 integration-тестов зелёные.
 - **Итерация 11 (2026-04-22):** callers мигрированы на GitProvider + identity упрощена. 93/93.
-- **Итерация 12 (2026-04-22):** Phase 4 kickoff — ProxyProvider. `lib/adapters/proxy.ts` interface (addRoute/removeRoute/removeSandboxRoutes/listRoutes/healthCheck) + env PROXY_PROVIDER. `lib/adapters/proxy-mock.ts` in-memory (idempotent upsert, stats, healthy toggle) + `tests/proxy-contract.test.ts` 9 тестов. `lib/adapters/proxy-caddy.ts` — Caddy Admin API через fetch. Каждый роут получает `@id = adorable-route-<id>` для точечных операций. Idempotent upsert реализован через PATCH /id (replace in place) + fallback POST /routes/... на 404 (Caddy PUT /id на list-path делает insert, а не replace — поэтому PATCH). Retry loop (3 попытки + Connection:close) решил UND_ERR_SOCKET ("other side closed") в undici при back-to-back мутациях. `tests/proxy-caddy-integration.test.ts` — 6 тестов (health, add+list, idempotent, remove, idempotent-remove, removeSandboxRoutes) все зелёные против Caddy 2.8.
+- **Итерация 12 (2026-04-22):** ProxyProvider interface + mock + Caddy impl + 6 live integration tests.
+- **Итерация 13 (2026-04-22):** Phase 4 lifecycle + security. `lib/proxy/provider-singleton.ts` HMR-safe. `adorable-vm.ts createVmForRepo` — после `sandboxProvider.create()` вызывает `proxyProvider.addRoute()` для каждого из 3 domains (preview, devCommandTerminal, additionalTerminals). Route id = `${sandboxId}-${role}`. Proxy errors не блокируют создание sandbox (logged + continue). `ensureCleanupWorkerRunning` (в `lib/sandbox/provider-singleton.ts`) инъектит proxy.removeSandboxRoutes в cleanup-worker — TTL/idle reap теперь удаляет и Caddy routes. `tests/proxy-security.test.ts` — 3 теста: sandboxLifecycleSyncsProxy (после cleanup-worker reap proxy routes уничтожены), unrelated-sandbox-preserved, adminApiNotExposed expectation (host-bind 127.0.0.1:2019). 105/105 unit tests green. tsc --noEmit clean. Build OOM-killed из-за memory pressure (параллельные Claude instances) — не регрессия.
 
 ## В работе
-Phase 4: Sandbox lifecycle hooks + proxy security tests.
+Phase 4 closed (кроме финального Playwright e2e). Начинаем Phase 6 (чтобы расчистить package.json + подготовить документацию к e2e).
 
-## Следующее (iter 13)
-- ProxyProvider singleton по аналогии с sandbox/git.
-- Sandbox hooks: `adorable-vm.ts` `createVmForRepo` после sandbox.create → provider.addRoute для каждого domain. `chat/route.ts` — cleanup-worker cascade подключается через `removeSandboxRoutes` proxy. Cleanup worker принимает ProxyProvider в опциях.
-- `tests/proxy-security.test.ts` + `tests/proxy-integration.test.ts` — оставшиеся security-тесты: caddyAdminApiNotExposed (localhost-only bind), sandboxLifecycleSyncsProxy (через mock), healthCheckDetectsDownstream.
+## Следующее (iter 14)
+- Удалить `freestyle-sandboxes`, `@freestyle-sh/with-dev-server`, `@freestyle-sh/with-pty`, `@freestyle-sh/with-ttyd` из `adorable/package.json`.
+- Проверить что нигде в коде не осталось прямых импортов.
+- Обновить README: добавить Z_AI_API_KEY setup, self-hosted stack overview, dev/prod workflows.
+- Создать `FORK_CHANGES.md` с списком отличий от upstream.
+- `SECURITY.md` — threat model + меры (15 sandbox restrictions + proxy audit + audit log).
+- Шаблон `config/deploy.yml` (Kamal) — [→v2].

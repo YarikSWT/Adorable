@@ -22,6 +22,7 @@ import {
   WORKDIR,
 } from "@/lib/vars";
 import { getSandboxProvider } from "@/lib/sandbox/provider-singleton";
+import { getProxyProvider } from "@/lib/proxy/provider-singleton";
 
 export type VmRuntimeMetadata = {
   vmId: string;
@@ -48,6 +49,20 @@ export const createVmForRepo = async (
   const devCommandHost = `dev-command-${subdomainKey}.${suffix}`;
   const additionalHost = `terminals-${subdomainKey}.${suffix}`;
 
+  const domains = [
+    { hostname: previewHost, sandboxPort: VM_PORT, role: "preview" },
+    {
+      hostname: devCommandHost,
+      sandboxPort: DEV_COMMAND_TERMINAL_PORT,
+      role: "devCommandTerminal",
+    },
+    {
+      hostname: additionalHost,
+      sandboxPort: ADDITIONAL_TERMINALS_PORT,
+      role: "additionalTerminals",
+    },
+  ] as const;
+
   const handle = await provider.create({
     repoId,
     workdir: WORKDIR,
@@ -56,20 +71,28 @@ export const createVmForRepo = async (
       repos: [{ path: WORKDIR, repo: repoId }],
       config: { user: { name: "Adorable", email: "adorable@localhost" } },
     },
-    domains: [
-      { hostname: previewHost, sandboxPort: VM_PORT, role: "preview" },
-      {
-        hostname: devCommandHost,
-        sandboxPort: DEV_COMMAND_TERMINAL_PORT,
-        role: "devCommandTerminal",
-      },
-      {
-        hostname: additionalHost,
-        sandboxPort: ADDITIONAL_TERMINALS_PORT,
-        role: "additionalTerminals",
-      },
-    ],
+    domains: domains.map((d) => ({ ...d })),
   });
+
+  // Register proxy routes for each public port. Errors are swallowed —
+  // sandbox is usable without the proxy (direct port access within
+  // the infra network), and broken proxy shouldn't block project
+  // creation. Routes are logged via audit-log.
+  try {
+    const proxy = await getProxyProvider();
+    for (const d of domains) {
+      await proxy.addRoute({
+        id: `${handle.sandboxId}-${d.role}`,
+        hostname: d.hostname,
+        upstream: `${handle.sandboxId}:${d.sandboxPort}`,
+        sandboxId: handle.sandboxId,
+      });
+    }
+  } catch (err) {
+    process.stderr.write(
+      `adorable-vm: proxy registration failed (${(err as Error).message})\n`,
+    );
+  }
 
   return {
     vmId: handle.sandboxId,
