@@ -5,10 +5,11 @@
 - **Итерация 2 (2026-04-22):** Phase 1.5 LLM-адаптер. `lib/adapters/llm.ts` + `llm-mock.ts` + `tests/llm-adapter.test.ts` (17 тестов). Рефактор `lib/llm-provider.ts` → тонкая обёртка над `createLLM()`. Бизнес-код без прямых `@ai-sdk/anthropic`. Build зелёный.
 - **Итерация 3 (2026-04-22):** Phase 2 интерфейс sandbox + mock + контрактные тесты. `lib/adapters/sandbox.ts` (SandboxProvider: create/ref/destroy/list; SandboxHandle: exec/fs/devServer/domains/ports/status). `sandbox-mock.ts` (in-memory FS, scripted exec, seedFiles/setExecHandler/inspect helpers для тестов). `sandbox-docker.ts` stub. `tests/sandbox-contract.test.ts` — 16 тестов. 33/33 green. Build зелёный.
 - **Итерация 4 (2026-04-22):** Phase 2 audit-log. `lib/sandbox/audit-log.ts` — append-only JSON-lines, typed events (sandbox_created/destroyed/exec/fs_write/cleanup + proxy_route_added/removed), auto mkdir, serialized parallel writes, strict/non-strict режимы, env `SANDBOX_AUDIT_LOG`, shared singleton. `tests/audit-log.test.ts` — 10 тестов, 43/43 green. Build зелёный.
+- **Итерация 5 (2026-04-22):** Phase 2 sandbox-docker. Установлены `dockerode@^4`, `tar-stream@^3`, `@types/dockerode`, `@types/tar-stream`. `lib/adapters/sandbox-docker-config.ts` — pure config builder, все 15 ограничений в HostConfig/ContainerConfig + валидация (rejects host/bridge net, root user, invalid CPU). `lib/adapters/sandbox-docker.ts` — dockerode-based SandboxProvider: ensureVolume, create (container + start + audit), ref (inspect), destroy (stop+remove+volume+audit), list (label filter), exec (Exec API + 8-byte stream демукс), fs (getArchive/putArchive через tar-stream). `tests/sandbox-docker-config.test.ts` — 21 unit-тест, покрыты все 15 ограничений явно. Fixed discriminated union in audit-log (DistributiveOmit) to preserve variant-specific fields. 67/67 green, build зелёный.
 
 ## В работе
-Phase 2: Sandbox Docker-реализация.
+Phase 2: Sandbox cleanup + security tests + интеграция в callers.
 
-## Следующее (iter 5)
-- `lib/adapters/sandbox-docker.ts` — полная реализация через dockerode: create с ВСЕМИ 15 ограничениями (NanoCpus, Memory=MemorySwap, PidsLimit, ReadonlyRootfs, SecurityOpt=no-new-privileges, CapDrop ALL, User 1000:1000, Ulimits nofile/core, StorageOpt.Size, BlkioDevice*Bps, NetworkMode=adorable_sandboxes, AutoRemove, Tmpfs /tmp, Audit log). exec через Exec API. fs через putArchive/getArchive либо через exec cat/tee. list через listContainers + label filter. Интеграция с `audit-log.ts`.
-- В следующих итерациях: cleanup-worker, security-tests (9), интеграция в callers (adorable-vm → SandboxProvider), удаление freestyle-sandboxes.
+## Следующее (iter 6)
+- `lib/sandbox/cleanup-worker.ts` — периодический sweeper: listContainers с нашими labels, проверка возраста (`adorable.createdAt` + `SANDBOX_MAX_LIFETIME_MIN`) + idle (tracking last exec time) → destroy + audit (reason: max_lifetime|idle). Cascade в ProxyProvider будет добавлен в Phase 4.
+- В следующих итерациях: sandbox-security.test.ts (9 docker-gated), интеграция `SandboxProvider` в `adorable-vm.ts`/`create-tools.ts`/`chat/route.ts`/`repos/route.ts`, Phase 3 (Git→Gitea).

@@ -33,7 +33,7 @@
 ## Phase 2: Замена Sandbox (Freestyle VMs → Docker)
 - [x] `adorable/lib/adapters/sandbox.ts` — интерфейс `SandboxProvider` (create / ref / destroy / list) + SandboxHandle { exec, fs.readTextFile/readFile/writeTextFile/exists, devServer.getLogs, domains, ports, status }. env `SANDBOX_PROVIDER` переключает docker/mock.
 - [x] `adorable/lib/adapters/sandbox-mock.ts` + `tests/sandbox-contract.test.ts` (16 тестов, зелёные): lifecycle, fs roundtrip, ref errors, domains/ports, custom exec handlers.
-- [ ] `adorable/lib/adapters/sandbox-docker.ts` — реализация через dockerode. ВСЕ 15 ограничений из чек-листа в PROMPT.md. (плейсхолдер создан, throws.)
+- [x] `adorable/lib/adapters/sandbox-docker.ts` — полная реализация через dockerode: create (+ workspace volume, все 15 ограничений), ref, destroy (stop+remove+volume), list (label filter). exec через Docker Exec API с демуксом stdout/stderr. fs через putArchive/getArchive (tar-stream). Интеграция с audit-log. Чистый билдер конфига в `sandbox-docker-config.ts` + 21 unit-тест `tests/sandbox-docker-config.test.ts`, все 15 ограничений проверены явно.
 - [ ] `adorable/lib/sandbox/cleanup-worker.ts` — TTL + idle detection + cascade через ProxyProvider.
 - [x] `adorable/lib/sandbox/audit-log.ts` — structured JSON-lines log, env-configurable, serialized parallel writes, 10 тестов `tests/audit-log.test.ts`.
 - [ ] `adorable/tests/sandbox-security.test.ts` — 9 security-тестов.

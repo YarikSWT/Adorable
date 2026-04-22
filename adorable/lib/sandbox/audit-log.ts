@@ -73,8 +73,21 @@ export type AuditEvent =
       hostname: string;
     });
 
+// Distributive helper: turns a union of object types into a union where
+// each variant has an optional `ts`, and `ts` is omitted from the required
+// shape. Non-distributive `Omit<AuditEvent, "ts">` would collapse the
+// discriminated union and we'd lose the ability to pass variant-specific
+// fields (e.g. `path` on sandbox_fs_write).
+type DistributiveOmit<T, K extends keyof T> = T extends unknown
+  ? Omit<T, K>
+  : never;
+
+export type AuditEventInput = DistributiveOmit<AuditEvent, "ts"> & {
+  ts?: string;
+};
+
 export interface AuditLogger {
-  log: (event: Omit<AuditEvent, "ts"> & { ts?: string }) => Promise<void>;
+  log: (event: AuditEventInput) => Promise<void>;
   /** Path the logger is writing to, or null if disabled. */
   readonly path: string | null;
 }
@@ -120,10 +133,10 @@ export const createAuditLogger = (
 
   const log: AuditLogger["log"] = async (event) => {
     if (!path) return; // disabled
-    const withTs: AuditEvent = {
-      ...(event as AuditEvent),
+    const withTs = {
+      ...event,
       ts: event.ts ?? new Date().toISOString(),
-    };
+    } as AuditEvent;
     const line = `${JSON.stringify(withTs)}\n`;
 
     const write = (async () => {
