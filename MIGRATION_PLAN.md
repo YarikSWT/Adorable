@@ -31,9 +31,9 @@
 - [x] README: раздел про `LLM_PROVIDER` и ключи (в текущем README уже есть `.env` с ключами — но отдельный раздел про провайдеры добавить в Phase 6).
 
 ## Phase 2: Замена Sandbox (Freestyle VMs → Docker)
-- [ ] `adorable/lib/adapters/sandbox.ts` — интерфейс `SandboxProvider` (create / destroy / exec / readFile / writeFile / listRepos / status).
-- [ ] `adorable/lib/adapters/sandbox-mock.ts` + контрактные тесты.
-- [ ] `adorable/lib/adapters/sandbox-docker.ts` — реализация через dockerode. ВСЕ 15 ограничений из чек-листа в PROMPT.md.
+- [x] `adorable/lib/adapters/sandbox.ts` — интерфейс `SandboxProvider` (create / ref / destroy / list) + SandboxHandle { exec, fs.readTextFile/readFile/writeTextFile/exists, devServer.getLogs, domains, ports, status }. env `SANDBOX_PROVIDER` переключает docker/mock.
+- [x] `adorable/lib/adapters/sandbox-mock.ts` + `tests/sandbox-contract.test.ts` (16 тестов, зелёные): lifecycle, fs roundtrip, ref errors, domains/ports, custom exec handlers.
+- [ ] `adorable/lib/adapters/sandbox-docker.ts` — реализация через dockerode. ВСЕ 15 ограничений из чек-листа в PROMPT.md. (плейсхолдер создан, throws.)
 - [ ] `adorable/lib/sandbox/cleanup-worker.ts` — TTL + idle detection + cascade через ProxyProvider.
 - [ ] `adorable/lib/sandbox/audit-log.ts` — structured JSON log.
 - [ ] `adorable/tests/sandbox-security.test.ts` — 9 security-тестов.

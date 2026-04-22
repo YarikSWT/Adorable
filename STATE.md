@@ -1,44 +1,40 @@
 # Текущее состояние
 
-**Итерация:** 2 завершена, идёт 3
+**Итерация:** 3 завершена, идёт 4
 **Дата:** 2026-04-22
 
 ## Окружение
-- Node: v22.22.2 (nvm)
+- Node: v22.22.2 (nvm).
 - Docker: 29.4.1, daemon работает.
-- npm (+ workspaces), pnpm отсутствует, скрипты используют npm.
-- `.env` заполнен ключевыми секретами: `Z_AI_API_KEY`, `BETTER_AUTH_SECRET`, `GITEA_ADMIN_PASSWORD`, `GITEA_TOKEN`.
+- npm workspaces.
+- `.env` с ключами Z_AI, BETTER_AUTH_SECRET, GITEA_* готовы.
 
-## Инфра (Phase 1) — работает
-- `adorable-postgres-app`, `adorable-postgres-gitea`, `adorable-gitea` (1.22.3), `adorable-caddy` (2.8-alpine).
-- Gitea: `http://127.0.0.1:3001/`. Admin user `adorable` создан. API токен в `.env`.
-- Caddy Admin API: `http://127.0.0.1:2019/`. HTTP: `127.0.0.1:8080`. HTTPS: `127.0.0.1:8443`.
-- Сеть `adorable_infra` — инфра. Сеть `adorable_sandboxes` — куда dockerode подключит sandbox'ы; Caddy тоже там.
+## Инфра (Phase 1) — готово
+- 4 сервиса: `adorable-postgres-app`, `adorable-postgres-gitea`, `adorable-gitea` (1.22.3), `adorable-caddy` (2.8-alpine).
+- Gitea UI/API: `http://127.0.0.1:3001`. Caddy Admin API: `http://127.0.0.1:2019`. HTTP:8080, HTTPS:8443.
+- Сети: `adorable_infra` (инфра), `adorable_sandboxes` (sandbox'ы + Caddy).
 
-## LLM (Phase 1.5) — завершено
-- Адаптер `adorable/lib/adapters/llm.ts` — 5 провайдеров: `zai`, `openrouter`, `anthropic`, `openai`, `mock`. Переключение через `LLM_PROVIDER` env.
-- `adorable/lib/adapters/llm-mock.ts` использует `MockLanguageModelV3` из `ai/test`. Stream shape — structural literal + `as never` cast (workspace конфликт `@ai-sdk/provider@2` vs V3-типов в `ai@6`).
-- `adorable/lib/llm-provider.ts` — тонкая обёртка над `createLLM()`. Бизнес-код импортирует только адаптер.
-- `adorable/tests/llm-adapter.test.ts` — 17 тестов, все зелёные.
-- `npm run build` — зелёный. `npm run test` — 17/17.
-- Playwright verification Phase 1.5 отложена до Phase 2 (для полного чат-флоу нужен sandbox).
+## LLM (Phase 1.5) — готово
+- 5 провайдеров в `lib/adapters/llm.ts`. Тесты 17/17.
+
+## Sandbox (Phase 2) — в работе
+- **Готово (iter 3):** `lib/adapters/sandbox.ts` интерфейс, `sandbox-mock.ts` in-memory реализация, `sandbox-docker.ts` заглушка, `tests/sandbox-contract.test.ts` 16 тестов (все зелёные).
+- **Следующее (iter 4):** начать реализацию `sandbox-docker.ts` — dockerode, 15 ограничений, аудит-лог. Параллельно создать `lib/sandbox/audit-log.ts` (structured JSON lines).
+- **После:** cleanup-worker.ts (TTL + idle), sandbox-security.test.ts (9 тестов), замена в adorable-vm.ts / create-tools.ts / chat/route.ts / repos/route.ts.
+
+## Суммарные тесты
+- `adorable/tests/llm-adapter.test.ts` — 17 тестов.
+- `adorable/tests/sandbox-contract.test.ts` — 16 тестов.
+- **Всего:** 33/33 зелёные.
+- `npm run build` — зелёный.
 
 ## Что сделано
-- Phase 0: инвентаризация + state-файлы.
-- Phase 1: compose, Dockerfile, скрипты, Caddy init config, README переписан.
-- Phase 1.5: LLM-адаптер (zai/openrouter/anthropic/openai/mock), тесты, рефактор llm-provider.ts, фикс build.
-
-## Что следующее (Phase 2)
-Замена Freestyle VMs на dockerode-sandbox.
-- `adorable/lib/adapters/sandbox.ts` — интерфейс `SandboxProvider` с методами create / destroy / exec / fs.read / fs.write / getLogs / status.
-- `adorable/lib/adapters/sandbox-mock.ts` + контрактные тесты.
-- `adorable/lib/adapters/sandbox-docker.ts` — ВСЕ 15 ограничений: NanoCpus, Memory, MemorySwap, PidsLimit, ReadonlyRootfs, SecurityOpt no-new-privileges, CapDrop ALL, User non-root, Ulimits, StorageOpt, BlkioDevice, кастомная сеть `adorable_sandboxes`, AutoRemove, Tmpfs, AuditLog.
-- Начать с интерфейса + мока + контрактных тестов — потом docker-реализация.
-- `adorable/lib/sandbox/cleanup-worker.ts` — TTL/idle.
-- `adorable/lib/sandbox/audit-log.ts` — JSON lines в `SANDBOX_AUDIT_LOG`.
-- `adorable/tests/sandbox-security.test.ts` — 9 security-тестов (docker inspect + fork-bomb + oom + etc).
+- Phase 0: инвентаризация.
+- Phase 1: compose + Caddy + Gitea + scripts + README.
+- Phase 1.5: LLM-адаптер (5 провайдеров).
+- Phase 2 (часть 1 из ~5): SandboxProvider interface + mock + contract tests.
 
 ## Открытые риски/заметки
-- Из-за @ai-sdk/anthropic@^2 в workspace тянется @ai-sdk/provider@2, тогда как ai@6 использует v3. `llm-mock.ts` обходит это через `as never` cast — runtime-валидация в `MockLanguageModelV3` работает, TS-компиляция проходит.
-- Tool use / function calling с GLM-5.1 через OpenAI-совместимый endpoint — проверим на Phase 2 e2e.
-- В dev для preview.localhost нужен wildcard DNS (dnsmasq) или `/etc/hosts` — задокументировано в README Phase 4.
+- `sandbox-docker.ts` на данный момент бросает — любой caller в dev c `SANDBOX_PROVIDER=docker` упадёт. Это ОК: существующие callers (adorable-vm, create-tools, chat/route) всё ещё используют Freestyle, замена на адаптер — отдельная задача Phase 2.
+- StorageOpt.size требует overlay2 + xfs/btrfs — проверить на целевой хост-ноде, иначе fallback + `[!]` в плане.
+- Для security-тестов нужно реальное окружение Docker в CI; на CI возможно потребуется Docker-in-Docker либо отдельный self-hosted runner.

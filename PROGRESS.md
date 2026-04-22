@@ -1,24 +1,14 @@
 # Прогресс
 
 ## Сделано
-- **Итерация 1 (2026-04-21):** Phase 0 инвентаризация + Phase 1 инфраструктура.
-  - Phase 0: FREESTYLE_INVENTORY.md, ANTHROPIC_INVENTORY.md, STATE.md, PROGRESS.md, MIGRATION_PLAN.md, decisions.md (17 ADR), VERIFICATION_LOG.md, BLOCKERS.md, SECURITY_BLOCKERS.md.
-  - Phase 1: `docker-compose.yml` (4 сервиса + 2 сети), `docker-compose.prod.yml` (билдер + проброс docker.sock), Caddy init JSON, Dockerfile, scripts/dev-infra.sh, scripts/init-gitea.sh, .env.example, обновлённый README, package.json с dev:infra:* скриптами.
-  - Verification Phase 1: compose up → все healthy, Caddy Admin API отвечает, Gitea API/UI работают, init-gitea идемпотентный.
-- **Итерация 2 (2026-04-22):** Phase 1.5 LLM-адаптер.
-  - `adorable/lib/adapters/llm.ts` с 5 провайдерами (zai / openrouter / anthropic / openai / mock). Переключение через `LLM_PROVIDER` env.
-  - `adorable/lib/adapters/llm-mock.ts` через `ai/test` MockLanguageModelV3.
-  - `adorable/tests/llm-adapter.test.ts` — 17 тестов, зелёные.
-  - Рефактор `adorable/lib/llm-provider.ts` — тонкая обёртка над `createLLM()`.
-  - Исправлена TS-ошибка сборки (`LanguageModelV3GenerateResult` не экспортируется из `@ai-sdk/provider@2` в workspace из-за @ai-sdk/anthropic — обошли через structural literal + `as never`).
-  - `npm run build` зелёный. `npm run test` 17/17.
+- **Итерация 1 (2026-04-21):** Phase 0 инвентаризация + Phase 1 инфра. FREESTYLE_INVENTORY.md, ANTHROPIC_INVENTORY.md, STATE.md, MIGRATION_PLAN.md, decisions.md (17 ADR). docker-compose.yml (4 сервиса + 2 сети), docker-compose.prod.yml, Dockerfile, scripts/dev-infra.sh, scripts/init-gitea.sh, Caddy init config, README переписан.
+- **Итерация 2 (2026-04-22):** Phase 1.5 LLM-адаптер. `lib/adapters/llm.ts` + `llm-mock.ts` + `tests/llm-adapter.test.ts` (17 тестов). Рефактор `lib/llm-provider.ts` → тонкая обёртка над `createLLM()`. Бизнес-код без прямых `@ai-sdk/anthropic`. Build зелёный.
+- **Итерация 3 (2026-04-22):** Phase 2 интерфейс sandbox + mock + контрактные тесты. `lib/adapters/sandbox.ts` (SandboxProvider: create/ref/destroy/list; SandboxHandle: exec/fs/devServer/domains/ports/status). `sandbox-mock.ts` (in-memory FS, scripted exec, seedFiles/setExecHandler/inspect helpers для тестов). `sandbox-docker.ts` stub. `tests/sandbox-contract.test.ts` — 16 тестов. 33/33 green. Build зелёный.
 
 ## В работе
-Phase 2: Sandbox (Freestyle VMs → Docker + dockerode).
+Phase 2: Sandbox Docker-реализация.
 
-## Следующее (iter 3)
-- Создать интерфейс `adorable/lib/adapters/sandbox.ts` (SandboxProvider: create / destroy / exec / fs.read / fs.write / getLogs / status).
-- Создать `adorable/lib/adapters/sandbox-mock.ts` с in-memory реализацией.
-- Написать `adorable/tests/sandbox-contract.test.ts` — контрактные тесты (mock).
-- Держать контракт максимально близко к `freestyle.vms.ref({...}).exec / fs / devServer` чтобы минимально менять callers.
-- В следующей итерации — реализация docker-provider + security tests.
+## Следующее (iter 4)
+- `lib/sandbox/audit-log.ts` — structured JSON lines в `SANDBOX_AUDIT_LOG`.
+- Начало `lib/adapters/sandbox-docker.ts` — базовый create/destroy через dockerode со всеми 15 ограничениями.
+- В следующих итерациях: cleanup-worker, security-tests, интеграция в callers, удаление freestyle-sandboxes.
