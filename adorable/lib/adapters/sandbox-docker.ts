@@ -153,16 +153,9 @@ export const createDockerSandboxProvider = (
 
   const envSource = process.env as unknown as SandboxLimitsEnv;
 
-  const ensureVolume = async (name: string): Promise<void> => {
-    try {
-      await docker.getVolume(name).inspect();
-    } catch {
-      await docker.createVolume({
-        Name: name,
-        Labels: { "adorable.sandbox": "true" },
-      });
-    }
-  };
+  // Phase 2 uses a tmpfs-backed /workspace (see sandbox-docker-config.ts).
+  // No persistent volume is created; sandboxes clone their Gitea repo on
+  // start and push changes back. Sticky volumes are a v2 enhancement.
 
   const buildHandleFromInspect = async (
     sandboxId: string,
@@ -304,8 +297,7 @@ export const createDockerSandboxProvider = (
     const sandboxId =
       opts.sandboxId ?? `adorable-sbx-${opts.repoId}-${Date.now().toString(36)}`;
     const workdir = opts.workdir ?? "/workspace";
-    const volumeName = workspaceVolumeName(sandboxId);
-    await ensureVolume(volumeName);
+    const volumeName = workspaceVolumeName(sandboxId); // reserved, unused in tmpfs mode
 
     // Default command keeps container alive so that `exec` works.
     const cmd = ["sleep", "infinity"];
@@ -379,11 +371,8 @@ export const createDockerSandboxProvider = (
       await container.stop({ t: 5 }).catch(() => undefined);
       await container.remove({ force: true, v: true }).catch(() => undefined);
     } finally {
-      // Remove workspace volume only if it was ours (labelled).
-      const vol = docker.getVolume(workspaceVolumeName(sandboxId));
-      await (vol.remove() as unknown as Promise<unknown>).catch(
-        () => undefined,
-      );
+      // No workspace volume to clean up — workdir is a tmpfs mount that
+      // disappears with the container.
       await auditLogger.log({
         event: "sandbox_destroyed",
         sandboxId,

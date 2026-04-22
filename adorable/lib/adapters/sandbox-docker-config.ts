@@ -180,12 +180,22 @@ export const buildSandboxContainerConfig = (
     // (13) AutoRemove: мы выбрали ЛОЖЬ + cleanup worker с TTL (см. ADR-012),
     // чтобы долгоживущие sandbox'ы можно было рестартить.
     AutoRemove: false,
-    // (14) Tmpfs /tmp
+    // (14) Tmpfs /tmp + writable workspace.
+    //
+    // Рабочая директория — tmpfs с явным uid/mode чтобы sandbox-user
+    // (дефолт 1000:1000) мог писать в /workspace при ReadonlyRootfs=true.
+    // Персистентность между рестартами контейнера теряется, но для
+    // sandbox-агента Adorable это приемлемо: код хранится в Gitea-репо,
+    // sandbox клонирует его при старте. "Sticky" persistence — v2.
     Tmpfs: {
       "/tmp": `rw,nosuid,nodev,size=${tmpSizeBytes},mode=1777`,
+      [opts.workdir]: `rw,nosuid,nodev,size=${Math.max(
+        storageBytes ?? 1_073_741_824,
+        104_857_600,
+      )},uid=${(opts.user ?? user).split(":")[0]},gid=${
+        (opts.user ?? user).split(":")[1] ?? (opts.user ?? user).split(":")[0]
+      },mode=0755`,
     },
-    // Workspace volume — писабельный, переживает рестарты контейнера.
-    Binds: [`${opts.workspaceVolumeName}:${opts.workdir}:rw`],
     // Restart полисия — on-failure (не unless-stopped, чтобы cleanup мог убить).
     RestartPolicy: { Name: "no" },
   };

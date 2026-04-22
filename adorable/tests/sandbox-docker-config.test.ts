@@ -147,6 +147,16 @@ describe("sandbox HostConfig (15 restrictions)", () => {
     expect(opt).toContain("mode=1777");
   });
 
+  it("14b) Tmpfs workdir is writable by non-root user", () => {
+    const wopt = hc.Tmpfs!["/workspace"];
+    expect(wopt).toBeDefined();
+    expect(wopt).toContain("rw");
+    expect(wopt).toContain("nosuid");
+    expect(wopt).toContain("uid=1000");
+    expect(wopt).toContain("gid=1000");
+    expect(wopt).toMatch(/size=\d+/);
+  });
+
   it("15) Labels include audit fields (sandbox/repoId/sandboxId/createdAt)", () => {
     expect(cc.Labels).toMatchObject({
       "adorable.sandbox": "true",
@@ -170,8 +180,12 @@ describe("sandbox HostConfig (15 restrictions)", () => {
     });
   });
 
-  it("mounts workspace volume as rw bind on workdir", () => {
-    expect(hc.Binds).toEqual(["adorable-ws-sbx-test:/workspace:rw"]);
+  it("does not mount host paths — workspace is tmpfs (isolated per sandbox)", () => {
+    // We deliberately don't bind host dirs into the sandbox. Workspace is
+    // a tmpfs-backed in-memory dir so a compromised sandbox cannot reach
+    // host state even via symlink traversal.
+    expect(hc.Binds ?? []).toEqual([]);
+    expect(hc.Tmpfs?.["/workspace"]).toBeDefined();
   });
 });
 
