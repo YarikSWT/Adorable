@@ -1,6 +1,6 @@
 # Текущее состояние
 
-**Итерация:** 3 завершена, идёт 4
+**Итерация:** 4 завершена, идёт 5
 **Дата:** 2026-04-22
 
 ## Окружение
@@ -18,14 +18,16 @@
 - 5 провайдеров в `lib/adapters/llm.ts`. Тесты 17/17.
 
 ## Sandbox (Phase 2) — в работе
-- **Готово (iter 3):** `lib/adapters/sandbox.ts` интерфейс, `sandbox-mock.ts` in-memory реализация, `sandbox-docker.ts` заглушка, `tests/sandbox-contract.test.ts` 16 тестов (все зелёные).
-- **Следующее (iter 4):** начать реализацию `sandbox-docker.ts` — dockerode, 15 ограничений, аудит-лог. Параллельно создать `lib/sandbox/audit-log.ts` (structured JSON lines).
-- **После:** cleanup-worker.ts (TTL + idle), sandbox-security.test.ts (9 тестов), замена в adorable-vm.ts / create-tools.ts / chat/route.ts / repos/route.ts.
+- **Готово (iter 3):** `lib/adapters/sandbox.ts` интерфейс, `sandbox-mock.ts` in-memory реализация, `sandbox-docker.ts` заглушка, `tests/sandbox-contract.test.ts` 16 тестов.
+- **Готово (iter 4):** `lib/sandbox/audit-log.ts` — structured JSON-lines. Event types: sandbox_created, sandbox_destroyed, sandbox_exec, sandbox_fs_write, sandbox_cleanup, proxy_route_added/removed. Параллельные writes сериализуются через promise-chain. Env `SANDBOX_AUDIT_LOG`. `tests/audit-log.test.ts` — 10 тестов.
+- **Следующее (iter 5):** полная реализация `sandbox-docker.ts` через dockerode — create/destroy/exec/fs с ВСЕМИ 15 ограничениями + audit-log интеграция.
+- **После:** cleanup-worker.ts, sandbox-security.test.ts, замена в callers, удаление freestyle-sandboxes.
 
 ## Суммарные тесты
-- `adorable/tests/llm-adapter.test.ts` — 17 тестов.
-- `adorable/tests/sandbox-contract.test.ts` — 16 тестов.
-- **Всего:** 33/33 зелёные.
+- `tests/llm-adapter.test.ts` — 17 тестов.
+- `tests/sandbox-contract.test.ts` — 16 тестов.
+- `tests/audit-log.test.ts` — 10 тестов.
+- **Всего:** 43/43 зелёные.
 - `npm run build` — зелёный.
 
 ## Что сделано

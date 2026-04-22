@@ -35,7 +35,7 @@
 - [x] `adorable/lib/adapters/sandbox-mock.ts` + `tests/sandbox-contract.test.ts` (16 тестов, зелёные): lifecycle, fs roundtrip, ref errors, domains/ports, custom exec handlers.
 - [ ] `adorable/lib/adapters/sandbox-docker.ts` — реализация через dockerode. ВСЕ 15 ограничений из чек-листа в PROMPT.md. (плейсхолдер создан, throws.)
 - [ ] `adorable/lib/sandbox/cleanup-worker.ts` — TTL + idle detection + cascade через ProxyProvider.
-- [ ] `adorable/lib/sandbox/audit-log.ts` — structured JSON log.
+- [x] `adorable/lib/sandbox/audit-log.ts` — structured JSON-lines log, env-configurable, serialized parallel writes, 10 тестов `tests/audit-log.test.ts`.
 - [ ] `adorable/tests/sandbox-security.test.ts` — 9 security-тестов.
 - [ ] Замена `adorable-vm.ts`, `create-tools.ts`, `chat/route.ts`, `repos/route.ts` на использование адаптера.
 - [ ] Playwright MCP: создание проекта → `docker inspect` видит все лимиты.
