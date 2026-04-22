@@ -13,15 +13,13 @@
 - **Итерация 10 (2026-04-22):** Gitea реализация. 4/4 integration-тестов зелёные.
 - **Итерация 11 (2026-04-22):** callers мигрированы на GitProvider + identity упрощена. 93/93.
 - **Итерация 12 (2026-04-22):** ProxyProvider interface + mock + Caddy impl + 6 live integration tests.
-- **Итерация 13 (2026-04-22):** Phase 4 lifecycle + security. `lib/proxy/provider-singleton.ts` HMR-safe. `adorable-vm.ts createVmForRepo` — после `sandboxProvider.create()` вызывает `proxyProvider.addRoute()` для каждого из 3 domains (preview, devCommandTerminal, additionalTerminals). Route id = `${sandboxId}-${role}`. Proxy errors не блокируют создание sandbox (logged + continue). `ensureCleanupWorkerRunning` (в `lib/sandbox/provider-singleton.ts`) инъектит proxy.removeSandboxRoutes в cleanup-worker — TTL/idle reap теперь удаляет и Caddy routes. `tests/proxy-security.test.ts` — 3 теста: sandboxLifecycleSyncsProxy (после cleanup-worker reap proxy routes уничтожены), unrelated-sandbox-preserved, adminApiNotExposed expectation (host-bind 127.0.0.1:2019). 105/105 unit tests green. tsc --noEmit clean. Build OOM-killed из-за memory pressure (параллельные Claude instances) — не регрессия.
+- **Итерация 13 (2026-04-22):** Phase 4 lifecycle wiring + 3 security tests. 105/105.
+- **Итерация 14 (2026-04-22):** Phase 6 docs + package.json cleanup. Удалены `freestyle-sandboxes`, `@freestyle-sh/with-dev-server`, `@freestyle-sh/with-pty`, `@freestyle-sh/with-ttyd` из `adorable/package.json` + lock перегенерирован. `FORK_CHANGES.md` создан (таблица замен, новые подсистемы, отсутствующие из v2 фичи). `SECURITY.md` создан (модель угроз, 15 sandbox мер + соответствующие тесты, proxy меры, git/LLM меры, остаточные риски, процесс блокеров). README добавлены разделы: тесты (unit + 3 integration gated), prod deployment. Phase 5 помечен `[→v2]` с обоснованием. Фикс мелкого race в `tests/proxy-security.test.ts` (клок outrace createdAt). 105/105 unit tests зелёные.
 
 ## В работе
-Phase 4 closed (кроме финального Playwright e2e). Начинаем Phase 6 (чтобы расчистить package.json + подготовить документацию к e2e).
+Phase 6: CI workflow + config/deploy.yml + final Playwright e2e.
 
-## Следующее (iter 14)
-- Удалить `freestyle-sandboxes`, `@freestyle-sh/with-dev-server`, `@freestyle-sh/with-pty`, `@freestyle-sh/with-ttyd` из `adorable/package.json`.
-- Проверить что нигде в коде не осталось прямых импортов.
-- Обновить README: добавить Z_AI_API_KEY setup, self-hosted stack overview, dev/prod workflows.
-- Создать `FORK_CHANGES.md` с списком отличий от upstream.
-- `SECURITY.md` — threat model + меры (15 sandbox restrictions + proxy audit + audit log).
-- Шаблон `config/deploy.yml` (Kamal) — [→v2].
+## Следующее (iter 15)
+- `.github/workflows/test.yml` — run unit tests, build, security-gated tests.
+- `config/deploy.yml` — Kamal template для самого билдера Adorable.
+- Playwright MCP final e2e: регистрация → создание проекта → GLM промпт → sandbox preview через Caddy. `verification/screenshots/final-e2e-prod.png`.

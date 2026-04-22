@@ -1,6 +1,6 @@
 # Текущее состояние
 
-**Итерация:** 13 завершена, идёт 14
+**Итерация:** 14 завершена, идёт 15
 **Дата:** 2026-04-22
 
 ## Окружение
@@ -28,9 +28,10 @@
 - **Готово (iter 10):** Gitea REST API v1 реализация + 4 интеграционных теста.
 - **Готово (iter 11):** callers мигрированы на GitProvider + identity упрощена.
 - **Готово (iter 12):** ProxyProvider interface + mock + Caddy impl + 6 live integration-тестов.
-- **Готово (iter 13):** `lib/proxy/provider-singleton.ts` HMR-safe. Sandbox lifecycle hooks: `adorable-vm.ts` после sandbox.create → proxy.addRoute для каждого domain. `lib/sandbox/provider-singleton.ts ensureCleanupWorkerRunning` — инъектит ProxyProvider в cleanup-worker (cascade removeSandboxRoutes при TTL/idle reap). `tests/proxy-security.test.ts` — 3 теста: sandboxLifecycleSyncsProxy (через cleanup-worker + mock), unrelated-sandbox-preserved, adminApiNotExposedExpectation. 105/105 unit tests green. tsc --noEmit clean. Build OOM-killed из-за параллельных Claude сессий в 3.7G хосте — не регрессия, просто нет свободной памяти.
-- **Следующее (iter 14):** Phase 5 [→v2] либо Phase 6 начать: FORK_CHANGES.md, SECURITY.md, README обновление, удаление `freestyle-sandboxes` + `@freestyle-sh/*` из package.json. Проверить что build работает после освобождения памяти.
-- **После:** Phase 5 DeployProvider (можно [→v2] полностью), финальный e2e через Playwright MCP, CI workflow.
+- **Готово (iter 13):** Phase 4 lifecycle wiring + 3 security тестов. 105/105.
+- **Готово (iter 14):** Phase 6 docs + cleanup. Удалены `freestyle-sandboxes`, `@freestyle-sh/with-dev-server`, `@freestyle-sh/with-pty`, `@freestyle-sh/with-ttyd` из `adorable/package.json`. Создан `FORK_CHANGES.md` (diff vs upstream). Создан `SECURITY.md` (модель угроз, 15 sandbox мер, proxy меры, тесты). README обновлён (тесты, prod deployment). Phase 5 помечен `[→v2]` (Kamal deploy — нет credentials + не нужен для self-hosted MVP). Зафиксирован fix в `tests/proxy-security.test.ts` для клока. 105/105 unit tests зелёные.
+- **Следующее (iter 15):** CI workflow `.github/workflows/test.yml` + `config/deploy.yml` для самого билдера + Playwright MCP final e2e.
+- **После:** промис.
 
 ## Суммарные тесты
 - `tests/llm-adapter.test.ts` — 17 тестов.

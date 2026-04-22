@@ -29,6 +29,8 @@ describe("sandboxLifecycleSyncsProxy", () => {
 
   it("removes proxy routes when sandbox is reaped by cleanup worker", async () => {
     const h = await sandbox.create({ repoId: "r1" });
+    // Advance injected clock past createdAt so maxLifetimeMin=0 triggers.
+    clockMs = Date.now() + 1000;
     // Pre-register matching routes as adorable-vm.ts would do.
     await proxy.addRoute({
       id: `${h.sandboxId}-preview`,
@@ -65,6 +67,7 @@ describe("sandboxLifecycleSyncsProxy", () => {
   it("does not remove proxy routes for unrelated sandboxes", async () => {
     const a = await sandbox.create({ repoId: "rA" });
     const b = await sandbox.create({ repoId: "rB" });
+    clockMs = Date.now() + 1000;
     await proxy.addRoute({
       id: `${a.sandboxId}-preview`,
       hostname: "a.preview.localhost",

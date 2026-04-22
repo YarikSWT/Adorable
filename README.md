@@ -97,9 +97,30 @@ npm run prod:up
 └── VERIFICATION_LOG.md       # лог Playwright-проверок
 ```
 
+## Тесты
+
+```bash
+# unit tests (нет внешних сервисов, быстрые)
+npm test --workspace ./adorable
+
+# integration tests — на живых сервисах, gated на env
+RUN_DOCKER_TESTS=1 npx vitest run --root adorable tests/sandbox-security.test.ts
+RUN_GITEA_TESTS=1 npx vitest run --root adorable tests/git-gitea-integration.test.ts
+RUN_CADDY_TESTS=1 npx vitest run --root adorable tests/proxy-caddy-integration.test.ts
+```
+
+Security-тесты sandbox (Phase 2) обязательны для production deploy.
+
+## Production deployment
+
+MVP: `npm run prod:up` поднимает билдер + инфру в compose. Для настоящего
+прод-деплоя на VPS — Kamal template [config/deploy.yml](./config/deploy.yml)
+(в разработке, [→v2]).
+
 ## Статус миграции
 
-Активная миграция. См. [MIGRATION_PLAN.md](./MIGRATION_PLAN.md) и [PROGRESS.md](./PROGRESS.md).
+См. [MIGRATION_PLAN.md](./MIGRATION_PLAN.md), [PROGRESS.md](./PROGRESS.md),
+[FORK_CHANGES.md](./FORK_CHANGES.md).
 
 ## Оригинал
 

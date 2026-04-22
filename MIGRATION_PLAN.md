@@ -55,19 +55,19 @@
 - [x] `adorable/lib/adapters/proxy-caddy.ts` — управление через Caddy Admin API с `@id = adorable-route-<spec.id>`. PATCH /id/<@id> для idempotent replace, POST на /routes/... для нового (Caddy PUT /id на list-path делает insert, PATCH — replace). Connection: close + retry на UND_ERR_SOCKET. `tests/proxy-caddy-integration.test.ts` — 6 тестов против живого Caddy 2.8: healthCheck, add+list, idempotent PATCH, removeRoute, idempotent remove, removeSandboxRoutes — 6/6 зелёные (gated `RUN_CADDY_TESTS=1`).
 - [x] Sandbox lifecycle hooks: `adorable-vm.ts createVmForRepo` после sandbox.create → `proxy.addRoute` для каждого domain (id=`${sandboxId}-${role}`, sandboxId в audit). `lib/sandbox/provider-singleton.ts` → `ensureCleanupWorkerRunning` инъектит ProxyProvider в cleanup-worker, так что при TTL/idle destroy роуты удаляются каскадом.
 - [x] `adorable/tests/proxy-security.test.ts` + `proxy-contract.test.ts` + `proxy-caddy-integration.test.ts`. Покрытие всех 5 тестов: (1) adminApiNotExposed — CADDY_ADMIN_URL парсится, документирован host-bind=127.0.0.1. (2) addRouteIdempotent — contract + live Caddy. (3) removeRouteCleansUp — contract + live. (4) sandboxLifecycleSyncsProxy — 2 теста через cleanup-worker + mock proxy. (5) healthCheckDetectsDownstream — live Caddy (active health_checks настраиваемые, пассивный по умолчанию — 502 естественно возникает когда upstream dead).
-- [ ] Playwright MCP: AI генерирует Express-сервер → `*.preview.localhost` через Caddy отдаёт HTML.
+- [→Phase6] Playwright MCP: AI генерирует Express-сервер → `*.preview.localhost` через Caddy отдаёт HTML. Перенесено в финальный e2e Phase 6.
 
 ## Phase 5: Замена Deploy (опционально v2)
-- [ ] `adorable/lib/adapters/deploy.ts` — интерфейс `DeployProvider`.
-- [ ] `adorable/lib/adapters/deploy-kamal.ts` через `child_process.execFile`.
-- [ ] `config/deploy.yml` шаблон для пользовательских проектов.
-- [ ] Мок-тест Kamal-адаптера.
+- [→v2] `adorable/lib/adapters/deploy.ts` — интерфейс `DeployProvider`. `DEPLOY_*` credentials отсутствуют, в MVP self-hosted instance деплой не нужен: билдер уже запущен на хосте. Для пользовательского mass-deploy — отдельный продукт.
+- [→v2] `adorable/lib/adapters/deploy-kamal.ts` через `child_process.execFile`.
+- [→v2] `config/deploy.yml` шаблон для пользовательских проектов. Существующий Kamal шаблон в `config/deploy.yml` есть для самого билдера, полный шаблон для пользовательских проектов — v2.
+- [→v2] Мок-тест Kamal-адаптера.
 
 ## Phase 6: Финальная уборка
-- [ ] Удалить всё `freestyle-*` и (если не fallback) `@ai-sdk/anthropic` из `adorable/package.json`.
-- [ ] Полное обновление README.
-- [ ] `FORK_CHANGES.md` с diff vs upstream.
-- [ ] `SECURITY.md` с моделью угроз.
+- [x] Удалить `freestyle-sandboxes`, `@freestyle-sh/with-dev-server`, `@freestyle-sh/with-pty`, `@freestyle-sh/with-ttyd` из `adorable/package.json`. `@ai-sdk/anthropic` оставлен как fallback (используется только в `lib/adapters/llm.ts`).
+- [x] README обновлён: self-hosted overview, секреты, LLM provider, тесты, prod deployment.
+- [x] `FORK_CHANGES.md` с diff vs upstream.
+- [x] `SECURITY.md` с моделью угроз.
 - [ ] CI workflow GitHub Actions (tests + Playwright e2e + security tests).
 - [ ] `config/deploy.yml` для самого билдера Adorable.
 - [ ] Финальный e2e в prod-профиле + `verification/screenshots/final-e2e-prod.png`.
