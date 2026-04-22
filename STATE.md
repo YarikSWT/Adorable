@@ -1,6 +1,6 @@
 # Текущее состояние
 
-**Итерация:** 15 завершена, идёт 16 (blocked — требуется пополнение Z.ai баланса для финального промис-критерия)
+**Итерация:** 16 (sanity re-check, no code changes) — блокер тот же: Z.ai биллинг.
 **Дата:** 2026-04-22
 
 ## Окружение
@@ -30,8 +30,9 @@
 - **Готово (iter 12):** ProxyProvider interface + mock + Caddy impl + 6 live integration-тестов.
 - **Готово (iter 13):** Phase 4 lifecycle wiring + 3 security тестов. 105/105.
 - **Готово (iter 14):** Phase 6 docs + cleanup package.json.
-- **Готово (iter 15):** CI workflow `.github/workflows/test.yml` (unit + gated integration). `config/deploy.yml` Kamal-шаблон для самого билдера с accessories. Playwright MCP final e2e — infra up, dev server up через `sg docker`, browser загрузил home → ввёл prompt → POST /api/repos 200 (Gitea + Docker sandbox созданы) → навигация на project-страницу → POST /api/chat 200 → **Z.ai вернул 429 insufficient balance**. `verification/screenshots/final-e2e-prod.png` сделан. Фиксы по ходу: `/api/api-key` hasGlobalKey учитывает Z_AI_API_KEY, sandbox-docker.ts sanitизирует repoId для docker-имени. Всё кроме фактической генерации GLM работает. `BLOCKERS.md` записано.
-- **Следующее (iter 16+):** либо пополнение Z.ai аккаунта (external action, не код), либо переключение `LLM_PROVIDER=openrouter` с валидным OPENROUTER_API_KEY → повторить e2e и финализировать промис.
+- **Готово (iter 15):** CI workflow + Kamal template + final e2e attempt (блокер Z.ai биллинг). Фиксы hasGlobalKey + sandboxId sanitize.
+- **Готово (iter 16):** sanity re-check — `npm run build` прошёл (5 routes, ○/ƒ layout); `npm run test` 105/105 зелёные (+19 gated). Инфра compose всё ещё healthy. Никаких кодовых изменений не требуется до unblock биллинга.
+- **Следующее:** внешнее действие user'а (top-up Z.ai или OPENROUTER_API_KEY). После — повторить Playwright e2e и эмитить промис.
 
 ## Суммарные тесты
 - `tests/llm-adapter.test.ts` — 17 тестов.
