@@ -1,6 +1,6 @@
 # Текущее состояние
 
-**Итерация:** 5 завершена, идёт 6
+**Итерация:** 6 завершена, идёт 7
 **Дата:** 2026-04-22
 
 ## Окружение
@@ -20,17 +20,19 @@
 ## Sandbox (Phase 2) — в работе
 - **Готово (iter 3):** `lib/adapters/sandbox.ts` интерфейс, `sandbox-mock.ts` in-memory реализация, `sandbox-docker.ts` заглушка, `tests/sandbox-contract.test.ts` 16 тестов.
 - **Готово (iter 4):** `lib/sandbox/audit-log.ts` — structured JSON-lines. Event types: sandbox_created, sandbox_destroyed, sandbox_exec, sandbox_fs_write, sandbox_cleanup, proxy_route_added/removed. Serialized promise-chain. Env `SANDBOX_AUDIT_LOG`. 10 тестов.
-- **Готово (iter 5):** `lib/adapters/sandbox-docker-config.ts` — чистый билдер ContainerCreateOptions со ВСЕМИ 15 ограничениями (NanoCpus, Memory/MemorySwap, PidsLimit, ReadonlyRootfs, SecurityOpt no-new-privileges, CapDrop ALL, User 1000:1000, Ulimits nofile+core, опц. StorageOpt, опц. BlkioDevice*Bps, NetworkMode=custom, AutoRemove=false + cleanup worker, Tmpfs /tmp nosuid+nodev, labels для audit). Валидация отклоняет host/bridge network и root user. `lib/adapters/sandbox-docker.ts` — полная реализация через dockerode: create/ref/destroy/list/exec (Exec API + stdout/stderr демукс)/fs (putArchive/getArchive через tar-stream). `tests/sandbox-docker-config.test.ts` — 21 тест, явно проверяет все 15. Установлены `dockerode@^4`, `tar-stream@^3` + типы.
-- **Следующее (iter 6):** `lib/sandbox/cleanup-worker.ts` — TTL + idle detection + cascade через ProxyProvider (когда тот появится).
-- **После:** sandbox-security.test.ts (9 тестов — на реальном Docker), замена callers на SandboxProvider, удаление freestyle-sandboxes из deps.
+- **Готово (iter 5):** `sandbox-docker-config.ts` (чистый билдер, все 15), `sandbox-docker.ts` (dockerode create/ref/destroy/list/exec/fs). 21 unit-тест.
+- **Готово (iter 6):** `lib/sandbox/cleanup-worker.ts` — периодический sweeper через `provider.list()`. TTL = maxLifetimeMin (createdAt), idle = idleTimeoutMin (last touch). `touch(sandboxId)` API для регистрации активности. Каскад через `proxyProvider.removeSandboxRoutes()` опциональный (подключим в Phase 4). Singleton + `start/stop/sweepOnce`. Injectable clock для детерминированных тестов. `tests/cleanup-worker.test.ts` — 11 тестов.
+- **Следующее (iter 7):** `tests/sandbox-security.test.ts` — 9 security-тестов на реальном Docker. Gated on `RUN_DOCKER_TESTS=1`. После security: замена callers (adorable-vm.ts → SandboxProvider), удаление freestyle-sandboxes.
+- **После:** Phase 3 (Git→Gitea), Phase 4 (Caddy proxy), Phase 6 (FORK_CHANGES.md / SECURITY.md / e2e).
 
 ## Суммарные тесты
 - `tests/llm-adapter.test.ts` — 17 тестов.
 - `tests/sandbox-contract.test.ts` — 16 тестов.
 - `tests/audit-log.test.ts` — 10 тестов.
 - `tests/sandbox-docker-config.test.ts` — 21 тест.
-- **Всего:** 67/67 зелёные.
-- `npm run build` — зелёный.
+- `tests/cleanup-worker.test.ts` — 11 тестов.
+- **Всего:** 78/78 зелёные.
+- `npm run build` — зелёный (NODE_OPTIONS=--max-old-space-size=4096 из-за Next 16 Turbopack).
 
 ## Что сделано
 - Phase 0: инвентаризация.
