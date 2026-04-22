@@ -1,8 +1,8 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
-import {
-  createOpenAI,
-  type OpenAIResponsesProviderOptions,
-} from "@ai-sdk/openai";
+// Тонкая обёртка над lib/adapters/llm.ts, сохраняющая существующий публичный
+// API `streamLlmResponse` для api/chat/route.ts. Прямые импорты
+// @ai-sdk/anthropic / @ai-sdk/openai в этом модуле БОЛЬШЕ НЕ ИСПОЛЬЗУЮТСЯ —
+// всё идёт через createLLM().
+
 import {
   stepCountIs,
   streamText,
@@ -11,13 +11,7 @@ import {
   convertToModelMessages,
 } from "ai";
 
-type LlmProviderName = "openai" | "anthropic";
-
-const getProviderName = (override?: string): LlmProviderName => {
-  const value = (override ?? process.env["LLM_PROVIDER"])?.toLowerCase().trim();
-  if (value === "anthropic" || value === "claude") return "anthropic";
-  return "openai";
-};
+import { createLLM, type LlmProviderName } from "@/lib/adapters/llm";
 
 type StreamLlmResponseParams = {
   system: string;
@@ -39,36 +33,12 @@ export const streamLlmResponse = async ({
   apiKey,
   providerOverride,
 }: StreamLlmResponseParams): Promise<StreamLlmResponseResult> => {
-  const provider = getProviderName(providerOverride);
+  const llm = createLLM({ providerOverride, apiKey });
   const modelMessages = await convertToModelMessages(messages);
 
-  if (provider === "openai") {
-    const openaiProvider = apiKey ? createOpenAI({ apiKey }) : createOpenAI({});
-    const result = streamText({
-      system,
-      model: openaiProvider.responses("gpt-5.2-codex"),
-      messages: modelMessages,
-      tools,
-      providerOptions: {
-        openai: {
-          reasoningEffort: "low",
-        } satisfies OpenAIResponsesProviderOptions,
-      },
-      stopWhen: stepCountIs(100),
-    });
-
-    return {
-      result,
-      provider,
-    };
-  }
-
-  const anthropicProvider = apiKey
-    ? createAnthropic({ apiKey })
-    : createAnthropic({});
   const result = streamText({
     system,
-    model: anthropicProvider("claude-sonnet-4-20250514"),
+    model: llm.main,
     messages: modelMessages,
     tools,
     stopWhen: stepCountIs(100),
@@ -76,6 +46,6 @@ export const streamLlmResponse = async ({
 
   return {
     result,
-    provider,
+    provider: llm.name,
   };
 };

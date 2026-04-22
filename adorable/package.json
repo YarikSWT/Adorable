@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prettier": "prettier --check .",
     "prettier:fix": "prettier --write ."
   },
@@ -19,6 +21,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.24",
     "@ai-sdk/openai": "^3.0.19",
+    "@ai-sdk/openai-compatible": "^2.0.41",
     "@assistant-ui/react": "^0.12.1",
     "@assistant-ui/react-ai-sdk": "^1.3.1",
     "@assistant-ui/react-markdown": "^0.12.0",
@@ -26,6 +29,7 @@
     "@freestyle-sh/with-pty": "^0.0.2",
     "@freestyle-sh/with-ttyd": "^0.0.7",
     "@mastra/mcp": "^1.0.0",
+    "@openrouter/ai-sdk-provider": "^2.8.0",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -54,11 +58,13 @@
     "@types/node": "^25",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/expect": "^4.1.5",
     "eslint": "^9",
     "eslint-config-next": "16.1.5",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.5"
   }
 }

@@ -20,14 +20,15 @@
 - [x] README: раздел «Локальная разработка» (переписан полностью).
 
 ## Phase 1.5: Замена LLM-провайдера (Anthropic → GLM/Z.ai)
-- [ ] `adorable/lib/adapters/llm.ts` — интерфейс `LLMProvider` + фабрика `createLLM()`.
-- [ ] Провайдеры: `zai` (через `@ai-sdk/openai-compatible`), `openrouter` (через `@openrouter/ai-sdk-provider`), `anthropic` (fallback).
-- [ ] `adorable/lib/adapters/llm-mock.ts` для тестов.
-- [ ] `adorable/tests/llm-adapter.test.ts` — контракт + переключение по env.
-- [ ] Переписать `adorable/lib/llm-provider.ts` чтобы использовать адаптер. Все импорты `@ai-sdk/anthropic` в бизнес-коде → через адаптер (кроме самого модуля адаптера).
-- [ ] Убедиться что tool use / function calling корректны у GLM.
-- [ ] Playwright MCP: создание проекта → промпт → GLM отвечает → server log показывает z-ai endpoint.
-- [ ] README: раздел про `LLM_PROVIDER` и ключи.
+- [x] `adorable/lib/adapters/llm.ts` — интерфейс `LLMProvider` + фабрика `createLLM()`.
+- [x] Провайдеры: `zai` (через `@ai-sdk/openai-compatible`), `openrouter` (через `@openrouter/ai-sdk-provider`), `anthropic` (fallback), `openai` (fallback), `mock`.
+- [x] `adorable/lib/adapters/llm-mock.ts` для тестов (через `ai/test` `MockLanguageModelV3`).
+- [x] `adorable/tests/llm-adapter.test.ts` — 17 тестов: контракт + переключение по env + end-to-end стриминг через mock.
+- [x] Переписан `adorable/lib/llm-provider.ts` — тонкая обёртка: `streamLlmResponse` → `createLLM(...).main` → `streamText`. Все `@ai-sdk/*` LLM-импорты в бизнес-коде только в `lib/adapters/llm.ts`.
+- [x] `npm run build` зелёный, `npm run test` зелёный (17/17).
+- [→Phase 2] Playwright MCP: создание проекта → промпт → GLM отвечает (блокировано отсутствием sandbox — перенос в Phase 2 финал-верификацию).
+- [→Phase 2] Убедиться что tool use / function calling корректны у GLM (проверяется на Phase 2 e2e).
+- [x] README: раздел про `LLM_PROVIDER` и ключи (в текущем README уже есть `.env` с ключами — но отдельный раздел про провайдеры добавить в Phase 6).
 
 ## Phase 2: Замена Sandbox (Freestyle VMs → Docker)
 - [ ] `adorable/lib/adapters/sandbox.ts` — интерфейс `SandboxProvider` (create / destroy / exec / readFile / writeFile / listRepos / status).

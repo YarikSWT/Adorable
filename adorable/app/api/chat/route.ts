@@ -68,7 +68,11 @@ export async function POST(req: Request) {
   const userProvider = jar.get("user-api-provider")?.value;
 
   const hasGlobalKey = !!(
-    process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY
+    process.env.Z_AI_API_KEY ||
+    process.env.OPENROUTER_API_KEY ||
+    process.env.OPENAI_API_KEY ||
+    process.env.ANTHROPIC_API_KEY ||
+    (process.env.LLM_PROVIDER ?? "").toLowerCase() === "mock"
   );
 
   // If no global key and no user key, reject
