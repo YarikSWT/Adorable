@@ -1,6 +1,6 @@
 # Текущее состояние
 
-**Итерация:** 10 завершена, идёт 11
+**Итерация:** 11 завершена, идёт 12
 **Дата:** 2026-04-22
 
 ## Окружение
@@ -25,9 +25,10 @@
 - **Готово (iter 7):** все 9 security-тестов зелёные (workspace tmpfs).
 - **Готово (iter 8):** callers мигрированы на SandboxProvider. Singleton + touch API.
 - **Готово (iter 9, Phase 3 start):** GitProvider интерфейс + in-memory mock + placeholder gitea + 14 contract-тестов.
-- **Готово (iter 10):** `lib/adapters/git-gitea.ts` — полная реализация через Gitea REST API v1 (fetch). createRepo (+ migrate endpoint для template import), RepoRef.contents.get с base64 decode, commits.list/create (batch POST с автопробой sha для create/update), githubSync.enable → push_mirrors, deleteRepo. `tests/git-gitea-integration.test.ts` — 4 интеграционных теста против живого Gitea 1.22.3 (gated `RUN_GITEA_TESTS=1`). 4/4 зелёные. Gitea port moved from 3001 → 3011 (claudecodeui занимает 3001).
-- **Следующее (iter 11):** замена callers (repo-storage.ts, deployment-status.ts, repos/route.ts) на `getGitProvider().getRepo(repoId)` вместо `freestyle.git.repos.ref(...)`. Singleton + GitProvider ctx. Упрощение identity-session.ts (на Better Auth или простое).
-- **После:** Phase 4 (Caddy proxy), Phase 5 (Kamal — опц → v2), Phase 6 (docs + final e2e).
+- **Готово (iter 10):** Gitea REST API v1 реализация + 4 интеграционных теста.
+- **Готово (iter 11):** callers мигрированы на GitProvider. Новый `lib/git/provider-singleton.ts`. `repo-storage.ts` / `deployment-status.ts` / `repos/route.ts` / `promote/route.ts` / `create-tools.ts` — все через `getGitProvider()`. `identity-session.ts` переписан — Cookie-based identity с in-memory ACL Map<identityId, Set<repoId>>. Freestyle API calls в бизнес-коде = 0 (только комментарии + TEMPLATE_REPO URL остались).
+- **Следующее (iter 12):** Phase 4 (Caddy proxy). `lib/adapters/proxy.ts` interface + `proxy-mock.ts` + `proxy-caddy.ts` (Admin API) + lifecycle hook в sandbox create/destroy + proxy security tests.
+- **После:** Phase 5 (Kamal [→v2]), Phase 6 (SECURITY.md + FORK_CHANGES.md + README + final e2e + удаление freestyle deps).
 
 ## Суммарные тесты
 - `tests/llm-adapter.test.ts` — 17 тестов.

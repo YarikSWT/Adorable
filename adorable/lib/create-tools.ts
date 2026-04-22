@@ -4,7 +4,6 @@ import { getDomainForCommit } from "./deployment-status";
 import { addRepoDeployment, readRepoMetadata } from "./repo-storage";
 import { WORKDIR, VM_PORT } from "./vars";
 import type { SandboxHandle } from "./adapters/sandbox";
-import { freestyle } from "freestyle-sandboxes";
 
 /**
  * Handle type accepted by createTools. In production this is a
@@ -344,7 +343,7 @@ export const createTools = (vm: SandboxLike, options?: CreateToolsOptions) => {
       const gitCommand = `git -C ${shellQuote(WORKDIR)} config user.name ${shellQuote(
         "Adorable",
       )} && git -C ${shellQuote(WORKDIR)} config user.email ${shellQuote(
-        "adorable@freestyle.sh",
+        "adorable@localhost",
       )} && git -C ${shellQuote(WORKDIR)} commit -am ${shellQuote(
         message,
       )} && git -C ${shellQuote(WORKDIR)} pull --rebase && git -C ${shellQuote(
@@ -371,16 +370,9 @@ export const createTools = (vm: SandboxLike, options?: CreateToolsOptions) => {
             state: "deploying",
           });
 
-          const deployment = await freestyle.serverless.deployments.create({
-            repo: options.sourceRepoId!,
-            domains: [deploymentDomain],
-            build: true,
-          });
-
-          const deploymentId =
-            deployment && typeof deployment === "object" && "id" in deployment
-              ? String((deployment as Record<string, unknown>).id ?? "") || null
-              : null;
+          // TODO(phase-5): wire DeployProvider here. Until then, record a
+          // deploying-state stub so the UI reflects the intent.
+          const deploymentId: string | null = null;
 
           const latestMetadata = await readRepoMetadata(
             options.metadataRepoId!,

@@ -10,14 +10,15 @@
 - **Итерация 7 (2026-04-22):** 9 security-тестов зелёные. Workspace переведён на tmpfs.
 - **Итерация 8 (2026-04-22):** SandboxProvider singleton + callers migration. 79/79.
 - **Итерация 9 (2026-04-22):** Phase 3 kickoff. GitProvider + mock + 14 contract tests. 93/93.
-- **Итерация 10 (2026-04-22):** Gitea реализация. `lib/adapters/git-gitea.ts` через Gitea REST API v1 (плоский fetch-клиент, без дополнительных зависимостей). createRepo: POST /user/repos (auto_init) или POST /repos/migrate (если import URL); RepoRef.branches.getDefaultBranch: GET /repos/{owner}/{repo}; contents.get: GET /repos/{owner}/{repo}/contents/{path}?ref=... (base64 decode); commits.list: GET /repos/{owner}/{repo}/commits?limit=N (поддержка asc/desc локально); commits.create: batch POST /repos/{owner}/{repo}/contents с автоматическим пробингом existing sha для решения create/update; githubSync.enable: POST /repos/{owner}/{repo}/push_mirrors, disable: DELETE по mirror. repoId = "{owner}/{repo}" (full_name). `tests/git-gitea-integration.test.ts` — 4 теста (create+default branch, multi-file commit+read, update existing file, idempotent delete) все зелёные против живого Gitea 1.22.3. Gitea port перенесён на 3011 (claudecodeui занимает 3001).
+- **Итерация 10 (2026-04-22):** Gitea реализация. 4/4 integration-тестов зелёные.
+- **Итерация 11 (2026-04-22):** callers мигрированы на GitProvider + identity упрощена. Новый `lib/git/provider-singleton.ts` (HMR-safe). `repo-storage.ts` — `freestyle.git.repos.ref()` → `getGitProvider().getRepo()`. `deployment-status.ts` — commits.list через adapter; `freestyle.serverless.deployments.list` заменён стабом (Phase 5). `repos/route.ts` — `gitProvider.createRepo()` + убран freestyle serverless list. `promote/route.ts` — убран `freestyle.domains.mappings.create` (Phase 4 ProxyProvider). `create-tools.ts` — убран `freestyle.serverless.deployments.create` (Phase 5 DeployProvider). `identity-session.ts` полностью переписан: cookie-based UUID identity + in-memory ACL map. `identity.permissions.git.list/grant` остались контракт-compatible. `grep freestyle\.(git|vms|identities|serverless|domains)` в бизнес-коде = 0. Тесты 93/93 (mock) green, build green.
 
 ## В работе
-Phase 3: замена callers на GitProvider.
+Phase 4: Caddy Proxy.
 
-## Следующее (iter 11)
-- `lib/git/provider-singleton.ts` — singleton GitProvider для callers (по аналогии с sandbox singleton).
-- Замена `freestyle.git.repos.ref()` в `repo-storage.ts`, `deployment-status.ts`, `repos/route.ts`, `promote/route.ts` на `(await getGitProvider()).getRepo(repoId)`.
-- Замена `freestyle.git.repos.create()` в `repos/route.ts` на `provider.createRepo({...})`.
-- Упрощение `identity-session.ts` (пока оставим как thin wrapper вокруг cookie, уберём Freestyle identities).
-- `repo-storage.ts` — committer email `adorable@freestyle.sh` → `adorable@localhost`.
+## Следующее (iter 12)
+- `lib/adapters/proxy.ts` — ProxyProvider interface (addRoute, removeRoute, listRoutes, healthCheck).
+- `lib/adapters/proxy-mock.ts` — in-memory реализация.
+- `lib/adapters/proxy-caddy.ts` — управление через Caddy Admin API (PUT/DELETE /config/apps/http/servers/{srv}/routes/{id}).
+- Sandbox lifecycle: onCreate → addRoute, onDestroy → removeRoute (cleanup-worker cascade).
+- `tests/proxy-security.test.ts` + `tests/proxy-integration.test.ts` (5 тестов: admin-not-exposed, idempotent POST, removeRoute cleanup, lifecycle sync, health check).

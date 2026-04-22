@@ -1,5 +1,5 @@
 import { type UIMessage } from "ai";
-import { freestyle } from "freestyle-sandboxes";
+import { getGitProvider } from "@/lib/git/provider-singleton";
 
 export const ADORABLE_METADATA_PATH = "metadata.json";
 export const ADORABLE_CONVERSATIONS_DIR = "conversations";
@@ -51,16 +51,13 @@ type StoredRepoMetadata = {
   productionDeploymentId: string | null;
 };
 
-const decodeBase64 = (value: string) => {
-  return Buffer.from(value, "base64").toString("utf8");
-};
-
 const encodeJson = (value: unknown) => {
   return JSON.stringify(value, null, 2);
 };
 
 const getDefaultBranch = async (repoId: string) => {
-  const repo = freestyle.git.repos.ref({ repoId });
+  const provider = await getGitProvider();
+  const repo = provider.getRepo(repoId);
   const { defaultBranch } = await repo.branches.getDefaultBranch();
   return defaultBranch;
 };
@@ -69,13 +66,15 @@ const readJsonFile = async <T>(
   repoId: string,
   path: string,
 ): Promise<T | null> => {
-  const repo = freestyle.git.repos.ref({ repoId });
+  const provider = await getGitProvider();
+  const repo = provider.getRepo(repoId);
   const rev = await getDefaultBranch(repoId);
 
   try {
     const entry = await repo.contents.get({ path, rev });
     if (entry.type !== "file") return null;
-    return JSON.parse(decodeBase64(entry.content)) as T;
+    // GitProvider already decodes to utf-8 in `content`.
+    return JSON.parse(entry.content) as T;
   } catch {
     return null;
   }
@@ -86,7 +85,8 @@ const writeCommit = async (
   message: string,
   files: Array<{ path: string; content: string }>,
 ) => {
-  const repo = freestyle.git.repos.ref({ repoId });
+  const provider = await getGitProvider();
+  const repo = provider.getRepo(repoId);
   const branch = await getDefaultBranch(repoId);
 
   await repo.commits.create({
@@ -95,7 +95,7 @@ const writeCommit = async (
     files,
     author: {
       name: "Adorable",
-      email: "adorable@freestyle.sh",
+      email: "adorable@localhost",
     },
   });
 };

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { freestyle } from "freestyle-sandboxes";
 import { getOrCreateIdentitySession } from "@/lib/identity-session";
 import {
   promoteRepoDeploymentToProduction,
@@ -52,11 +51,9 @@ export async function POST(
     );
   }
 
-  await freestyle.domains.mappings.create({
-    domain: metadata.productionDomain,
-    deploymentId,
-  });
-
+  // TODO(phase-4): wire ProxyProvider.addRoute to point
+  // `metadata.productionDomain` at the deployment's serving upstream.
+  // Until then, promote just records the mapping in repo metadata.
   const nextMetadata = await promoteRepoDeploymentToProduction(
     repoId,
     metadata,

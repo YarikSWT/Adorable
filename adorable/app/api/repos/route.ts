@@ -1,9 +1,9 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
-import { freestyle } from "freestyle-sandboxes";
 import { TEMPLATE_REPO } from "@/lib/vars";
 import { createVmForRepo } from "@/lib/adorable-vm";
 import { getOrCreateIdentitySession } from "@/lib/identity-session";
+import { getGitProvider } from "@/lib/git/provider-singleton";
 import {
   ADORABLE_WRAPPER_REPO_PREFIX,
   type RepoMetadata,
@@ -90,15 +90,10 @@ export async function GET() {
     (repo.name ?? "").startsWith(ADORABLE_WRAPPER_REPO_PREFIX),
   );
 
-  let deploymentEntries: DeploymentEntry[] = [];
-  try {
-    const { entries } = await freestyle.serverless.deployments.list({
-      limit: 500,
-    });
-    deploymentEntries = entries as DeploymentEntry[];
-  } catch {
-    deploymentEntries = [];
-  }
+  // TODO(phase-5): list deployments via DeployProvider. For now leave
+  // empty — the reconciler treats missing matches as "idle"/"deploying"
+  // as appropriate.
+  const deploymentEntries: DeploymentEntry[] = [];
 
   const items = await Promise.all(
     wrapperRepositories.map((repo) => toRepoResponse(repo, deploymentEntries)),
@@ -136,19 +131,21 @@ export async function POST(req: Request) {
     githubRepoName = undefined;
   }
 
+  const gitProvider = await getGitProvider();
+
   // Create repo with GitHub Sync or from template
   let sourceRepoId: string;
   if (githubRepoName) {
-    const { repo, repoId: createdRepoId } = await freestyle.git.repos.create(
+    const { repo, repoId: createdRepoId } = await gitProvider.createRepo(
       requestedName ? { name: requestedName } : {},
     );
     sourceRepoId = createdRepoId;
 
-    // Enable GitHub Sync
+    // Enable GitHub Sync (push-mirror in Gitea).
     await repo.githubSync.enable({ githubRepoName });
   } else {
-    // Create from template
-    const created = await freestyle.git.repos.create({
+    // Create from template URL (handled via Gitea's migrate endpoint).
+    const created = await gitProvider.createRepo({
       ...(requestedName ? { name: requestedName } : {}),
       import: {
         commitMessage: "Initial commit",
@@ -162,7 +159,7 @@ export async function POST(req: Request) {
   const inferredName =
     requestedName ?? githubRepoName?.split("/").pop()?.trim() ?? "Project";
   const wrapperRepoName = `${ADORABLE_WRAPPER_REPO_PREFIX}${inferredName}`;
-  const wrapperCreated = await freestyle.git.repos.create({
+  const wrapperCreated = await gitProvider.createRepo({
     name: wrapperRepoName,
   });
   const wrapperRepoId = wrapperCreated.repoId;

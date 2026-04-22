@@ -1,6 +1,24 @@
-import { freestyle } from "freestyle-sandboxes";
+import { getGitProvider } from "@/lib/git/provider-singleton";
 
-export const DEPLOYMENT_DOMAIN_SUFFIX = "adorable.style.dev";
+export const DEPLOYMENT_DOMAIN_SUFFIX =
+  process.env["DEPLOYMENT_DOMAIN_SUFFIX"] ?? "deploy.localhost";
+
+/**
+ * Phase 5 (DeployProvider) will surface live deployment state. Until then,
+ * `serverless.deployments.list()` returns an empty set, so `state` reflects
+ * only the agent-running flag plus commit presence.
+ */
+type DeploymentEntryStub = {
+  deploymentId: string | null;
+  state: "building" | "deployed" | "failed";
+  domains: string[];
+};
+const listDeployments = async (): Promise<{ entries: DeploymentEntryStub[] }> => {
+  // TODO(phase-5): wire DeployProvider and return live state. For now the
+  // UI gracefully handles "no entries" — commits without matching
+  // deployments stay in "deploying" / "idle" depending on isAgentRunning.
+  return { entries: [] };
+};
 
 export type DeploymentUiStatus = {
   state: "idle" | "deploying" | "live" | "failed";
@@ -26,7 +44,8 @@ const isBootstrapCommit = (message: string | undefined) =>
   (message ?? "").trim().toLowerCase() === "initial commit";
 
 export const getLatestCommitSha = async (repoId: string) => {
-  const repo = freestyle.git.repos.ref({ repoId });
+  const provider = await getGitProvider();
+  const repo = provider.getRepo(repoId);
   const commits = await repo.commits.list({ limit: 50, order: "desc" });
   const latestUserCommit = commits.commits.find(
     (commit) => !isBootstrapCommit(commit.message),
@@ -58,9 +77,7 @@ export const getDeploymentStatusForLatestCommit = async (
   }
 
   const domain = getDomainForCommit(commitSha);
-  const { entries } = await freestyle.serverless.deployments.list({
-    limit: 200,
-  });
+  const { entries } = await listDeployments();
 
   const match = entries.find((entry) => entry.domains.includes(domain));
 
@@ -98,14 +115,13 @@ export const getDeploymentTimelineFromCommits = async (
   repoId: string,
   limit = 12,
 ): Promise<DeploymentTimelineEntry[]> => {
-  const repo = freestyle.git.repos.ref({ repoId });
+  const provider = await getGitProvider();
+  const repo = provider.getRepo(repoId);
   const commits = await repo.commits.list({
     limit: 50,
     order: "desc",
   });
-  const { entries } = await freestyle.serverless.deployments.list({
-    limit: 500,
-  });
+  const { entries } = await listDeployments();
 
   const userCommits = commits.commits
     .filter((commit) => !isBootstrapCommit(commit.message))

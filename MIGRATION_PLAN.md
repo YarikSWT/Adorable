@@ -45,9 +45,9 @@
 - [x] `adorable/lib/adapters/git.ts` — интерфейс `GitProvider` (createRepo + import, getRepo, listRepos, deleteRepo; RepoRef: branches.getDefaultBranch, contents.get, commits.list/create, githubSync.enable/disable). Env `GIT_PROVIDER` переключает gitea/mock.
 - [x] `adorable/lib/adapters/git-mock.ts` + `tests/git-contract.test.ts` — 14 тестов (lifecycle, import bootstrap, commits ordering, base64 content, githubSync, listRepos, idempotent delete).
 - [x] `adorable/lib/adapters/git-gitea.ts` — через Gitea REST API v1 (fetch + GITEA_TOKEN / GITEA_BASE_URL / GITEA_ADMIN_USER). createRepo (+ migrate для import URL), getRepo, listRepos, deleteRepo; RepoRef: branches.getDefaultBranch, contents.get (base64 decoded), commits.list, commits.create (batch через POST /contents, create/update по sha probe), githubSync.enable/disable (push_mirrors). `tests/git-gitea-integration.test.ts` — 4 интеграционных теста против живого Gitea (gated `RUN_GITEA_TESTS=1`). Зелёные. Переключили GITEA_HOST_PORT на 3011 чтобы не конфликтовать с claudecodeui.
-- [ ] Замена всех freestyle.git.* вызовов (`repo-storage.ts`, `deployment-status.ts`, `repos/route.ts`, `identity-session.ts`).
-- [ ] Упрощение identity-session.ts — Gitea auth через server-side token + per-user cookie identity (без Freestyle identity).
-- [ ] Playwright MCP: создание проекта → репо в Gitea UI видно.
+- [x] Замена всех freestyle.git.* вызовов через GitProvider singleton: `repo-storage.ts` (getDefaultBranch/readJsonFile/writeCommit), `deployment-status.ts` (getLatestCommitSha + timeline), `repos/route.ts` (createRepo + listDeployments stubbed), `promote/route.ts` (убран freestyle.domains.mappings — задача Phase 4), `create-tools.ts` (убран freestyle.serverless.deployments — задача Phase 5).
+- [x] Упрощение `identity-session.ts` — убран Freestyle identities. Cookie-based identity (uuid в httpOnly cookie) + in-memory ACL Map<identityId, Set<repoId>>. Контракт совместим: `identity.permissions.git.list/grant`. На prod заменим на Better Auth (ADR-015).
+- [→Phase6 e2e] Playwright MCP: создание проекта → репо в Gitea UI видно. Вместе с финальным e2e.
 
 ## Phase 4: Preview URLs через Caddy
 - [ ] `adorable/lib/adapters/proxy.ts` — интерфейс `ProxyProvider` (addRoute, removeRoute, listRoutes, healthCheck).
