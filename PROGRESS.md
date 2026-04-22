@@ -9,13 +9,15 @@
 - **Итерация 6 (2026-04-22):** Phase 2 cleanup-worker. `lib/sandbox/cleanup-worker.ts` — sweeper через `provider.list()`: TTL (maxLifetimeMin, createdAt) + idle (idleTimeoutMin, через `touch(sandboxId)` API). Optional `proxyProvider.removeSandboxRoutes()` cascade, swallow proxy errors. Singleton + start/stop/sweepOnce. Injectable clock. `tests/cleanup-worker.test.ts` — 11 тестов. 78/78 green.
 - **Итерация 7 (2026-04-22):** 9 security-тестов зелёные. Workspace переведён на tmpfs.
 - **Итерация 8 (2026-04-22):** SandboxProvider singleton + callers migration. 79/79.
-- **Итерация 9 (2026-04-22):** Phase 3 (Git) kickoff. `lib/adapters/git.ts` интерфейс GitProvider (createRepo с import-URL, getRepo, listRepos, deleteRepo; RepoRef: branches.getDefaultBranch, contents.get, commits.list/create, githubSync.enable/disable). `lib/adapters/git-mock.ts` — in-memory (Map для файлов + commit log), seedFiles/inspect helpers. `lib/adapters/git-gitea.ts` placeholder. `tests/git-contract.test.ts` — 14 тестов: lifecycle, import-bootstrap, commits ordering (asc/desc/limit), base64 round-trip, non-default branch rejection, missing-file errors, githubSync state, listRepos, idempotent delete. 93/93 зелёные (14 новых), build зелёный.
+- **Итерация 9 (2026-04-22):** Phase 3 kickoff. GitProvider + mock + 14 contract tests. 93/93.
+- **Итерация 10 (2026-04-22):** Gitea реализация. `lib/adapters/git-gitea.ts` через Gitea REST API v1 (плоский fetch-клиент, без дополнительных зависимостей). createRepo: POST /user/repos (auto_init) или POST /repos/migrate (если import URL); RepoRef.branches.getDefaultBranch: GET /repos/{owner}/{repo}; contents.get: GET /repos/{owner}/{repo}/contents/{path}?ref=... (base64 decode); commits.list: GET /repos/{owner}/{repo}/commits?limit=N (поддержка asc/desc локально); commits.create: batch POST /repos/{owner}/{repo}/contents с автоматическим пробингом existing sha для решения create/update; githubSync.enable: POST /repos/{owner}/{repo}/push_mirrors, disable: DELETE по mirror. repoId = "{owner}/{repo}" (full_name). `tests/git-gitea-integration.test.ts` — 4 теста (create+default branch, multi-file commit+read, update existing file, idempotent delete) все зелёные против живого Gitea 1.22.3. Gitea port перенесён на 3011 (claudecodeui занимает 3001).
 
 ## В работе
-Phase 3: Gitea реализация + migration callers.
+Phase 3: замена callers на GitProvider.
 
-## Следующее (iter 10)
-- `lib/adapters/git-gitea.ts` — полная реализация через Gitea REST API v1. createRepo через POST /orgs/{org}/repos (с import для template). RepoRef.contents.get → GET /repos/{owner}/{repo}/contents/{path}. commits.list/create → git trees API. githubSync.enable → POST /repos/{owner}/{repo}/push_mirrors. Auth через GITEA_TOKEN из env. Опционально интеграция `gitea-js` клиента.
-- `GitProvider` singleton по аналогии с sandbox-provider-singleton.
-- Замена callers: `repo-storage.ts`, `deployment-status.ts`, `repos/route.ts` → `getGitProvider().getRepo(repoId).commits.list/create/contents.get`.
-- Упрощение `identity-session.ts` под Better Auth (уберём Freestyle identities).
+## Следующее (iter 11)
+- `lib/git/provider-singleton.ts` — singleton GitProvider для callers (по аналогии с sandbox singleton).
+- Замена `freestyle.git.repos.ref()` в `repo-storage.ts`, `deployment-status.ts`, `repos/route.ts`, `promote/route.ts` на `(await getGitProvider()).getRepo(repoId)`.
+- Замена `freestyle.git.repos.create()` в `repos/route.ts` на `provider.createRepo({...})`.
+- Упрощение `identity-session.ts` (пока оставим как thin wrapper вокруг cookie, уберём Freestyle identities).
+- `repo-storage.ts` — committer email `adorable@freestyle.sh` → `adorable@localhost`.

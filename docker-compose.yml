@@ -79,7 +79,7 @@ services:
       GITEA__log__MODE: console
       GITEA__log__LEVEL: info
     ports:
-      - "127.0.0.1:3001:3001"
+      - "127.0.0.1:${GITEA_HOST_PORT:-3001}:3001"
       - "127.0.0.1:2222:2222"
     volumes:
       - gitea_data:/data

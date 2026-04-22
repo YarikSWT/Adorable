@@ -1,6 +1,6 @@
 # Текущее состояние
 
-**Итерация:** 9 завершена, идёт 10
+**Итерация:** 10 завершена, идёт 11
 **Дата:** 2026-04-22
 
 ## Окружение
@@ -24,9 +24,10 @@
 - **Готово (iter 6):** `lib/sandbox/cleanup-worker.ts` + 11 тестов.
 - **Готово (iter 7):** все 9 security-тестов зелёные (workspace tmpfs).
 - **Готово (iter 8):** callers мигрированы на SandboxProvider. Singleton + touch API.
-- **Готово (iter 9, Phase 3 start):** `lib/adapters/git.ts` интерфейс + `lib/adapters/git-mock.ts` (in-memory FS + commit log) + `lib/adapters/git-gitea.ts` placeholder + `tests/git-contract.test.ts` (14 тестов). Контракт близок к Freestyle git API: createRepo {name?, import?}, getRepo, listRepos, deleteRepo, RepoRef{branches.getDefaultBranch, contents.get, commits.list/create, githubSync.enable/disable}.
-- **Следующее (iter 10):** `lib/adapters/git-gitea.ts` полная реализация: создание репо через Gitea admin API, пуш файлов, push-mirror для githubSync. Или сразу замена callers (repo-storage.ts, deployment-status.ts, repos/route.ts) на адаптер с mock — можно тестить до gitea-reality.
-- **После:** Phase 4 (Caddy proxy), Phase 5 (Kamal — опц), Phase 6 (SECURITY.md + FORK_CHANGES.md + final e2e), удаление freestyle deps.
+- **Готово (iter 9, Phase 3 start):** GitProvider интерфейс + in-memory mock + placeholder gitea + 14 contract-тестов.
+- **Готово (iter 10):** `lib/adapters/git-gitea.ts` — полная реализация через Gitea REST API v1 (fetch). createRepo (+ migrate endpoint для template import), RepoRef.contents.get с base64 decode, commits.list/create (batch POST с автопробой sha для create/update), githubSync.enable → push_mirrors, deleteRepo. `tests/git-gitea-integration.test.ts` — 4 интеграционных теста против живого Gitea 1.22.3 (gated `RUN_GITEA_TESTS=1`). 4/4 зелёные. Gitea port moved from 3001 → 3011 (claudecodeui занимает 3001).
+- **Следующее (iter 11):** замена callers (repo-storage.ts, deployment-status.ts, repos/route.ts) на `getGitProvider().getRepo(repoId)` вместо `freestyle.git.repos.ref(...)`. Singleton + GitProvider ctx. Упрощение identity-session.ts (на Better Auth или простое).
+- **После:** Phase 4 (Caddy proxy), Phase 5 (Kamal — опц → v2), Phase 6 (docs + final e2e).
 
 ## Суммарные тесты
 - `tests/llm-adapter.test.ts` — 17 тестов.
@@ -36,7 +37,8 @@
 - `tests/cleanup-worker.test.ts` — 11 тестов.
 - `tests/sandbox-security.test.ts` — 9 тестов (gated `RUN_DOCKER_TESTS=1`, на живом Docker).
 - `tests/git-contract.test.ts` — 14 тестов (mock).
-- **Всего:** 93/93 без Docker + 9/9 на Docker (gated).
+- `tests/git-gitea-integration.test.ts` — 4 теста (gated `RUN_GITEA_TESTS=1`, на живом Gitea).
+- **Всего:** 93/93 без внешних сервисов + 9/9 на Docker + 4/4 на Gitea (gated).
 - `npm run build` — зелёный (NODE_OPTIONS=--max-old-space-size=4096 из-за Next 16 Turbopack).
 
 ## Что сделано

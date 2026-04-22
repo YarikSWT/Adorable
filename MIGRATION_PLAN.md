@@ -44,7 +44,7 @@
 ## Phase 3: Замена Git (Freestyle Git → Gitea)
 - [x] `adorable/lib/adapters/git.ts` — интерфейс `GitProvider` (createRepo + import, getRepo, listRepos, deleteRepo; RepoRef: branches.getDefaultBranch, contents.get, commits.list/create, githubSync.enable/disable). Env `GIT_PROVIDER` переключает gitea/mock.
 - [x] `adorable/lib/adapters/git-mock.ts` + `tests/git-contract.test.ts` — 14 тестов (lifecycle, import bootstrap, commits ordering, base64 content, githubSync, listRepos, idempotent delete).
-- [ ] `adorable/lib/adapters/git-gitea.ts` — через Gitea REST API v1 (fetch + токен из env).
+- [x] `adorable/lib/adapters/git-gitea.ts` — через Gitea REST API v1 (fetch + GITEA_TOKEN / GITEA_BASE_URL / GITEA_ADMIN_USER). createRepo (+ migrate для import URL), getRepo, listRepos, deleteRepo; RepoRef: branches.getDefaultBranch, contents.get (base64 decoded), commits.list, commits.create (batch через POST /contents, create/update по sha probe), githubSync.enable/disable (push_mirrors). `tests/git-gitea-integration.test.ts` — 4 интеграционных теста против живого Gitea (gated `RUN_GITEA_TESTS=1`). Зелёные. Переключили GITEA_HOST_PORT на 3011 чтобы не конфликтовать с claudecodeui.
 - [ ] Замена всех freestyle.git.* вызовов (`repo-storage.ts`, `deployment-status.ts`, `repos/route.ts`, `identity-session.ts`).
 - [ ] Упрощение identity-session.ts — Gitea auth через server-side token + per-user cookie identity (без Freestyle identity).
 - [ ] Playwright MCP: создание проекта → репо в Gitea UI видно.
