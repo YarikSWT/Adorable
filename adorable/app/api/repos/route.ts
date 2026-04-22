@@ -179,9 +179,10 @@ export async function POST(req: Request) {
 
   const vm = await createVmForRepo(sourceRepoId);
 
-  await identity.permissions.vms.grant({
-    vmId: vm.vmId,
-  });
+  // VM identity grants were a Freestyle concept. In the self-hosted
+  // model the builder process is the sole controller of sandbox
+  // containers, so per-identity ACLs on VMs don't exist. The Git repo
+  // grant above remains (Phase 3 will migrate that to Gitea).
 
   const initialMetadata: RepoMetadata = {
     version: 2,

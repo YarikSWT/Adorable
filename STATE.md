@@ -1,6 +1,6 @@
 # Текущее состояние
 
-**Итерация:** 7 завершена, идёт 8
+**Итерация:** 8 завершена, идёт 9
 **Дата:** 2026-04-22
 
 ## Окружение
@@ -22,9 +22,10 @@
 - **Готово (iter 4):** `lib/sandbox/audit-log.ts` — structured JSON-lines. Event types: sandbox_created, sandbox_destroyed, sandbox_exec, sandbox_fs_write, sandbox_cleanup, proxy_route_added/removed. Serialized promise-chain. Env `SANDBOX_AUDIT_LOG`. 10 тестов.
 - **Готово (iter 5):** `sandbox-docker-config.ts` (чистый билдер, все 15), `sandbox-docker.ts` (dockerode create/ref/destroy/list/exec/fs). 21 unit-тест.
 - **Готово (iter 6):** `lib/sandbox/cleanup-worker.ts` + 11 тестов.
-- **Готово (iter 7):** `tests/sandbox-security.test.ts` — все 9 security-тестов зелёные на живом Docker (gated `RUN_DOCKER_TESTS=1`). Рефактор: workspace переведён с named volume на tmpfs (uid/gid в mount options) — named volume упорно сохранял root:root ownership в контейнере, несмотря на helper-бутстрап. Tmpfs решил это чище + по-прежнему полностью изолирован.
-- **Следующее (iter 8):** замена callers (adorable-vm.ts → SandboxProvider), удаление freestyle-sandboxes из deps.
-- **После:** Phase 3 (Git→Gitea), Phase 4 (Caddy proxy), Phase 6 (FORK_CHANGES.md / SECURITY.md / e2e).
+- **Готово (iter 7):** все 9 security-тестов зелёные (workspace tmpfs).
+- **Готово (iter 8):** callers мигрированы на SandboxProvider. `lib/sandbox/provider-singleton.ts` — HMR-safe singleton + `touchSandbox()` API для idle tracking. `adorable-vm.ts` полностью переписан: использует SandboxProvider, убраны импорты `@freestyle-sh/with-*`, `freestyle-sandboxes`, создаёт sandbox с domains (preview + devCommand + additionalTerminals). `chat/route.ts` — `getSandboxProvider().ref()` + `ensureCleanupWorkerRunning()` + `touchSandbox()`. `create-tools.ts` — `SandboxLike` type (structural, чтобы не ломать обратную совместимость с Vm). `repos/route.ts` — убран `identity.permissions.vms.grant()`.
+- **Следующее (iter 9):** Phase 3 (Git→Gitea) — `lib/adapters/git.ts` + mock + contract tests, затем Gitea impl + замена callers в `repo-storage.ts`, `deployment-status.ts`, `repos/route.ts`, `identity-session.ts`.
+- **После:** Phase 4 (Caddy proxy), Phase 6 (FORK_CHANGES.md / SECURITY.md / e2e), удаление `freestyle-sandboxes` + `@freestyle-sh/*`.
 
 ## Суммарные тесты
 - `tests/llm-adapter.test.ts` — 17 тестов.

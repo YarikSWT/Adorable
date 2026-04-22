@@ -1,9 +1,22 @@
 import { tool } from "ai";
-import { freestyle, Vm } from "freestyle-sandboxes";
 import { z } from "zod";
 import { getDomainForCommit } from "./deployment-status";
 import { addRepoDeployment, readRepoMetadata } from "./repo-storage";
 import { WORKDIR, VM_PORT } from "./vars";
+import type { SandboxHandle } from "./adapters/sandbox";
+import { freestyle } from "freestyle-sandboxes";
+
+/**
+ * Handle type accepted by createTools. In production this is a
+ * `SandboxHandle` from the Docker-backed SandboxProvider; the shape is
+ * structurally compatible with the legacy Freestyle `Vm` (both expose
+ * `exec`, `fs.readTextFile/writeTextFile/readFile`, `devServer.getLogs`).
+ */
+type SandboxLike = SandboxHandle | {
+  exec: SandboxHandle["exec"] | ((opts: { command: string }) => Promise<unknown>);
+  fs: SandboxHandle["fs"];
+  devServer?: SandboxHandle["devServer"];
+};
 
 type CreateToolsOptions = {
   sourceRepoId?: string;
@@ -25,7 +38,7 @@ const shellQuote = (value: string): string => {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 };
 
-export const createTools = (vm: Vm, options?: CreateToolsOptions) => {
+export const createTools = (vm: SandboxLike, options?: CreateToolsOptions) => {
   const runExecCommand = async (command: string) => {
     const execResult = await vm.exec({ command });
     if (typeof execResult === "string") {

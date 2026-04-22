@@ -7,12 +7,14 @@
 - **Итерация 4 (2026-04-22):** Phase 2 audit-log. `lib/sandbox/audit-log.ts` — append-only JSON-lines, typed events (sandbox_created/destroyed/exec/fs_write/cleanup + proxy_route_added/removed), auto mkdir, serialized parallel writes, strict/non-strict режимы, env `SANDBOX_AUDIT_LOG`, shared singleton. `tests/audit-log.test.ts` — 10 тестов, 43/43 green. Build зелёный.
 - **Итерация 5 (2026-04-22):** Phase 2 sandbox-docker. Установлены `dockerode@^4`, `tar-stream@^3`, `@types/dockerode`, `@types/tar-stream`. `lib/adapters/sandbox-docker-config.ts` — pure config builder, все 15 ограничений в HostConfig/ContainerConfig + валидация (rejects host/bridge net, root user, invalid CPU). `lib/adapters/sandbox-docker.ts` — dockerode-based SandboxProvider: ensureVolume, create (container + start + audit), ref (inspect), destroy (stop+remove+volume+audit), list (label filter), exec (Exec API + 8-byte stream демукс), fs (getArchive/putArchive через tar-stream). `tests/sandbox-docker-config.test.ts` — 21 unit-тест, покрыты все 15 ограничений явно. Fixed discriminated union in audit-log (DistributiveOmit) to preserve variant-specific fields. 67/67 green, build зелёный.
 - **Итерация 6 (2026-04-22):** Phase 2 cleanup-worker. `lib/sandbox/cleanup-worker.ts` — sweeper через `provider.list()`: TTL (maxLifetimeMin, createdAt) + idle (idleTimeoutMin, через `touch(sandboxId)` API). Optional `proxyProvider.removeSandboxRoutes()` cascade, swallow proxy errors. Singleton + start/stop/sweepOnce. Injectable clock. `tests/cleanup-worker.test.ts` — 11 тестов. 78/78 green.
-- **Итерация 7 (2026-04-22):** Phase 2 security tests. `tests/sandbox-security.test.ts` — все 9 security-тестов на живом Docker PASS: containerHasCpuLimit / MemoryLimit / CannotEscapeMemory (OOM) / CannotForkBomb (PidsLimit) / CannotEscalatePrivileges (no sudo + su denied + uid=1000) / CannotWriteOutsideVolumes (RO rootfs + tmpfs workspace rw) / CannotAccessHostDocker / NetworkIsolation / LifecycleEnforced. Переведён workspace на tmpfs (uid/gid в mount options) — named volume + helper chown упорно не давал node-user писать в /workspace в main container (root:root ownership persisted). Tmpfs — изоляция на уровне ядра, работает с первого раза. Тесты также: fork-bomb через `Cannot fork` (без ps), privilege через `id -u == 1000`. 79/79 без Docker + 9/9 на Docker. SECURITY_BLOCKERS.md пуст.
+- **Итерация 7 (2026-04-22):** 9 security-тестов зелёные. Workspace переведён на tmpfs.
+- **Итерация 8 (2026-04-22):** callers мигрированы на SandboxProvider. Новый `lib/sandbox/provider-singleton.ts` (HMR-safe, `getSandboxProvider`/`touchSandbox`/`ensureCleanupWorkerRunning`). `adorable-vm.ts` полностью переписан: SandboxProvider.create() + 3 domains (preview/devCommand/additionalTerminals), убраны `@freestyle-sh/with-*` + `freestyle-sandboxes` импорты. `chat/route.ts`: `getSandboxProvider().ref()` + cleanup worker + touch. `create-tools.ts`: `SandboxLike` structural type. `repos/route.ts`: убран `identity.permissions.vms.grant()`. Остаются Freestyle git + serverless deploy (Phase 3/5). `.env.example` + PREVIEW_PROTOCOL. 79/79 тестов зелёные, build зелёный.
 
 ## В работе
-Phase 2: замена callers + удаление freestyle-sandboxes.
+Phase 3: Git → Gitea.
 
-## Следующее (iter 8)
-- Замена `SandboxProvider` в `adorable-vm.ts`/`create-tools.ts`/`chat/route.ts`/`repos/route.ts`. Устранение импортов `freestyle-sandboxes`, `@freestyle-sh/*`.
-- Удаление `freestyle-sandboxes`, `@freestyle-sh/with-*` из deps.
-- Phase 3 начинается (Git→Gitea): lib/adapters/git.ts interface + mock + contract tests, затем gitea impl.
+## Следующее (iter 9)
+- `adorable/lib/adapters/git.ts` — интерфейс GitProvider: createRepo (+ import url), ref, contents.get, commits.list, commits.create (+ author), branches.getDefault, githubSync.enable|disable.
+- `adorable/lib/adapters/git-mock.ts` — in-memory реализация + контрактные тесты.
+- Затем `git-gitea.ts` (REST API v1 + GITEA_TOKEN из env).
+- Замена всех freestyle.git.* callers (`repo-storage.ts`, `deployment-status.ts`, `repos/route.ts`), упрощение `identity-session.ts` (Better Auth).
