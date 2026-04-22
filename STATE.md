@@ -1,6 +1,6 @@
 # Текущее состояние
 
-**Итерация:** 8 завершена, идёт 9
+**Итерация:** 9 завершена, идёт 10
 **Дата:** 2026-04-22
 
 ## Окружение
@@ -23,9 +23,10 @@
 - **Готово (iter 5):** `sandbox-docker-config.ts` (чистый билдер, все 15), `sandbox-docker.ts` (dockerode create/ref/destroy/list/exec/fs). 21 unit-тест.
 - **Готово (iter 6):** `lib/sandbox/cleanup-worker.ts` + 11 тестов.
 - **Готово (iter 7):** все 9 security-тестов зелёные (workspace tmpfs).
-- **Готово (iter 8):** callers мигрированы на SandboxProvider. `lib/sandbox/provider-singleton.ts` — HMR-safe singleton + `touchSandbox()` API для idle tracking. `adorable-vm.ts` полностью переписан: использует SandboxProvider, убраны импорты `@freestyle-sh/with-*`, `freestyle-sandboxes`, создаёт sandbox с domains (preview + devCommand + additionalTerminals). `chat/route.ts` — `getSandboxProvider().ref()` + `ensureCleanupWorkerRunning()` + `touchSandbox()`. `create-tools.ts` — `SandboxLike` type (structural, чтобы не ломать обратную совместимость с Vm). `repos/route.ts` — убран `identity.permissions.vms.grant()`.
-- **Следующее (iter 9):** Phase 3 (Git→Gitea) — `lib/adapters/git.ts` + mock + contract tests, затем Gitea impl + замена callers в `repo-storage.ts`, `deployment-status.ts`, `repos/route.ts`, `identity-session.ts`.
-- **После:** Phase 4 (Caddy proxy), Phase 6 (FORK_CHANGES.md / SECURITY.md / e2e), удаление `freestyle-sandboxes` + `@freestyle-sh/*`.
+- **Готово (iter 8):** callers мигрированы на SandboxProvider. Singleton + touch API.
+- **Готово (iter 9, Phase 3 start):** `lib/adapters/git.ts` интерфейс + `lib/adapters/git-mock.ts` (in-memory FS + commit log) + `lib/adapters/git-gitea.ts` placeholder + `tests/git-contract.test.ts` (14 тестов). Контракт близок к Freestyle git API: createRepo {name?, import?}, getRepo, listRepos, deleteRepo, RepoRef{branches.getDefaultBranch, contents.get, commits.list/create, githubSync.enable/disable}.
+- **Следующее (iter 10):** `lib/adapters/git-gitea.ts` полная реализация: создание репо через Gitea admin API, пуш файлов, push-mirror для githubSync. Или сразу замена callers (repo-storage.ts, deployment-status.ts, repos/route.ts) на адаптер с mock — можно тестить до gitea-reality.
+- **После:** Phase 4 (Caddy proxy), Phase 5 (Kamal — опц), Phase 6 (SECURITY.md + FORK_CHANGES.md + final e2e), удаление freestyle deps.
 
 ## Суммарные тесты
 - `tests/llm-adapter.test.ts` — 17 тестов.
@@ -34,7 +35,8 @@
 - `tests/sandbox-docker-config.test.ts` — 22 теста (обновлены под tmpfs).
 - `tests/cleanup-worker.test.ts` — 11 тестов.
 - `tests/sandbox-security.test.ts` — 9 тестов (gated `RUN_DOCKER_TESTS=1`, на живом Docker).
-- **Всего:** 79/79 без Docker + 9/9 на Docker (gated).
+- `tests/git-contract.test.ts` — 14 тестов (mock).
+- **Всего:** 93/93 без Docker + 9/9 на Docker (gated).
 - `npm run build` — зелёный (NODE_OPTIONS=--max-old-space-size=4096 из-за Next 16 Turbopack).
 
 ## Что сделано

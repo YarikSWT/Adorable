@@ -8,13 +8,14 @@
 - **Итерация 5 (2026-04-22):** Phase 2 sandbox-docker. Установлены `dockerode@^4`, `tar-stream@^3`, `@types/dockerode`, `@types/tar-stream`. `lib/adapters/sandbox-docker-config.ts` — pure config builder, все 15 ограничений в HostConfig/ContainerConfig + валидация (rejects host/bridge net, root user, invalid CPU). `lib/adapters/sandbox-docker.ts` — dockerode-based SandboxProvider: ensureVolume, create (container + start + audit), ref (inspect), destroy (stop+remove+volume+audit), list (label filter), exec (Exec API + 8-byte stream демукс), fs (getArchive/putArchive через tar-stream). `tests/sandbox-docker-config.test.ts` — 21 unit-тест, покрыты все 15 ограничений явно. Fixed discriminated union in audit-log (DistributiveOmit) to preserve variant-specific fields. 67/67 green, build зелёный.
 - **Итерация 6 (2026-04-22):** Phase 2 cleanup-worker. `lib/sandbox/cleanup-worker.ts` — sweeper через `provider.list()`: TTL (maxLifetimeMin, createdAt) + idle (idleTimeoutMin, через `touch(sandboxId)` API). Optional `proxyProvider.removeSandboxRoutes()` cascade, swallow proxy errors. Singleton + start/stop/sweepOnce. Injectable clock. `tests/cleanup-worker.test.ts` — 11 тестов. 78/78 green.
 - **Итерация 7 (2026-04-22):** 9 security-тестов зелёные. Workspace переведён на tmpfs.
-- **Итерация 8 (2026-04-22):** callers мигрированы на SandboxProvider. Новый `lib/sandbox/provider-singleton.ts` (HMR-safe, `getSandboxProvider`/`touchSandbox`/`ensureCleanupWorkerRunning`). `adorable-vm.ts` полностью переписан: SandboxProvider.create() + 3 domains (preview/devCommand/additionalTerminals), убраны `@freestyle-sh/with-*` + `freestyle-sandboxes` импорты. `chat/route.ts`: `getSandboxProvider().ref()` + cleanup worker + touch. `create-tools.ts`: `SandboxLike` structural type. `repos/route.ts`: убран `identity.permissions.vms.grant()`. Остаются Freestyle git + serverless deploy (Phase 3/5). `.env.example` + PREVIEW_PROTOCOL. 79/79 тестов зелёные, build зелёный.
+- **Итерация 8 (2026-04-22):** SandboxProvider singleton + callers migration. 79/79.
+- **Итерация 9 (2026-04-22):** Phase 3 (Git) kickoff. `lib/adapters/git.ts` интерфейс GitProvider (createRepo с import-URL, getRepo, listRepos, deleteRepo; RepoRef: branches.getDefaultBranch, contents.get, commits.list/create, githubSync.enable/disable). `lib/adapters/git-mock.ts` — in-memory (Map для файлов + commit log), seedFiles/inspect helpers. `lib/adapters/git-gitea.ts` placeholder. `tests/git-contract.test.ts` — 14 тестов: lifecycle, import-bootstrap, commits ordering (asc/desc/limit), base64 round-trip, non-default branch rejection, missing-file errors, githubSync state, listRepos, idempotent delete. 93/93 зелёные (14 новых), build зелёный.
 
 ## В работе
-Phase 3: Git → Gitea.
+Phase 3: Gitea реализация + migration callers.
 
-## Следующее (iter 9)
-- `adorable/lib/adapters/git.ts` — интерфейс GitProvider: createRepo (+ import url), ref, contents.get, commits.list, commits.create (+ author), branches.getDefault, githubSync.enable|disable.
-- `adorable/lib/adapters/git-mock.ts` — in-memory реализация + контрактные тесты.
-- Затем `git-gitea.ts` (REST API v1 + GITEA_TOKEN из env).
-- Замена всех freestyle.git.* callers (`repo-storage.ts`, `deployment-status.ts`, `repos/route.ts`), упрощение `identity-session.ts` (Better Auth).
+## Следующее (iter 10)
+- `lib/adapters/git-gitea.ts` — полная реализация через Gitea REST API v1. createRepo через POST /orgs/{org}/repos (с import для template). RepoRef.contents.get → GET /repos/{owner}/{repo}/contents/{path}. commits.list/create → git trees API. githubSync.enable → POST /repos/{owner}/{repo}/push_mirrors. Auth через GITEA_TOKEN из env. Опционально интеграция `gitea-js` клиента.
+- `GitProvider` singleton по аналогии с sandbox-provider-singleton.
+- Замена callers: `repo-storage.ts`, `deployment-status.ts`, `repos/route.ts` → `getGitProvider().getRepo(repoId).commits.list/create/contents.get`.
+- Упрощение `identity-session.ts` под Better Auth (уберём Freestyle identities).

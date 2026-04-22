@@ -38,12 +38,12 @@
 - [x] `adorable/lib/sandbox/audit-log.ts` — structured JSON-lines log, env-configurable, serialized parallel writes, 10 тестов `tests/audit-log.test.ts`.
 - [x] `adorable/tests/sandbox-security.test.ts` — все 9 security-тестов на живом Docker (gated `RUN_DOCKER_TESTS=1`). Зелёные: containerHasCpuLimit / MemoryLimit / CannotEscapeMemory (OOM-kill) / CannotForkBomb (PidsLimit — Cannot fork message) / CannotEscalatePrivileges (no sudo, su -c 'whoami' denied, id=1000) / CannotWriteOutsideVolumes (ReadonlyRootfs rejects /etc/passwd write, tmpfs /workspace rw) / CannotAccessHostDocker / NetworkIsolation / LifecycleEnforced. Workspace переведён с persistent volume на tmpfs (uid/gid/mode в mount options) — чище изоляция, persistence откладывается в v2.
 - [x] Замена `adorable-vm.ts`, `create-tools.ts`, `chat/route.ts`, `repos/route.ts` на использование адаптера (sandbox-side). `lib/sandbox/provider-singleton.ts` — HMR-safe singleton + touch API. `adorable-vm.ts` переписан на SandboxProvider, убраны импорты `@freestyle-sh/*`, `freestyle-sandboxes`. `chat/route.ts` использует `getSandboxProvider().ref()`. `create-tools.ts` принимает `SandboxHandle`-compatible тип. `repos/route.ts` убран `identity.permissions.vms.grant` (Freestyle-specific). Git/identity части `repos/route.ts` + Freestyle serverless deploy в `create-tools.ts` оставлены до Phase 3/5.
-- [ ] Playwright MCP: создание проекта → `docker inspect` видит все лимиты.
-- [ ] Удаление `freestyle-sandboxes`, `@freestyle-sh/*` из `adorable/package.json`.
+- [→Phase3] Playwright MCP: создание проекта → `docker inspect` видит все лимиты. Заблокировано Phase 3: `repos/route.ts` всё ещё делает `freestyle.git.repos.create` при создании проекта. Перенесено в финальный e2e Phase 6.
+- [→Phase6] Удаление `freestyle-sandboxes`, `@freestyle-sh/*` из `adorable/package.json`. Нельзя пока Phase 3 (`identity-session`, `repo-storage`, `deployment-status`, `repos/route.ts`) ещё использует `freestyle.git.*` и `freestyle.identities.*`, + Phase 5 использует `freestyle.serverless.*` в create-tools.ts.
 
 ## Phase 3: Замена Git (Freestyle Git → Gitea)
-- [ ] `adorable/lib/adapters/git.ts` — интерфейс `GitProvider` (createRepo, ref, commits.list, contents.get, commits.create, branches.getDefault, githubSync.enable|disable).
-- [ ] `adorable/lib/adapters/git-mock.ts` + контрактные тесты.
+- [x] `adorable/lib/adapters/git.ts` — интерфейс `GitProvider` (createRepo + import, getRepo, listRepos, deleteRepo; RepoRef: branches.getDefaultBranch, contents.get, commits.list/create, githubSync.enable/disable). Env `GIT_PROVIDER` переключает gitea/mock.
+- [x] `adorable/lib/adapters/git-mock.ts` + `tests/git-contract.test.ts` — 14 тестов (lifecycle, import bootstrap, commits ordering, base64 content, githubSync, listRepos, idempotent delete).
 - [ ] `adorable/lib/adapters/git-gitea.ts` — через Gitea REST API v1 (fetch + токен из env).
 - [ ] Замена всех freestyle.git.* вызовов (`repo-storage.ts`, `deployment-status.ts`, `repos/route.ts`, `identity-session.ts`).
 - [ ] Упрощение identity-session.ts — Gitea auth через server-side token + per-user cookie identity (без Freestyle identity).
