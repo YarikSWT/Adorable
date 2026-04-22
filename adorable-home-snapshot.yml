@@ -1,0 +1,28 @@
+- generic [ref=e1]:
+  - alert [ref=e5]
+  - generic [ref=e7]:
+    - generic [ref=e8]:
+      - img [ref=e10]
+      - generic [ref=e14]:
+        - heading "Add your API key" [level=1] [ref=e15]
+        - paragraph [ref=e16]: Adorable needs an LLM API key to work. Your key is stored securely in an HTTP-only cookie and never shared.
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - generic [ref=e19]: Provider
+        - generic [ref=e20]:
+          - button "OpenAI" [ref=e21]
+          - button "Anthropic" [ref=e22]
+      - generic [ref=e23]:
+        - generic [ref=e24]: API key
+        - textbox "sk-..." [active] [ref=e25]
+      - button "Continue" [disabled]
+      - generic [ref=e26]:
+        - link "Get OpenAI key" [ref=e27] [cursor=pointer]:
+          - /url: https://platform.openai.com/api-keys
+          - text: Get OpenAI key
+          - img [ref=e28]
+        - generic [ref=e32]: ·
+        - link "Get Anthropic key" [ref=e33] [cursor=pointer]:
+          - /url: https://console.anthropic.com/settings/keys
+          - text: Get Anthropic key
+          - img [ref=e34]

@@ -1,0 +1,30 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]
+  - generic [ref=e5]:
+    - generic [ref=e7]:
+      - paragraph [ref=e49]: hello
+      - generic [ref=e50]:
+        - alert [ref=e52]:
+          - generic [ref=e53]: Failed to create a repository for this chat.
+        - generic [ref=e55]:
+          - button "Copy" [disabled]:
+            - img
+            - generic: Copy
+          - button "Refresh" [ref=e56]:
+            - img
+            - generic [ref=e57]: Refresh
+          - button "More" [ref=e58]:
+            - img
+            - generic [ref=e59]: More
+      - generic [ref=e34]:
+        - textbox "Message input" [ref=e35]:
+          - /placeholder: Send a message...
+        - generic [ref=e36]:
+          - button "Add Attachment" [ref=e37]:
+            - img
+            - generic [ref=e38]: Add Attachment
+          - button "Send message" [disabled]:
+            - img
+            - generic: Send message
+    - button "API key settings" [ref=e40]:
+      - img [ref=e41]

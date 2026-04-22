@@ -1,0 +1,20 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]
+  - generic [ref=e5]:
+    - generic [ref=e7]:
+      - generic [ref=e10]:
+        - img [ref=e11]
+        - heading "What do you want to build?" [level=1] [ref=e13]
+        - paragraph [ref=e14]: Describe an app or pick up where you left off
+      - generic [ref=e34]:
+        - textbox "Message input" [ref=e35]:
+          - /placeholder: Send a message...
+        - generic [ref=e36]:
+          - button "Add Attachment" [ref=e37]:
+            - img
+            - generic [ref=e38]: Add Attachment
+          - button "Send message" [disabled]:
+            - img
+            - generic: Send message
+    - button "API key settings" [ref=e40]:
+      - img [ref=e41]

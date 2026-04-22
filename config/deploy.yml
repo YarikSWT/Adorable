@@ -1,0 +1,143 @@
+# Kamal 2 deploy template for the Adorable self-hosted builder.
+#
+# Этот шаблон развёртывает САМ билдер Adorable на VPS (не пользовательские
+# проекты). Пользовательские проекты компилируются и деплоятся через
+# DeployProvider (v2).
+#
+# Usage:
+#   1. gem install kamal
+#   2. cp config/deploy.yml config/deploy.local.yml (или оставить как есть)
+#   3. Заполни секреты через `kamal setup` → создаст .kamal/secrets
+#   4. kamal deploy
+#
+# Образ билдера собирается из Dockerfile в корне репо (см. docker-compose.prod.yml).
+
+service: adorable
+
+image: ghcr.io/<your-org>/adorable
+
+servers:
+  web:
+    hosts:
+      - <your-server-ip>
+    options:
+      # Проброс сокета Docker хоста — sandbox-контейнеры создаются ЗДЕСЬ.
+      # Для scale — замени на отдельный Docker-host с TCP+TLS (ADR-007).
+      add-host: host.docker.internal:host-gateway
+      volume:
+        - /var/run/docker.sock:/var/run/docker.sock
+
+proxy:
+  ssl: true
+  host: <your-domain>
+  app_port: 3000
+  healthcheck:
+    path: /
+    interval: 10
+    timeout: 2
+
+registry:
+  server: ghcr.io
+  username:
+    - KAMAL_REGISTRY_USERNAME
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  arch: amd64
+  remote: ssh://deploy@<your-build-server-ip>
+  dockerfile: Dockerfile
+
+env:
+  clear:
+    NODE_ENV: production
+    LLM_PROVIDER: zai
+    Z_AI_BASE_URL: https://api.z.ai/api/paas/v4
+    LLM_MAIN_MODEL: glm-5.1
+    LLM_FAST_MODEL: glm-4.5-air
+    GITEA_BASE_URL: http://gitea:3001
+    GITEA_ROOT_URL: https://gitea.<your-domain>/
+    GITEA_ADMIN_USER: adorable
+    CADDY_ADMIN_URL: http://caddy:2019
+    CADDY_SERVER_NAME: preview
+    PREVIEW_DOMAIN_SUFFIX: preview.<your-domain>
+    PREVIEW_PROTOCOL: https
+    SANDBOX_PROVIDER: docker
+    SANDBOX_NETWORK_NAME: adorable_sandboxes
+    SANDBOX_IMAGE: node:22-slim
+    SANDBOX_CPU_LIMIT: "2"
+    SANDBOX_MEMORY_LIMIT: "2147483648"
+    SANDBOX_PIDS_LIMIT: "512"
+    SANDBOX_MAX_LIFETIME_MIN: "120"
+    SANDBOX_IDLE_TIMEOUT_MIN: "30"
+    SANDBOX_CLEANUP_INTERVAL_SEC: "60"
+    SANDBOX_AUDIT_LOG: /var/log/adorable/sandbox-audit.log
+    DOCKER_SOCKET: /var/run/docker.sock
+    GIT_PROVIDER: gitea
+    PROXY_PROVIDER: caddy
+  secret:
+    - Z_AI_API_KEY
+    - BETTER_AUTH_SECRET
+    - GITEA_TOKEN
+    - GITEA_ADMIN_PASSWORD
+    - GITEA_POSTGRES_PASSWORD
+    - DATABASE_URL
+
+volumes:
+  - "/var/log/adorable:/var/log/adorable"
+  - "/var/run/docker.sock:/var/run/docker.sock"
+
+# Accessories поднимают инфру (Postgres, Gitea, Caddy) на той же хост-машине.
+# Более pure-Kamal альтернатива — отдельный docker-compose на хосте и
+# Kamal только для билдера. Выбор зависит от предпочтений operator-а.
+accessories:
+  postgres-app:
+    image: postgres:16-alpine
+    host: <your-server-ip>
+    env:
+      clear:
+        POSTGRES_USER: adorable
+        POSTGRES_DB: adorable
+      secret:
+        - POSTGRES_PASSWORD
+    volumes:
+      - adorable_postgres_data:/var/lib/postgresql/data
+
+  postgres-gitea:
+    image: postgres:16-alpine
+    host: <your-server-ip>
+    env:
+      clear:
+        POSTGRES_USER: gitea
+        POSTGRES_DB: gitea
+      secret:
+        - GITEA_POSTGRES_PASSWORD
+    volumes:
+      - adorable_gitea_postgres_data:/var/lib/postgresql/data
+
+  gitea:
+    image: gitea/gitea:1.22.3
+    host: <your-server-ip>
+    port: "127.0.0.1:3011:3001"
+    env:
+      clear:
+        GITEA__database__DB_TYPE: postgres
+        GITEA__database__HOST: adorable-postgres-gitea:5432
+        GITEA__database__NAME: gitea
+        GITEA__database__USER: gitea
+        GITEA__server__HTTP_PORT: "3001"
+        GITEA__service__DISABLE_REGISTRATION: "true"
+      secret:
+        - GITEA_POSTGRES_PASSWORD
+    volumes:
+      - adorable_gitea_data:/data
+
+  caddy:
+    image: caddy:2.8-alpine
+    host: <your-server-ip>
+    port: "127.0.0.1:2019:2019"
+    volumes:
+      - adorable_caddy_data:/data
+      - adorable_caddy_config:/config
+      - ./config/caddy/initial.json:/etc/caddy/caddy.json:ro
+    cmd: caddy run --config /etc/caddy/caddy.json

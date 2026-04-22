@@ -1,0 +1,30 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e5]
+  - generic [ref=e8]:
+    - generic [ref=e10]:
+      - paragraph [ref=e35]: say hi
+      - generic [ref=e36]:
+        - alert [ref=e79]:
+          - generic [ref=e80]: "Failed after 3 attempts. Last error: Insufficient balance or no resource package. Please recharge."
+        - generic [ref=e82]:
+          - button "Copy" [disabled]:
+            - img
+            - generic: Copy
+          - button "Refresh" [ref=e83]:
+            - img
+            - generic [ref=e84]: Refresh
+          - button "More" [ref=e85]:
+            - img
+            - generic [ref=e86]: More
+      - generic [ref=e20]:
+        - textbox "Message input" [ref=e21]:
+          - /placeholder: Send a message...
+        - generic [ref=e22]:
+          - button "Add Attachment" [ref=e23]:
+            - img
+            - generic [ref=e24]: Add Attachment
+          - button "Send message" [disabled]:
+            - img
+            - generic: Send message
+    - button "API key settings" [ref=e26]:
+      - img [ref=e27]

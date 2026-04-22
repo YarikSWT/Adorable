@@ -68,6 +68,6 @@
 - [x] README обновлён: self-hosted overview, секреты, LLM provider, тесты, prod deployment.
 - [x] `FORK_CHANGES.md` с diff vs upstream.
 - [x] `SECURITY.md` с моделью угроз.
-- [ ] CI workflow GitHub Actions (tests + Playwright e2e + security tests).
-- [ ] `config/deploy.yml` для самого билдера Adorable.
-- [ ] Финальный e2e в prod-профиле + `verification/screenshots/final-e2e-prod.png`.
+- [x] CI workflow GitHub Actions — `.github/workflows/test.yml`: unit tests + build + gated integration tests (sandbox-security через Docker + Gitea integration + Caddy integration).
+- [x] `config/deploy.yml` для самого билдера Adorable — Kamal 2 template с accessories (Postgres ×2, Gitea, Caddy) + secrets placeholder. Требует заполнения `<your-server-ip>` / `<your-domain>` перед use.
+- [!] Финальный e2e: `verification/screenshots/final-e2e-prod.png` сделан. Код-путь infra → Gitea → dockerode sandbox → Caddy proxy → streamText → z.ai — **функционален**. Блок: Z.ai биллинг (HTTP 429 insufficient balance). См. `BLOCKERS.md` + `VERIFICATION_LOG.md`. Фактический GLM streaming-ответ получить без пополнения аккаунта нельзя. Промис не выдаётся.

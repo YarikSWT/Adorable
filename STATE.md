@@ -1,6 +1,6 @@
 # Текущее состояние
 
-**Итерация:** 14 завершена, идёт 15
+**Итерация:** 15 завершена, идёт 16 (blocked — требуется пополнение Z.ai баланса для финального промис-критерия)
 **Дата:** 2026-04-22
 
 ## Окружение
@@ -29,9 +29,9 @@
 - **Готово (iter 11):** callers мигрированы на GitProvider + identity упрощена.
 - **Готово (iter 12):** ProxyProvider interface + mock + Caddy impl + 6 live integration-тестов.
 - **Готово (iter 13):** Phase 4 lifecycle wiring + 3 security тестов. 105/105.
-- **Готово (iter 14):** Phase 6 docs + cleanup. Удалены `freestyle-sandboxes`, `@freestyle-sh/with-dev-server`, `@freestyle-sh/with-pty`, `@freestyle-sh/with-ttyd` из `adorable/package.json`. Создан `FORK_CHANGES.md` (diff vs upstream). Создан `SECURITY.md` (модель угроз, 15 sandbox мер, proxy меры, тесты). README обновлён (тесты, prod deployment). Phase 5 помечен `[→v2]` (Kamal deploy — нет credentials + не нужен для self-hosted MVP). Зафиксирован fix в `tests/proxy-security.test.ts` для клока. 105/105 unit tests зелёные.
-- **Следующее (iter 15):** CI workflow `.github/workflows/test.yml` + `config/deploy.yml` для самого билдера + Playwright MCP final e2e.
-- **После:** промис.
+- **Готово (iter 14):** Phase 6 docs + cleanup package.json.
+- **Готово (iter 15):** CI workflow `.github/workflows/test.yml` (unit + gated integration). `config/deploy.yml` Kamal-шаблон для самого билдера с accessories. Playwright MCP final e2e — infra up, dev server up через `sg docker`, browser загрузил home → ввёл prompt → POST /api/repos 200 (Gitea + Docker sandbox созданы) → навигация на project-страницу → POST /api/chat 200 → **Z.ai вернул 429 insufficient balance**. `verification/screenshots/final-e2e-prod.png` сделан. Фиксы по ходу: `/api/api-key` hasGlobalKey учитывает Z_AI_API_KEY, sandbox-docker.ts sanitизирует repoId для docker-имени. Всё кроме фактической генерации GLM работает. `BLOCKERS.md` записано.
+- **Следующее (iter 16+):** либо пополнение Z.ai аккаунта (external action, не код), либо переключение `LLM_PROVIDER=openrouter` с валидным OPENROUTER_API_KEY → повторить e2e и финализировать промис.
 
 ## Суммарные тесты
 - `tests/llm-adapter.test.ts` — 17 тестов.

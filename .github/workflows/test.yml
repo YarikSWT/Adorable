@@ -1,0 +1,91 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Type check
+        run: cd adorable && npx tsc --noEmit
+      - name: Unit tests
+        run: npm run test --workspace ./adorable
+      - name: Next.js build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: npm run build --workspace ./adorable
+
+  integration-sandbox:
+    runs-on: ubuntu-latest
+    needs: unit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Ensure custom sandbox network
+        run: docker network create adorable_sandboxes || true
+      - name: Pull sandbox base image
+        run: docker pull node:22-slim
+      - name: Run sandbox security tests (9)
+        env:
+          RUN_DOCKER_TESTS: "1"
+          SANDBOX_NETWORK_NAME: adorable_sandboxes
+          SANDBOX_IMAGE: node:22-slim
+        run: npx vitest run --root adorable tests/sandbox-security.test.ts --testTimeout 180000
+
+  integration-infra:
+    runs-on: ubuntu-latest
+    needs: unit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Write minimal .env for infra bootstrap
+        run: |
+          cat > .env <<EOF
+          GITEA_HOST_PORT=3011
+          GITEA_BASE_URL=http://localhost:3011
+          GITEA_ROOT_URL=http://localhost:3011/
+          GITEA_ADMIN_USER=adorable
+          GITEA_ADMIN_EMAIL=admin@adorable.local
+          GITEA_ADMIN_PASSWORD=${{ secrets.CI_GITEA_ADMIN_PASSWORD || 'ci-dev-password' }}
+          GITEA_POSTGRES_PASSWORD=ci-dev
+          CADDY_ADMIN_URL=http://localhost:2019
+          PREVIEW_DOMAIN_SUFFIX=preview.localhost
+          EOF
+      - name: Start infra (compose)
+        run: bash scripts/dev-infra.sh up
+      - name: Wait healthy
+        run: bash scripts/dev-infra.sh wait-healthy
+      - name: Bootstrap Gitea admin + token
+        run: bash scripts/init-gitea.sh --write-env
+      - name: Run Gitea integration tests (4)
+        env:
+          RUN_GITEA_TESTS: "1"
+        run: |
+          set -a && source .env && set +a
+          npx vitest run --root adorable tests/git-gitea-integration.test.ts --testTimeout 180000
+      - name: Run Caddy integration tests (6)
+        env:
+          RUN_CADDY_TESTS: "1"
+          CADDY_ADMIN_URL: http://localhost:2019
+        run: npx vitest run --root adorable tests/proxy-caddy-integration.test.ts --testTimeout 180000
+      - name: Stop infra
+        if: always()
+        run: bash scripts/dev-infra.sh down

@@ -4,9 +4,17 @@ import { NextResponse } from "next/server";
 const COOKIE_NAME = "user-api-key";
 const COOKIE_PROVIDER = "user-api-provider";
 
-/** Check if a global API key is configured in the environment */
+/** Check if a global API key is configured in the environment.
+ *  Must stay in sync with the `hasGlobalKey` branch in
+ *  `app/api/chat/route.ts`. */
 function hasGlobalKey(): boolean {
-  return !!(process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY);
+  return !!(
+    process.env.Z_AI_API_KEY ||
+    process.env.OPENROUTER_API_KEY ||
+    process.env.OPENAI_API_KEY ||
+    process.env.ANTHROPIC_API_KEY ||
+    (process.env.LLM_PROVIDER ?? "").toLowerCase() === "mock"
+  );
 }
 
 /** GET – returns whether the user needs to provide a key */

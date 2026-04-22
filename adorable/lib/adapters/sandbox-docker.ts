@@ -294,8 +294,12 @@ export const createDockerSandboxProvider = (
   const create = async (
     opts: SandboxCreateOptions,
   ): Promise<SandboxHandle> => {
+    // Docker restricts container names to [a-zA-Z0-9][a-zA-Z0-9_.-]+, so we
+    // sanitize repoId — Gitea full_name uses `owner/repo` which contains `/`.
+    const safeRepoTag = opts.repoId.replace(/[^A-Za-z0-9_.-]/g, "-");
     const sandboxId =
-      opts.sandboxId ?? `adorable-sbx-${opts.repoId}-${Date.now().toString(36)}`;
+      opts.sandboxId ??
+      `adorable-sbx-${safeRepoTag}-${Date.now().toString(36)}`;
     const workdir = opts.workdir ?? "/workspace";
     const volumeName = workspaceVolumeName(sandboxId); // reserved, unused in tmpfs mode
 

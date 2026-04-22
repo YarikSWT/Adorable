@@ -1,0 +1,30 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e5]
+  - generic [ref=e8]:
+    - generic [ref=e10]:
+      - paragraph [ref=e35]: Build a simple express server that responds with Hello World
+      - generic [ref=e36]:
+        - alert [ref=e38]:
+          - generic [ref=e39]: Failed to create a repository for this chat.
+        - generic [ref=e41]:
+          - button "Copy" [disabled]:
+            - img
+            - generic: Copy
+          - button "Refresh" [ref=e42]:
+            - img
+            - generic [ref=e43]: Refresh
+          - button "More" [ref=e44]:
+            - img
+            - generic [ref=e45]: More
+      - generic [ref=e20]:
+        - textbox "Message input" [ref=e21]:
+          - /placeholder: Send a message...
+        - generic [ref=e22]:
+          - button "Add Attachment" [ref=e23]:
+            - img
+            - generic [ref=e24]: Add Attachment
+          - button "Send message" [disabled]:
+            - img
+            - generic: Send message
+    - button "API key settings" [ref=e26]:
+      - img [ref=e27]

@@ -16,10 +16,10 @@
 - **Итерация 13 (2026-04-22):** Phase 4 lifecycle wiring + 3 security tests. 105/105.
 - **Итерация 14 (2026-04-22):** Phase 6 docs + package.json cleanup. Удалены `freestyle-sandboxes`, `@freestyle-sh/with-dev-server`, `@freestyle-sh/with-pty`, `@freestyle-sh/with-ttyd` из `adorable/package.json` + lock перегенерирован. `FORK_CHANGES.md` создан (таблица замен, новые подсистемы, отсутствующие из v2 фичи). `SECURITY.md` создан (модель угроз, 15 sandbox мер + соответствующие тесты, proxy меры, git/LLM меры, остаточные риски, процесс блокеров). README добавлены разделы: тесты (unit + 3 integration gated), prod deployment. Phase 5 помечен `[→v2]` с обоснованием. Фикс мелкого race в `tests/proxy-security.test.ts` (клок outrace createdAt). 105/105 unit tests зелёные.
 
-## В работе
-Phase 6: CI workflow + config/deploy.yml + final Playwright e2e.
+- **Итерация 15 (2026-04-22):** CI + Kamal template + final e2e attempt. `.github/workflows/test.yml` (jobs: unit, integration-sandbox с Docker, integration-infra с compose + Gitea/Caddy integration tests). `config/deploy.yml` Kamal 2 с 4 accessories. Playwright MCP full e2e: home рендерится, POST /api/repos 200 (Gitea repo + Docker sandbox создались), POST /api/chat 200, **z.ai вернул 429 "Insufficient balance"**. Все слои кода функциональны; блок — биллинг Z.ai. Фиксы: `/api/api-key` hasGlobalKey добавили Z_AI_API_KEY / OPENROUTER_API_KEY / LLM_PROVIDER=mock; `sandbox-docker.ts` sanitize repoId (`/` → `-`) чтобы соответствовать docker-имени. `verification/screenshots/final-e2e-prod.png` сделан. `BLOCKERS.md` + `VERIFICATION_LOG.md` записаны.
 
-## Следующее (iter 15)
-- `.github/workflows/test.yml` — run unit tests, build, security-gated tests.
-- `config/deploy.yml` — Kamal template для самого билдера Adorable.
-- Playwright MCP final e2e: регистрация → создание проекта → GLM промпт → sandbox preview через Caddy. `verification/screenshots/final-e2e-prod.png`.
+## В работе
+Финальный e2e — blocked на биллинге Z.ai (external action).
+
+## Следующее (iter 16+)
+- Пополнить Z_AI баланс либо завести OPENROUTER_API_KEY → повторить e2e → получить стримящийся ответ GLM → sandbox → preview через Caddy → скриншот успеха → эмитить promise.
