@@ -50,9 +50,9 @@
 - [→Phase6 e2e] Playwright MCP: создание проекта → репо в Gitea UI видно. Вместе с финальным e2e.
 
 ## Phase 4: Preview URLs через Caddy
-- [ ] `adorable/lib/adapters/proxy.ts` — интерфейс `ProxyProvider` (addRoute, removeRoute, listRoutes, healthCheck).
-- [ ] `adorable/lib/adapters/proxy-mock.ts`.
-- [ ] `adorable/lib/adapters/proxy-caddy.ts` — управление через Caddy Admin API (PUT на `/config/apps/http/servers/<server>/routes/<id>`).
+- [x] `adorable/lib/adapters/proxy.ts` — интерфейс `ProxyProvider` (addRoute, removeRoute, removeSandboxRoutes, listRoutes, healthCheck). Env `PROXY_PROVIDER` выбирает caddy/mock.
+- [x] `adorable/lib/adapters/proxy-mock.ts` + `tests/proxy-contract.test.ts` — 9 тестов (idempotent add, removeSandboxRoutes, listRoutes, healthCheck toggle).
+- [x] `adorable/lib/adapters/proxy-caddy.ts` — управление через Caddy Admin API с `@id = adorable-route-<spec.id>`. PATCH /id/<@id> для idempotent replace, POST на /routes/... для нового (Caddy PUT /id на list-path делает insert, PATCH — replace). Connection: close + retry на UND_ERR_SOCKET. `tests/proxy-caddy-integration.test.ts` — 6 тестов против живого Caddy 2.8: healthCheck, add+list, idempotent PATCH, removeRoute, idempotent remove, removeSandboxRoutes — 6/6 зелёные (gated `RUN_CADDY_TESTS=1`).
 - [ ] Sandbox lifecycle hooks: при create контейнера → addRoute, при destroy → removeRoute.
 - [ ] `adorable/tests/proxy-security.test.ts` + `proxy-integration.test.ts` (5 тестов).
 - [ ] Playwright MCP: AI генерирует Express-сервер → `*.preview.localhost` через Caddy отдаёт HTML.

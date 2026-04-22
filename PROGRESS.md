@@ -11,14 +11,13 @@
 - **Итерация 8 (2026-04-22):** SandboxProvider singleton + callers migration. 79/79.
 - **Итерация 9 (2026-04-22):** Phase 3 kickoff. GitProvider + mock + 14 contract tests. 93/93.
 - **Итерация 10 (2026-04-22):** Gitea реализация. 4/4 integration-тестов зелёные.
-- **Итерация 11 (2026-04-22):** callers мигрированы на GitProvider + identity упрощена. Новый `lib/git/provider-singleton.ts` (HMR-safe). `repo-storage.ts` — `freestyle.git.repos.ref()` → `getGitProvider().getRepo()`. `deployment-status.ts` — commits.list через adapter; `freestyle.serverless.deployments.list` заменён стабом (Phase 5). `repos/route.ts` — `gitProvider.createRepo()` + убран freestyle serverless list. `promote/route.ts` — убран `freestyle.domains.mappings.create` (Phase 4 ProxyProvider). `create-tools.ts` — убран `freestyle.serverless.deployments.create` (Phase 5 DeployProvider). `identity-session.ts` полностью переписан: cookie-based UUID identity + in-memory ACL map. `identity.permissions.git.list/grant` остались контракт-compatible. `grep freestyle\.(git|vms|identities|serverless|domains)` в бизнес-коде = 0. Тесты 93/93 (mock) green, build green.
+- **Итерация 11 (2026-04-22):** callers мигрированы на GitProvider + identity упрощена. 93/93.
+- **Итерация 12 (2026-04-22):** Phase 4 kickoff — ProxyProvider. `lib/adapters/proxy.ts` interface (addRoute/removeRoute/removeSandboxRoutes/listRoutes/healthCheck) + env PROXY_PROVIDER. `lib/adapters/proxy-mock.ts` in-memory (idempotent upsert, stats, healthy toggle) + `tests/proxy-contract.test.ts` 9 тестов. `lib/adapters/proxy-caddy.ts` — Caddy Admin API через fetch. Каждый роут получает `@id = adorable-route-<id>` для точечных операций. Idempotent upsert реализован через PATCH /id (replace in place) + fallback POST /routes/... на 404 (Caddy PUT /id на list-path делает insert, а не replace — поэтому PATCH). Retry loop (3 попытки + Connection:close) решил UND_ERR_SOCKET ("other side closed") в undici при back-to-back мутациях. `tests/proxy-caddy-integration.test.ts` — 6 тестов (health, add+list, idempotent, remove, idempotent-remove, removeSandboxRoutes) все зелёные против Caddy 2.8.
 
 ## В работе
-Phase 4: Caddy Proxy.
+Phase 4: Sandbox lifecycle hooks + proxy security tests.
 
-## Следующее (iter 12)
-- `lib/adapters/proxy.ts` — ProxyProvider interface (addRoute, removeRoute, listRoutes, healthCheck).
-- `lib/adapters/proxy-mock.ts` — in-memory реализация.
-- `lib/adapters/proxy-caddy.ts` — управление через Caddy Admin API (PUT/DELETE /config/apps/http/servers/{srv}/routes/{id}).
-- Sandbox lifecycle: onCreate → addRoute, onDestroy → removeRoute (cleanup-worker cascade).
-- `tests/proxy-security.test.ts` + `tests/proxy-integration.test.ts` (5 тестов: admin-not-exposed, idempotent POST, removeRoute cleanup, lifecycle sync, health check).
+## Следующее (iter 13)
+- ProxyProvider singleton по аналогии с sandbox/git.
+- Sandbox hooks: `adorable-vm.ts` `createVmForRepo` после sandbox.create → provider.addRoute для каждого domain. `chat/route.ts` — cleanup-worker cascade подключается через `removeSandboxRoutes` proxy. Cleanup worker принимает ProxyProvider в опциях.
+- `tests/proxy-security.test.ts` + `tests/proxy-integration.test.ts` — оставшиеся security-тесты: caddyAdminApiNotExposed (localhost-only bind), sandboxLifecycleSyncsProxy (через mock), healthCheckDetectsDownstream.

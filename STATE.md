@@ -1,6 +1,6 @@
 # Текущее состояние
 
-**Итерация:** 11 завершена, идёт 12
+**Итерация:** 12 завершена, идёт 13
 **Дата:** 2026-04-22
 
 ## Окружение
@@ -26,9 +26,10 @@
 - **Готово (iter 8):** callers мигрированы на SandboxProvider. Singleton + touch API.
 - **Готово (iter 9, Phase 3 start):** GitProvider интерфейс + in-memory mock + placeholder gitea + 14 contract-тестов.
 - **Готово (iter 10):** Gitea REST API v1 реализация + 4 интеграционных теста.
-- **Готово (iter 11):** callers мигрированы на GitProvider. Новый `lib/git/provider-singleton.ts`. `repo-storage.ts` / `deployment-status.ts` / `repos/route.ts` / `promote/route.ts` / `create-tools.ts` — все через `getGitProvider()`. `identity-session.ts` переписан — Cookie-based identity с in-memory ACL Map<identityId, Set<repoId>>. Freestyle API calls в бизнес-коде = 0 (только комментарии + TEMPLATE_REPO URL остались).
-- **Следующее (iter 12):** Phase 4 (Caddy proxy). `lib/adapters/proxy.ts` interface + `proxy-mock.ts` + `proxy-caddy.ts` (Admin API) + lifecycle hook в sandbox create/destroy + proxy security tests.
-- **После:** Phase 5 (Kamal [→v2]), Phase 6 (SECURITY.md + FORK_CHANGES.md + README + final e2e + удаление freestyle deps).
+- **Готово (iter 11):** callers мигрированы на GitProvider + identity упрощена.
+- **Готово (iter 12, Phase 4 start):** ProxyProvider. `lib/adapters/proxy.ts` interface (addRoute, removeRoute, removeSandboxRoutes, listRoutes, healthCheck) + `proxy-mock.ts` (9 contract tests) + `proxy-caddy.ts` через Caddy Admin API. Использует Caddy `@id` feature для idempotent операций: PATCH /id/<@id> replaces в месте, POST /routes/... appends при 404. Retry с Connection:close решил UND_ERR_SOCKET. `tests/proxy-caddy-integration.test.ts` — 6/6 зелёные против Caddy 2.8.
+- **Следующее (iter 13):** sandbox lifecycle hooks — при create sandbox вызывать `proxy.addRoute` для каждого domain; при destroy и в cleanup-worker — `proxy.removeSandboxRoutes`. Также ProxyProvider singleton.
+- **После:** proxy security tests (admin-not-exposed, lifecycle-sync), Phase 5 (Kamal→v2), Phase 6 (docs + final e2e + удаление freestyle deps).
 
 ## Суммарные тесты
 - `tests/llm-adapter.test.ts` — 17 тестов.
@@ -39,7 +40,9 @@
 - `tests/sandbox-security.test.ts` — 9 тестов (gated `RUN_DOCKER_TESTS=1`, на живом Docker).
 - `tests/git-contract.test.ts` — 14 тестов (mock).
 - `tests/git-gitea-integration.test.ts` — 4 теста (gated `RUN_GITEA_TESTS=1`, на живом Gitea).
-- **Всего:** 93/93 без внешних сервисов + 9/9 на Docker + 4/4 на Gitea (gated).
+- `tests/proxy-contract.test.ts` — 9 тестов (mock).
+- `tests/proxy-caddy-integration.test.ts` — 6 тестов (gated `RUN_CADDY_TESTS=1`, на живом Caddy).
+- **Всего:** 102/102 без внешних сервисов + 9/9 на Docker + 4/4 на Gitea + 6/6 на Caddy (gated).
 - `npm run build` — зелёный (NODE_OPTIONS=--max-old-space-size=4096 из-за Next 16 Turbopack).
 
 ## Что сделано
