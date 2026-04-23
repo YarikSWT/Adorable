@@ -18,8 +18,10 @@
 
 - **Итерация 15 (2026-04-22):** CI + Kamal template + final e2e attempt. `.github/workflows/test.yml` (jobs: unit, integration-sandbox с Docker, integration-infra с compose + Gitea/Caddy integration tests). `config/deploy.yml` Kamal 2 с 4 accessories. Playwright MCP full e2e: home рендерится, POST /api/repos 200 (Gitea repo + Docker sandbox создались), POST /api/chat 200, **z.ai вернул 429 "Insufficient balance"**. Все слои кода функциональны; блок — биллинг Z.ai. Фиксы: `/api/api-key` hasGlobalKey добавили Z_AI_API_KEY / OPENROUTER_API_KEY / LLM_PROVIDER=mock; `sandbox-docker.ts` sanitize repoId (`/` → `-`) чтобы соответствовать docker-имени. `verification/screenshots/final-e2e-prod.png` сделан. `BLOCKERS.md` + `VERIFICATION_LOG.md` записаны.
 
-## В работе
-Финальный e2e — blocked на биллинге Z.ai (external action).
+- **Итерация 19 (2026-04-23):** Финальный e2e **✅**. Z.ai баланс пополнен, API вернул 200. Playwright MCP полный happy-path: home → промпт → GLM-5.1 streaming через адаптер (tool-use, agentic работа) → Docker sandbox → файл + server на :3000 → Caddy preview URL → валидный HTML в браузере. Скриншоты `verification/screenshots/final-e2e-prod.png` + `final-e2e-home.png` + `final-e2e-chat.png`. Побочный фикс: `sandbox-docker.ts` обрезает sandboxId до 63 символов (DNS RFC 1035), без чего Caddy не резолвил upstream по имени. 105/105 unit tests + 9/9 docker security зелёные. Phase 6 → `[x]`. MIGRATION_PLAN.md закрыт.
 
-## Следующее (iter 16+)
-- Пополнить Z_AI баланс либо завести OPENROUTER_API_KEY → повторить e2e → получить стримящийся ответ GLM → sandbox → preview через Caddy → скриншот успеха → эмитить promise.
+## В работе
+Миграция завершена.
+
+## Следующее
+v2: Better Auth, Deploy (Kamal) adapter, multiprovider LLM balancer.

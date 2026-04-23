@@ -65,6 +65,14 @@ const resolveDockerHost = (): Docker => {
 const workspaceVolumeName = (sandboxId: string): string =>
   `adorable-ws-${sandboxId}`;
 
+const simpleHash = (s: string): string => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h).toString(36).slice(0, 6);
+};
+
 const readStreamToString = async (stream: NodeJS.ReadableStream): Promise<string> => {
   const chunks: Buffer[] = [];
   for await (const chunk of stream) {
@@ -296,7 +304,14 @@ export const createDockerSandboxProvider = (
   ): Promise<SandboxHandle> => {
     // Docker restricts container names to [a-zA-Z0-9][a-zA-Z0-9_.-]+, so we
     // sanitize repoId — Gitea full_name uses `owner/repo` which contains `/`.
-    const safeRepoTag = opts.repoId.replace(/[^A-Za-z0-9_.-]/g, "-");
+    // DNS hostnames (used by docker embedded DNS so Caddy can resolve us by
+    // name) cap labels at 63 chars per RFC 1035, so the repo tag is capped
+    // with a short hash suffix to keep names unique.
+    const rawTag = opts.repoId.replace(/[^A-Za-z0-9_.-]/g, "-");
+    const safeRepoTag =
+      rawTag.length <= 28
+        ? rawTag
+        : `${rawTag.slice(0, 20)}-${simpleHash(rawTag)}`;
     const sandboxId =
       opts.sandboxId ??
       `adorable-sbx-${safeRepoTag}-${Date.now().toString(36)}`;
