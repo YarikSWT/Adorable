@@ -23,8 +23,17 @@ export interface SandboxLimitsEnv {
   /** байт/сек */
   SANDBOX_BLKIO_READ_BPS?: string;
   SANDBOX_BLKIO_WRITE_BPS?: string;
-  /** Максимальный размер /tmp в байтах (для tmpfs). Дефолт 104857600 (100MiB). */
+  /** Максимальный размер /tmp в байтах (для tmpfs). Дефолт 1073741824 (1 GiB). */
   SANDBOX_TMP_SIZE_BYTES?: string;
+  /**
+   * Размер /workspace tmpfs в байтах. Раньше был связан с
+   * `SANDBOX_STORAGE_LIMIT`, но теперь декуплен — StorageOpt применяется
+   * только на overlay2+xfs/btrfs, а /workspace это tmpfs и ему нужен
+   * собственный размер независимо от поддержки projects quota.
+   * Дефолт 6442450944 (6 GiB) — с запасом под node_modules + .next cache
+   * для Next.js dev-сервера.
+   */
+  SANDBOX_WORKSPACE_SIZE_BYTES?: string;
   /** nofile ulimit soft+hard. */
   SANDBOX_ULIMIT_NOFILE?: string;
 }
@@ -65,6 +74,7 @@ export interface BuiltContainerConfig {
     capDrop: string[];
     securityOpt: string[];
     tmpSizeBytes: number;
+    workspaceSizeBytes: number;
   };
 }
 
@@ -105,13 +115,17 @@ export const buildSandboxContainerConfig = (
   }
 
   const nanoCpus = parseCpuLimit(env.SANDBOX_CPU_LIMIT, 2_000_000_000); // 2 cores
-  const memoryBytes = parseIntOr(env.SANDBOX_MEMORY_LIMIT, 2_147_483_648); // 2 GiB
-  const pidsLimit = parseIntOr(env.SANDBOX_PIDS_LIMIT, 512);
+  const memoryBytes = parseIntOr(env.SANDBOX_MEMORY_LIMIT, 4_294_967_296); // 4 GiB
+  const pidsLimit = parseIntOr(env.SANDBOX_PIDS_LIMIT, 1024);
   const storageBytes = env.SANDBOX_STORAGE_LIMIT
     ? parseIntOr(env.SANDBOX_STORAGE_LIMIT, 0)
     : undefined;
-  const tmpSizeBytes = parseIntOr(env.SANDBOX_TMP_SIZE_BYTES, 104_857_600); // 100 MiB
-  const nofile = parseIntOr(env.SANDBOX_ULIMIT_NOFILE, 1024);
+  const tmpSizeBytes = parseIntOr(env.SANDBOX_TMP_SIZE_BYTES, 1_073_741_824); // 1 GiB
+  const workspaceSizeBytes = Math.max(
+    parseIntOr(env.SANDBOX_WORKSPACE_SIZE_BYTES, 6_442_450_944), // 6 GiB default
+    104_857_600, // жёсткий минимум 100 MiB, чтобы npm не падал на мелочах
+  );
+  const nofile = parseIntOr(env.SANDBOX_ULIMIT_NOFILE, 4096);
   const user = opts.user ?? env.SANDBOX_USER ?? "1000:1000";
   if (user === "0" || user === "0:0" || user === "root") {
     throw new Error(
@@ -132,7 +146,20 @@ export const buildSandboxContainerConfig = (
     exposedPortsMap[`${p}/tcp`] = {};
   }
 
-  const envPairs = Object.entries(opts.env ?? {}).map(([k, v]) => `${k}=${v}`);
+  // Дефолтные env, без которых `npm install` падает из-за ReadonlyRootfs:
+  //   - HOME=/workspace — npm по умолчанию пишет в ~/.npm, а /home read-only.
+  //   - NPM_CONFIG_CACHE — явная точка для кэша (~/.npm) внутри rw-tmpfs.
+  //   - *_UPDATE_NOTIFIER/FUND=false — глушим HOME-write попытки npm.
+  // Пользовательские env через opts.env перекрывают дефолты.
+  const defaultEnv: Record<string, string> = {
+    HOME: opts.workdir,
+    NPM_CONFIG_CACHE: `${opts.workdir}/.npm-cache`,
+    NPM_CONFIG_UPDATE_NOTIFIER: "false",
+    NPM_CONFIG_FUND: "false",
+    NPM_CONFIG_AUDIT: "false",
+  };
+  const mergedEnv: Record<string, string> = { ...defaultEnv, ...(opts.env ?? {}) };
+  const envPairs = Object.entries(mergedEnv).map(([k, v]) => `${k}=${v}`);
 
   const blkioReadBps = env.SANDBOX_BLKIO_READ_BPS
     ? parseIntOr(env.SANDBOX_BLKIO_READ_BPS, 0)
@@ -188,11 +215,17 @@ export const buildSandboxContainerConfig = (
     // sandbox-агента Adorable это приемлемо: код хранится в Gitea-репо,
     // sandbox клонирует его при старте. "Sticky" persistence — v2.
     Tmpfs: {
-      "/tmp": `rw,nosuid,nodev,size=${tmpSizeBytes},mode=1777`,
-      [opts.workdir]: `rw,nosuid,nodev,size=${Math.max(
-        storageBytes ?? 1_073_741_824,
-        104_857_600,
-      )},uid=${(opts.user ?? user).split(":")[0]},gid=${
+      // /tmp нужен exec, потому что npm/pnpm разворачивают tar'ы пакетов
+      // во временную директорию и оттуда же запускают postinstall-скрипты
+      // и spawn('sh', ...). Docker по умолчанию ставит на tmpfs `noexec`.
+      "/tmp": `rw,nosuid,nodev,exec,size=${tmpSizeBytes},mode=1777`,
+      // /workspace тоже exec — иначе вообще нельзя выполнить ни node-binary
+      // (esbuild / next-swc / rollup native), ни даже spawn('sh') c cwd
+      // под /workspace/node_modules/<pkg>. Без этого npm install ломается
+      // на esbuild postinstall, а Vite/Next dev не стартует.
+      [opts.workdir]: `rw,nosuid,nodev,exec,size=${workspaceSizeBytes},uid=${
+        (opts.user ?? user).split(":")[0]
+      },gid=${
         (opts.user ?? user).split(":")[1] ?? (opts.user ?? user).split(":")[0]
       },mode=0755`,
     },
@@ -246,6 +279,7 @@ export const buildSandboxContainerConfig = (
       capDrop: ["ALL"],
       securityOpt: ["no-new-privileges:true"],
       tmpSizeBytes,
+      workspaceSizeBytes,
     },
   };
 };

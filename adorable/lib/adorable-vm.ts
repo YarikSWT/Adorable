@@ -23,6 +23,7 @@ import {
 } from "@/lib/vars";
 import { getSandboxProvider } from "@/lib/sandbox/provider-singleton";
 import { getProxyProvider } from "@/lib/proxy/provider-singleton";
+import { seedSandboxFromTemplate } from "@/lib/template-seeder";
 
 export type VmRuntimeMetadata = {
   vmId: string;
@@ -73,6 +74,20 @@ export const createVmForRepo = async (
     },
     domains: domains.map((d) => ({ ...d })),
   });
+
+  // Docker-адаптер в нынешнем виде не клонирует git.repos в workspace —
+  // поле в контракте есть, реализация нет. Поэтому seed'им bundled
+  // Vite+React шаблон руками через handle.fs. Без этого агент видит
+  // пустую директорию и начинает npm create vite с нуля (а то и вовсе
+  // валится на readonly /home). Ошибки подавляем — sandbox остаётся
+  // работоспособен, агент в крайнем случае сам построит template.
+  try {
+    await seedSandboxFromTemplate({ fs: handle.fs });
+  } catch (err) {
+    process.stderr.write(
+      `adorable-vm: template seed failed (${(err as Error).message})\n`,
+    );
+  }
 
   // Register proxy routes for each public port. Errors are swallowed —
   // sandbox is usable without the proxy (direct port access within

@@ -189,16 +189,65 @@ export const createDockerSandboxProvider = (
         const abs = path.startsWith("/") ? path : `${workdir}/${path}`;
         const dir = abs.includes("/") ? abs.slice(0, abs.lastIndexOf("/")) : workdir;
         const base = abs.slice(abs.lastIndexOf("/") + 1);
-        // Ensure destination dir exists (best-effort mkdir -p via exec).
-        await exec({ command: `mkdir -p ${JSON.stringify(dir)}` }).catch(() => undefined);
-        const archive = await tarOne(base, content);
-        await container.putArchive(archive, { path: dir });
+        const bytes = Buffer.byteLength(content, "utf8");
+        const readonlyRootfs =
+          inspectData.HostConfig?.ReadonlyRootfs === true;
+
+        await exec({
+          command: `mkdir -p ${JSON.stringify(dir)}`,
+        }).catch(() => undefined);
+
+        // putArchive требует, чтобы destination path существовал в
+        // container layer; для tmpfs-mounted /workspace на контейнерах
+        // с ReadonlyRootfs=true Docker отвечает либо "rootfs is marked
+        // read-only", либо "no such container - Could not find the file
+        // /workspace/src". В обоих случаях откат на exec+base64 — он
+        // пишет от sandbox-user в смонтированный tmpfs.
+        //
+        // На контейнерах без ReadonlyRootfs putArchive — самый быстрый
+        // путь, поэтому пробуем сначала его.
+        const fallbackToExec = async () => {
+          const b64 = Buffer.from(content, "utf8").toString("base64");
+          const target = JSON.stringify(abs);
+          // base64 без переносов → printf %s передаёт строку дословно,
+          // base64 -d декодирует в файл. До ~100 KiB укладывается в
+          // ARG_MAX (~128 KiB) без проблем; для крупных файлов нужен
+          // exec со stdin (TODO Phase 3).
+          const cmd =
+            `printf %s ${JSON.stringify(b64)} | base64 -d > ${target}`;
+          const res = await exec({ command: cmd });
+          if (res.exitCode !== 0) {
+            throw new Error(
+              `writeTextFile fallback failed for ${abs}: exit=${res.exitCode}, stderr=${res.stderr.slice(0, 500)}`,
+            );
+          }
+        };
+
+        if (readonlyRootfs) {
+          await fallbackToExec();
+        } else {
+          try {
+            const archive = await tarOne(base, content);
+            await container.putArchive(archive, { path: dir });
+          } catch (err) {
+            const msg = (err as Error).message ?? "";
+            if (
+              !/read-only|read only|rootfs|no such container|could not find/i.test(
+                msg,
+              )
+            ) {
+              throw err;
+            }
+            await fallbackToExec();
+          }
+        }
+
         await auditLogger.log({
           event: "sandbox_fs_write",
           sandboxId,
           repoId,
           path: abs,
-          bytes: Buffer.byteLength(content, "utf8"),
+          bytes,
         });
       },
       exists: async (path) => {

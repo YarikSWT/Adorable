@@ -258,7 +258,7 @@ export function RepoWorkspaceShell({
   const onSetProductionDomain = useCallback(
     async (nextRepoId: string, domain: string) => {
       const response = await fetch(
-        `/api/repos/${nextRepoId}/production-domain`,
+        `/api/repos/${encodeURIComponent(nextRepoId)}/production-domain`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -280,11 +280,14 @@ export function RepoWorkspaceShell({
 
   const onPromoteDeployment = useCallback(
     async (nextRepoId: string, deploymentId: string) => {
-      const response = await fetch(`/api/repos/${nextRepoId}/promote`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deploymentId }),
-      });
+      const response = await fetch(
+        `/api/repos/${encodeURIComponent(nextRepoId)}/promote`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deploymentId }),
+        },
+      );
 
       if (!response.ok) {
         const data = (await response.json().catch(() => null)) as {

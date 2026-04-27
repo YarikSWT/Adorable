@@ -204,8 +204,10 @@ export const Assistant = ({
       }
 
       if (activeRepoId) {
+        // repoId из Gitea имеет формат "owner/repo" — slash обязан быть
+        // encoded, иначе Next.js dynamic route [repoId] его не матчит.
         const response = await fetch(
-          `/api/repos/${activeRepoId}/conversations`,
+          `/api/repos/${encodeURIComponent(activeRepoId)}/conversations`,
           {
             method: "POST",
             headers: {

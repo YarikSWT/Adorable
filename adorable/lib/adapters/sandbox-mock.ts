@@ -47,7 +47,7 @@ export interface MockSandboxProvider extends SandboxProvider {
 }
 
 const DEFAULT_PORTS: Record<string, number> = {
-  preview: 3000,
+  preview: 5173, // Vite dev — см. lib/vars.ts VM_PORT
   devCommandTerminal: 3010,
   additionalTerminals: 3020,
 };

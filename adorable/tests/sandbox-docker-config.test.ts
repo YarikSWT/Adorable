@@ -157,6 +157,94 @@ describe("sandbox HostConfig (15 restrictions)", () => {
     expect(wopt).toMatch(/size=\d+/);
   });
 
+  it("14b-i) /workspace tmpfs has explicit exec flag", () => {
+    // Без него Docker накладывает noexec на tmpfs по умолчанию,
+    // и npm install падает на esbuild/rollup postinstall, vite не
+    // стартует — нативные бинари не исполнить из /workspace/node_modules.
+    const wopt = hc.Tmpfs!["/workspace"];
+    expect(wopt).toContain("exec");
+    expect(wopt).not.toMatch(/\bnoexec\b/);
+  });
+
+  it("14b-ii) /tmp tmpfs has explicit exec flag", () => {
+    // npm разворачивает пакеты во временную директорию и выполняет
+    // postinstall оттуда; spawn('sh', { cwd: /tmp/... }) требует exec.
+    const tmpopt = hc.Tmpfs!["/tmp"];
+    expect(tmpopt).toContain("exec");
+    expect(tmpopt).not.toMatch(/\bnoexec\b/);
+  });
+
+  it("14c) /workspace tmpfs honours SANDBOX_WORKSPACE_SIZE_BYTES", () => {
+    const built10g = buildSandboxContainerConfig({
+      sandboxId: "sbx-ws",
+      repoId: "r",
+      workdir: "/workspace",
+      workspaceVolumeName: "v",
+      envSource: {
+        ...defaultEnv,
+        SANDBOX_WORKSPACE_SIZE_BYTES: String(10 * 1024 * 1024 * 1024),
+      },
+    });
+    const wopt = built10g.createOptions.HostConfig!.Tmpfs!["/workspace"];
+    expect(wopt).toContain(`size=${10 * 1024 * 1024 * 1024}`);
+    expect(built10g.limits.workspaceSizeBytes).toBe(10 * 1024 * 1024 * 1024);
+  });
+
+  it("14d) /workspace tmpfs defaults to 6 GiB when no env override", () => {
+    const minimalEnv: SandboxLimitsEnv = {
+      SANDBOX_NETWORK_NAME: "adorable_sandboxes",
+    };
+    const built = buildSandboxContainerConfig({
+      sandboxId: "sbx-default",
+      repoId: "r",
+      workdir: "/workspace",
+      workspaceVolumeName: "v",
+      envSource: minimalEnv,
+    });
+    expect(built.limits.workspaceSizeBytes).toBe(6_442_450_944);
+    expect(built.createOptions.HostConfig!.Tmpfs!["/workspace"]).toContain(
+      "size=6442450944",
+    );
+  });
+
+  it("14e) /tmp tmpfs defaults to 1 GiB when no env override", () => {
+    const minimalEnv: SandboxLimitsEnv = {
+      SANDBOX_NETWORK_NAME: "adorable_sandboxes",
+    };
+    const built = buildSandboxContainerConfig({
+      sandboxId: "sbx-tmp-default",
+      repoId: "r",
+      workdir: "/workspace",
+      workspaceVolumeName: "v",
+      envSource: minimalEnv,
+    });
+    expect(built.limits.tmpSizeBytes).toBe(1_073_741_824);
+    expect(built.createOptions.HostConfig!.Tmpfs!["/tmp"]).toContain(
+      "size=1073741824",
+    );
+  });
+
+  it("14f) Memory and Pids defaults comfortable for Next.js dev", () => {
+    const minimalEnv: SandboxLimitsEnv = {
+      SANDBOX_NETWORK_NAME: "adorable_sandboxes",
+    };
+    const built = buildSandboxContainerConfig({
+      sandboxId: "sbx-defaults",
+      repoId: "r",
+      workdir: "/workspace",
+      workspaceVolumeName: "v",
+      envSource: minimalEnv,
+    });
+    expect(built.limits.memoryBytes).toBe(4_294_967_296); // 4 GiB
+    expect(built.limits.pidsLimit).toBe(1024);
+    // nofile is not exposed on limits snapshot, but we can read it via Ulimits.
+    const nofile = built.createOptions.HostConfig!.Ulimits!.find(
+      (u) => u.Name === "nofile",
+    );
+    expect(nofile?.Soft).toBe(4096);
+    expect(nofile?.Hard).toBe(4096);
+  });
+
   it("15) Labels include audit fields (sandbox/repoId/sandboxId/createdAt)", () => {
     expect(cc.Labels).toMatchObject({
       "adorable.sandbox": "true",
@@ -177,6 +265,8 @@ describe("sandbox HostConfig (15 restrictions)", () => {
       capDrop: ["ALL"],
       securityOpt: ["no-new-privileges:true"],
       tmpSizeBytes: 104_857_600,
+      // defaultEnv не задаёт SANDBOX_WORKSPACE_SIZE_BYTES → берём дефолт 6 GiB.
+      workspaceSizeBytes: 6_442_450_944,
     });
   });
 

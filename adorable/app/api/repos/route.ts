@@ -1,9 +1,9 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
-import { TEMPLATE_REPO } from "@/lib/vars";
 import { createVmForRepo } from "@/lib/adorable-vm";
 import { getOrCreateIdentitySession } from "@/lib/identity-session";
 import { getGitProvider } from "@/lib/git/provider-singleton";
+import { seedTemplateRepo } from "@/lib/template-seeder";
 import {
   ADORABLE_WRAPPER_REPO_PREFIX,
   type RepoMetadata,
@@ -144,16 +144,19 @@ export async function POST(req: Request) {
     // Enable GitHub Sync (push-mirror in Gitea).
     await repo.githubSync.enable({ githubRepoName });
   } else {
-    // Create from template URL (handled via Gitea's migrate endpoint).
-    const created = await gitProvider.createRepo({
-      ...(requestedName ? { name: requestedName } : {}),
-      import: {
-        commitMessage: "Initial commit",
-        url: TEMPLATE_REPO,
-        type: "git",
-      },
-    });
+    // Создаём пустой репо и заливаем в него bundled Vite + React template
+    // через seedTemplateRepo. Раньше здесь был gitProvider.createRepo({
+    // import: { url: TEMPLATE_REPO } }) который дёргал Gitea migrate-endpoint
+    // против external GitHub. Теперь template лежит рядом с кодом, никаких
+    // внешних зависимостей при создании проекта.
+    const created = await gitProvider.createRepo(
+      requestedName ? { name: requestedName } : {},
+    );
     sourceRepoId = created.repoId;
+    await seedTemplateRepo({
+      provider: gitProvider,
+      repo: created.repo,
+    });
   }
 
   const inferredName =
