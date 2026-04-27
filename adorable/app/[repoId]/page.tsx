@@ -6,7 +6,9 @@ export default async function RepoPage({
 }: {
   params: Promise<{ repoId: string }>;
 }) {
-  const { repoId } = await params;
+  const rawParams = await params;
+  // Next.js 16 + Turbopack не декодит dynamic params в App Router.
+  const repoId = decodeURIComponent(rawParams.repoId);
   return (
     <Assistant
       initialMessages={[]}

@@ -120,6 +120,26 @@ export interface GitProvider {
   getRepo: (repoId: string) => GitRepoRef;
   /** Delete a repo (used by cleanup / tests). */
   deleteRepo: (repoId: string) => Promise<void>;
+  /**
+   * Rename a repo. Returns the new repoId (provider-specific shape; для
+   * Gitea — "<owner>/<new-name>"). Использется при миграции
+   * wrapper-репо к UUID-схеме именования.
+   */
+  renameRepo?: (
+    repoId: string,
+    newName: string,
+  ) => Promise<{ repoId: string; cloneUrl?: string }>;
+  /**
+   * Возвращает все файлы репо (рекурсивно) на default-branch'е (или
+   * указанном rev) с их utf-8 содержимым. Используется при пересоздании
+   * sandbox'а: вместо bundled-template'а наполняем workspace последним
+   * закоммиченным состоянием — так агентские правки не теряются после
+   * cleanup-worker'а, при условии что агент дёрнул commitTool.
+   */
+  listAllFiles?: (
+    repoId: string,
+    opts?: { rev?: string },
+  ) => Promise<Array<{ path: string; content: string }>>;
 }
 
 export type GitProviderName = "gitea" | "mock";

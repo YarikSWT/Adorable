@@ -1,11 +1,16 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { createVmForRepo } from "@/lib/adorable-vm";
-import { getOrCreateIdentitySession } from "@/lib/identity-session";
+import {
+  getOrCreateIdentitySession,
+  migrateRepoIdInAcl,
+} from "@/lib/identity-session";
 import { getGitProvider } from "@/lib/git/provider-singleton";
 import { seedTemplateRepo } from "@/lib/template-seeder";
 import {
   ADORABLE_WRAPPER_REPO_PREFIX,
+  isWrapperRepoName,
+  stripWrapperPrefix,
   type RepoMetadata,
   type RepoDeploymentSummary,
   createConversationInRepo,
@@ -13,12 +18,7 @@ import {
   writeRepoMetadata,
 } from "@/lib/repo-storage";
 
-const toDisplayRepoName = (name?: string | null) => {
-  if (!name) return undefined;
-  return name.startsWith(ADORABLE_WRAPPER_REPO_PREFIX)
-    ? name.slice(ADORABLE_WRAPPER_REPO_PREFIX.length)
-    : name;
-};
+const toDisplayRepoName = (name?: string | null) => stripWrapperPrefix(name);
 
 type DeploymentEntry = {
   deploymentId: string;
@@ -60,6 +60,35 @@ const reconcileDeploymentState = (
   };
 };
 
+/**
+ * Чинит URL вида `http://abc.preview.localhost` который сохраняли в
+ * metadata.json до фикса, добавляющего порт. В dev Caddy слушает на 8080
+ * (или другом, заданном через CADDY_HTTP_PORT / PREVIEW_PUBLIC_PORT), а
+ * iframe в UI без порта летит на дефолтный 80 → loader висит навсегда.
+ *
+ * На вылете из /api/repos переписываем URL'ы: если в host нет порта и
+ * env намекает, что прокси не на 80/443 — дописываем `:<port>`. На prod
+ * с Caddy на стандартных 80/443 ничего не меняется.
+ */
+const rewritePreviewPort = (url: string | undefined): string | undefined => {
+  if (!url) return url;
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return url;
+  }
+  if (parsed.port) return url; // уже есть явный порт
+  const envPort =
+    process.env["PREVIEW_PUBLIC_PORT"] ?? process.env["CADDY_HTTP_PORT"];
+  const port = envPort ? Number.parseInt(envPort, 10) : NaN;
+  if (!Number.isFinite(port) || port <= 0) return url;
+  const defaultPort = parsed.protocol === "https:" ? 443 : 80;
+  if (port === defaultPort) return url;
+  parsed.port = String(port);
+  return parsed.toString().replace(/\/$/, ""); // тривиальный trailing-slash trim
+};
+
 const toRepoResponse = async (
   repo: { id: string; name?: string | null },
   deploymentEntries: DeploymentEntry[],
@@ -70,24 +99,75 @@ const toRepoResponse = async (
   const reconciledMetadata = metadata
     ? {
         ...metadata,
+        vm: {
+          ...metadata.vm,
+          previewUrl: rewritePreviewPort(metadata.vm.previewUrl) ?? "",
+          devCommandTerminalUrl:
+            rewritePreviewPort(metadata.vm.devCommandTerminalUrl) ?? "",
+          additionalTerminalsUrl:
+            rewritePreviewPort(metadata.vm.additionalTerminalsUrl) ?? "",
+        },
         deployments: metadata.deployments.map((deployment) =>
           reconcileDeploymentState(deployment, deploymentEntries),
         ),
       }
     : metadata;
 
+  // Display priority:
+  //   1. metadata.name (то, что пользователь увидел в интерфейсе при создании)
+  //   2. stripped repo name (для старых wrapper'ов, у которых metadata.name мог
+  //      не сохраниться; у новых wrapper'ов имя — UUID, не годится для UI)
+  //   3. fallback "Untitled Repo"
   return {
     id: repo.id,
-    name: repoDisplayName ?? metadataDisplayName ?? "Untitled Repo",
+    name: metadataDisplayName ?? repoDisplayName ?? "Untitled Repo",
     metadata: reconciledMetadata,
   };
+};
+
+/**
+ * Имена wrapper-репо считаются "чистыми", если соответствуют формату
+ * `adorable-meta-<uuid>`. Все остальные (старые: спрэдингованные пробелы
+ * → дефисы, осколки prompt'а в URL) подлежат one-time миграции.
+ */
+const CLEAN_WRAPPER_NAME_RE =
+  /^adorable-meta-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const migrateWrapperNameIfNeeded = async (
+  repo: { id: string; name: string },
+): Promise<{ id: string; name: string }> => {
+  if (CLEAN_WRAPPER_NAME_RE.test(repo.name)) return repo;
+  const provider = await getGitProvider();
+  if (!provider.renameRepo) return repo;
+
+  const newName = `adorable-meta-${randomUUID()}`;
+  try {
+    const renamed = await provider.renameRepo(repo.id, newName);
+    await migrateRepoIdInAcl(repo.id, renamed.repoId);
+    return { id: renamed.repoId, name: newName };
+  } catch (err) {
+    process.stderr.write(
+      `repos: migrate rename failed for ${repo.id} (${(err as Error).message})\n`,
+    );
+    return repo;
+  }
 };
 
 export async function GET() {
   const { identityId, identity } = await getOrCreateIdentitySession();
   const { repositories } = await identity.permissions.git.list({ limit: 200 });
   const wrapperRepositories = repositories.filter((repo) =>
-    (repo.name ?? "").startsWith(ADORABLE_WRAPPER_REPO_PREFIX),
+    isWrapperRepoName(repo.name),
+  );
+
+  // One-time миграция: старые wrapper'ы вроде
+  // "adorable-meta-----------------------------Mazda-MX-5..." (созданные
+  // до фикса префикса) переименовываются в "adorable-meta-<uuid>". ACL
+  // обновляется через migrateRepoIdInAcl. После rename старые URL
+  // перестают работать — пользователь увидит redirect через clean имя
+  // в следующем render'е home grid.
+  const migratedRepositories = await Promise.all(
+    wrapperRepositories.map((repo) => migrateWrapperNameIfNeeded(repo)),
   );
 
   // TODO(phase-5): list deployments via DeployProvider. For now leave
@@ -96,7 +176,7 @@ export async function GET() {
   const deploymentEntries: DeploymentEntry[] = [];
 
   const items = await Promise.all(
-    wrapperRepositories.map((repo) => toRepoResponse(repo, deploymentEntries)),
+    migratedRepositories.map((repo) => toRepoResponse(repo, deploymentEntries)),
   );
 
   return NextResponse.json({
@@ -133,12 +213,17 @@ export async function POST(req: Request) {
 
   const gitProvider = await getGitProvider();
 
-  // Create repo with GitHub Sync or from template
+  // Source-repo тоже получает UUID-имя. Раньше использовалось
+  // requestedName (первые 50 символов prompt'а) — но Cyrillic-prompt'ы
+  // после Gitea-sanitization превращаются в одинаковые `-----` строки,
+  // что приводило к 409 при повторных попытках. Display-name приходит
+  // из metadata.name — sourceRepo human-readable имя нам не нужно.
+  const sourceUuid = randomUUID();
   let sourceRepoId: string;
   if (githubRepoName) {
-    const { repo, repoId: createdRepoId } = await gitProvider.createRepo(
-      requestedName ? { name: requestedName } : {},
-    );
+    const { repo, repoId: createdRepoId } = await gitProvider.createRepo({
+      name: `adorable-src-${sourceUuid}`,
+    });
     sourceRepoId = createdRepoId;
 
     // Enable GitHub Sync (push-mirror in Gitea).
@@ -149,9 +234,9 @@ export async function POST(req: Request) {
     // import: { url: TEMPLATE_REPO } }) который дёргал Gitea migrate-endpoint
     // против external GitHub. Теперь template лежит рядом с кодом, никаких
     // внешних зависимостей при создании проекта.
-    const created = await gitProvider.createRepo(
-      requestedName ? { name: requestedName } : {},
-    );
+    const created = await gitProvider.createRepo({
+      name: `adorable-src-${sourceUuid}`,
+    });
     sourceRepoId = created.repoId;
     await seedTemplateRepo({
       provider: gitProvider,
@@ -161,7 +246,17 @@ export async function POST(req: Request) {
 
   const inferredName =
     requestedName ?? githubRepoName?.split("/").pop()?.trim() ?? "Project";
-  const wrapperRepoName = `${ADORABLE_WRAPPER_REPO_PREFIX}${inferredName}`;
+  // Раньше имя wrapper-репо склеивалось из ADORABLE_WRAPPER_REPO_PREFIX +
+  // первых 50 символов prompt'а пользователя. Gitea sanitiz'ил пробелы и
+  // спецсимволы в дефисы, и URL получался вроде
+  // /adorable%2Fadorable-meta-----------------------------Mazda-MX-5- —
+  // длинный, нечитабельный, и ничего полезного в нём не было (display name
+  // и так берётся из metadata.json).
+  // Используем UUID — короткий, гарантированно уникальный, без коллизий
+  // при повторных prompt'ах. isWrapperRepoName ловит как старые
+  // "adorable-meta-..." имена, так и новые "adorable-meta-<uuid>".
+  const wrapperUuid = randomUUID();
+  const wrapperRepoName = `${ADORABLE_WRAPPER_REPO_PREFIX}${wrapperUuid}`;
   const wrapperCreated = await gitProvider.createRepo({
     name: wrapperRepoName,
   });

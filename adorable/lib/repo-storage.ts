@@ -3,7 +3,34 @@ import { getGitProvider } from "@/lib/git/provider-singleton";
 
 export const ADORABLE_METADATA_PATH = "metadata.json";
 export const ADORABLE_CONVERSATIONS_DIR = "conversations";
-export const ADORABLE_WRAPPER_REPO_PREFIX = "adorable-meta - ";
+/**
+ * Префикс для имён wrapper-репо в Gitea. Раньше использовалось
+ * "adorable-meta - " (с пробелами) для красоты, но Gitea sanitiz'ит
+ * пробелы в дефисы → URL содержат "---". Без пробелов префикс остаётся
+ * чистым "adorable-meta-<uuid>" после roundtrip'а.
+ *
+ * Регулярка `WRAPPER_NAME_RE` ниже толерантна к обоим формам — старые
+ * репо в Gitea (с "adorable-meta---", "adorable-meta-----...", и т.д.)
+ * по-прежнему распознаются, чтобы пользователь не потерял к ним доступ
+ * после миграции.
+ */
+export const ADORABLE_WRAPPER_REPO_PREFIX = "adorable-meta-";
+
+const WRAPPER_NAME_RE = /^adorable-meta(?:[\s-]+|$)/i;
+
+export const isWrapperRepoName = (name: string | null | undefined): boolean => {
+  if (!name) return false;
+  return WRAPPER_NAME_RE.test(name);
+};
+
+export const stripWrapperPrefix = (
+  name: string | null | undefined,
+): string | undefined => {
+  if (!name) return undefined;
+  const m = name.match(WRAPPER_NAME_RE);
+  if (!m) return name;
+  return name.slice(m[0].length) || undefined;
+};
 
 export type RepoVmMetadata = {
   vmId: string;

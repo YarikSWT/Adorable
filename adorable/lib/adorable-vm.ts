@@ -23,7 +23,8 @@ import {
 } from "@/lib/vars";
 import { getSandboxProvider } from "@/lib/sandbox/provider-singleton";
 import { getProxyProvider } from "@/lib/proxy/provider-singleton";
-import { seedSandboxFromTemplate } from "@/lib/template-seeder";
+import { seedSandboxFromSourceRepo } from "@/lib/template-seeder";
+import { getGitProvider } from "@/lib/git/provider-singleton";
 
 export type VmRuntimeMetadata = {
   vmId: string;
@@ -37,6 +38,29 @@ const previewSuffix = (): string =>
 
 const previewProtocol = (): string =>
   process.env["PREVIEW_PROTOCOL"] ?? "http";
+
+/**
+ * Внешний порт прокси для preview. В dev-сетапе Caddy слушает на 8080
+ * (CADDY_HTTP_PORT в `scripts/dev-infra.sh` / `start-dev.sh`), потому что
+ * дефолтные 80/443 требуют privileged-bind. Без явного указания порта
+ * iframe в UI шёл на дефолтный 80 → "Loading preview..." висел вечно.
+ *
+ * Приоритет источников:
+ *   PREVIEW_PUBLIC_PORT — явный override.
+ *   CADDY_HTTP_PORT      — то, что выставлено для Caddy в dev.
+ *   protocol-default     — 80 для http, 443 для https.
+ *
+ * Если итоговый порт совпадает с дефолтным для протокола — НЕ добавляем
+ * `:port` в URL (чтобы prod с Caddy на 80/443 + ACME не ломался).
+ */
+const previewPortSegment = (proto: string): string => {
+  const explicit =
+    process.env["PREVIEW_PUBLIC_PORT"] ?? process.env["CADDY_HTTP_PORT"];
+  const port = explicit ? Number.parseInt(explicit, 10) : NaN;
+  if (!Number.isFinite(port) || port <= 0) return "";
+  const defaultPort = proto === "https" ? 443 : 80;
+  return port === defaultPort ? "" : `:${port}`;
+};
 
 export const createVmForRepo = async (
   repoId: string,
@@ -76,16 +100,21 @@ export const createVmForRepo = async (
   });
 
   // Docker-адаптер в нынешнем виде не клонирует git.repos в workspace —
-  // поле в контракте есть, реализация нет. Поэтому seed'им bundled
-  // Vite+React шаблон руками через handle.fs. Без этого агент видит
-  // пустую директорию и начинает npm create vite с нуля (а то и вовсе
-  // валится на readonly /home). Ошибки подавляем — sandbox остаётся
-  // работоспособен, агент в крайнем случае сам построит template.
+  // поле в контракте есть, реализация нет. Seedим из source-репо в
+  // Gitea (а не из bundled template'а), чтобы пересоздание sandbox'а
+  // после cleanup-worker'а восстанавливало последнее закоммиченное
+  // состояние агентских правок. Если коммитов нет / Gitea недоступен,
+  // seedSandboxFromSourceRepo сам fallback'нется на bundled template.
   try {
-    await seedSandboxFromTemplate({ fs: handle.fs });
+    const provider = await getGitProvider();
+    await seedSandboxFromSourceRepo({
+      fs: handle.fs,
+      provider,
+      sourceRepoId: repoId,
+    });
   } catch (err) {
     process.stderr.write(
-      `adorable-vm: template seed failed (${(err as Error).message})\n`,
+      `adorable-vm: source seed failed (${(err as Error).message})\n`,
     );
   }
 
@@ -109,10 +138,12 @@ export const createVmForRepo = async (
     );
   }
 
+  const portSegment = previewPortSegment(proto);
+
   return {
     vmId: handle.sandboxId,
-    previewUrl: `${proto}://${previewHost}`,
-    devCommandTerminalUrl: `${proto}://${devCommandHost}`,
-    additionalTerminalsUrl: `${proto}://${additionalHost}`,
+    previewUrl: `${proto}://${previewHost}${portSegment}`,
+    devCommandTerminalUrl: `${proto}://${devCommandHost}${portSegment}`,
+    additionalTerminalsUrl: `${proto}://${additionalHost}${portSegment}`,
   };
 };

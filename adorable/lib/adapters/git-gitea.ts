@@ -59,7 +59,7 @@ type GiteaResponse = {
 
 const api = async (
   cfg: GiteaConfig,
-  method: "GET" | "POST" | "PUT" | "DELETE",
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,
   body?: unknown,
 ): Promise<GiteaResponse> => {
@@ -399,11 +399,75 @@ export const createGiteaGitProvider = (): GitProvider => {
     }
   };
 
+  const listAllFiles: NonNullable<GitProvider["listAllFiles"]> = async (
+    repoId: string,
+    opts?: { rev?: string },
+  ) => {
+    const { owner, repo } = parseRepoId(repoId);
+    let rev = opts?.rev;
+    if (!rev) {
+      const info = await api(cfg, "GET", `/repos/${owner}/${repo}`);
+      const data = (info.json ?? {}) as { default_branch?: string };
+      rev = data.default_branch ?? "main";
+    }
+    // Gitea git/trees/<ref>?recursive=true возвращает плоский список с
+    // type=blob/tree. Берём только blob'ы.
+    const treeRes = await api(
+      cfg,
+      "GET",
+      `/repos/${owner}/${repo}/git/trees/${encodeURIComponent(rev)}?recursive=true&per_page=1000`,
+    );
+    if (!treeRes.ok) {
+      throw new Error(
+        `git-gitea: listAllFiles tree failed (${treeRes.status}): ${treeRes.text}`,
+      );
+    }
+    const treeData = (treeRes.json ?? {}) as {
+      tree?: Array<{ path: string; type: string }>;
+    };
+    const blobs = (treeData.tree ?? []).filter((e) => e.type === "blob");
+
+    const files: Array<{ path: string; content: string }> = [];
+    const ref = buildRef(repoId);
+    for (const blob of blobs) {
+      try {
+        const entry = await ref.contents.get({ path: blob.path, rev });
+        if (entry.type === "file") {
+          files.push({ path: blob.path, content: entry.content });
+        }
+      } catch (err) {
+        process.stderr.write(
+          `git-gitea: listAllFiles skipped ${blob.path}: ${(err as Error).message}\n`,
+        );
+      }
+    }
+    return files;
+  };
+
+  const renameRepo: NonNullable<GitProvider["renameRepo"]> = async (
+    repoId: string,
+    newName: string,
+  ) => {
+    const { owner, repo } = parseRepoId(repoId);
+    const r = await api(cfg, "PATCH", `/repos/${owner}/${repo}`, { name: newName });
+    if (!r.ok) {
+      throw new Error(`git-gitea: renameRepo failed (${r.status}): ${r.text}`);
+    }
+    const data = (r.json ?? {}) as { full_name?: string; clone_url?: string };
+    const newRepoId = data.full_name ?? `${owner}/${newName}`;
+    return {
+      repoId: newRepoId,
+      cloneUrl: data.clone_url,
+    };
+  };
+
   return {
     name: "gitea",
     createRepo,
     listRepos,
     getRepo,
     deleteRepo,
+    renameRepo,
+    listAllFiles,
   };
 };

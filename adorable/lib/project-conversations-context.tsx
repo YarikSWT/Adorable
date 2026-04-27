@@ -13,6 +13,8 @@ type ProjectConversationsContextValue = {
   repoId: string | null;
   conversations: ProjectConversation[];
   onSelectConversation: (conversationId: string) => void;
+  /** Currently active conversation, used to highlight в UI. */
+  activeConversationId?: string | null;
 };
 
 const ProjectConversationsContext =
@@ -20,6 +22,7 @@ const ProjectConversationsContext =
     repoId: null,
     conversations: [],
     onSelectConversation: () => {},
+    activeConversationId: null,
   });
 
 export const ProjectConversationsProvider =

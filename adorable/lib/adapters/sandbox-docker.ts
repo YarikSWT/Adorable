@@ -179,10 +179,40 @@ export const createDockerSandboxProvider = (
     const fs: SandboxFs = {
       readTextFile: async (path) => {
         const abs = path.startsWith("/") ? path : `${workdir}/${path}`;
-        const stream = (await container.getArchive({
-          path: abs,
-        })) as unknown as NodeJS.ReadableStream;
-        return extractOne(stream);
+        const readonlyRootfs =
+          inspectData.HostConfig?.ReadonlyRootfs === true;
+        // На контейнерах с ReadonlyRootfs Docker getArchive отказывает
+        // ("no such container - Could not find the file ..."), даже если
+        // файл реально есть в writable tmpfs-mount /workspace. Fallback
+        // через `cat <file>` exec — sandbox-user читает из tmpfs OK.
+        const fallbackToExec = async (): Promise<string> => {
+          const res = await exec({
+            command: `cat ${JSON.stringify(abs)}`,
+          });
+          if (res.exitCode !== 0) {
+            throw new Error(
+              `readTextFile fallback failed for ${abs}: exit=${res.exitCode}, stderr=${res.stderr.slice(0, 300)}`,
+            );
+          }
+          return res.stdout;
+        };
+        if (readonlyRootfs) return fallbackToExec();
+        try {
+          const stream = (await container.getArchive({
+            path: abs,
+          })) as unknown as NodeJS.ReadableStream;
+          return await extractOne(stream);
+        } catch (err) {
+          const msg = (err as Error).message ?? "";
+          if (
+            !/read-only|read only|rootfs|no such container|could not find/i.test(
+              msg,
+            )
+          ) {
+            throw err;
+          }
+          return fallbackToExec();
+        }
       },
       readFile: async (p) => fs.readTextFile(p),
       writeTextFile: async (path, content) => {

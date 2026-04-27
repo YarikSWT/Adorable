@@ -15,7 +15,8 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ repoId: string }> },
 ) {
-  const { repoId } = await params;
+  const { repoId: rawRepoId } = await params;
+  const repoId = decodeURIComponent(rawRepoId);
 
   if (!(await assertRepoAccess(repoId))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

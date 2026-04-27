@@ -12,7 +12,10 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ repoId: string; conversationId: string }> },
 ) {
-  const { repoId, conversationId } = await params;
+  // Next 16 не декодит dynamic params — decode'им вручную.
+  const raw = await params;
+  const repoId = decodeURIComponent(raw.repoId);
+  const conversationId = decodeURIComponent(raw.conversationId);
 
   if (!(await assertRepoAccess(repoId))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

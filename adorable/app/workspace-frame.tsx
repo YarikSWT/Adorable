@@ -12,8 +12,23 @@ type ActiveConversationDetail = {
 
 export function WorkspaceFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  // usePathname() в Next 13+ возвращает path с сохранёнными percent-encoded
+  // сегментами ("%2F" не декодится). Когда мы кладём repoId с slash через
+  // encodeURIComponent в URL, split('/') оставляет сегмент с "%2F"; чтобы
+  // сравнение с repos.find(r => r.id === repoId) работало (id у repo уже
+  // decoded), декодируем каждый сегмент здесь.
   const pathParts = useMemo(
-    () => pathname.split("/").filter(Boolean),
+    () =>
+      pathname
+        .split("/")
+        .filter(Boolean)
+        .map((segment) => {
+          try {
+            return decodeURIComponent(segment);
+          } catch {
+            return segment;
+          }
+        }),
     [pathname],
   );
 

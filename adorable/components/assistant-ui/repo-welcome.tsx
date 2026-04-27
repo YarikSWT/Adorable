@@ -1,11 +1,16 @@
 "use client";
 
 import { useProjectConversations } from "@/lib/project-conversations-context";
+import { cn } from "@/lib/utils";
 import type { FC } from "react";
 
 export const RepoWelcome: FC = () => {
-  const { conversations, onSelectConversation, repoId } =
-    useProjectConversations();
+  const {
+    conversations,
+    onSelectConversation,
+    repoId,
+    activeConversationId,
+  } = useProjectConversations();
 
   const hasConversations = repoId && conversations.length > 0;
 
@@ -26,12 +31,19 @@ export const RepoWelcome: FC = () => {
             <div className="divide-y divide-border/50">
               {conversations.map((conversation) => {
                 const title = conversation.title?.trim();
+                const isActive = conversation.id === activeConversationId;
                 return (
                   <button
                     key={conversation.id}
                     type="button"
                     onClick={() => onSelectConversation(conversation.id)}
-                    className="flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm transition-colors",
+                      isActive
+                        ? "bg-muted/70 font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                    )}
                   >
                     <span className="truncate">
                       {title || "Untitled conversation"}

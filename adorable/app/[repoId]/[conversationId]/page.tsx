@@ -14,7 +14,13 @@ export default async function ConversationPage({
 }: {
   params: Promise<{ repoId: string; conversationId: string }>;
 }) {
-  const { repoId, conversationId } = await params;
+  // Next.js 16 + Turbopack не декодит dynamic params в App Router —
+  // "adorable%2Ffoo" приходит как есть. ACL хранит decoded repoId
+  // ("adorable/foo"), поэтому без decode access всегда false и
+  // initialMessages становится []. Декодим явно.
+  const rawParams = await params;
+  const repoId = decodeURIComponent(rawParams.repoId);
+  const conversationId = decodeURIComponent(rawParams.conversationId);
 
   if (!(await hasRepoAccess(repoId))) {
     return (

@@ -131,6 +131,43 @@ export const seedSandboxFromTemplate = async (opts: {
   return { fileCount: files.length };
 };
 
+/**
+ * Заливает в sandbox последнее закоммиченное состояние source-репо в
+ * Gitea. Используется при пересоздании sandbox'а: если в source-репо
+ * есть коммиты сверх initial template'а (агент дёрнул commitTool),
+ * восстанавливаем эти правки. Если коммитов нет — наполняется чистым
+ * template'ом, который был залит при создании репо.
+ *
+ * Fallback на bundled template при ошибке (Gitea недоступен,
+ * провайдер не реализует listAllFiles) — sandbox получит хотя бы
+ * боилерплейт, а не пустой workspace.
+ */
+export const seedSandboxFromSourceRepo = async (opts: {
+  fs: {
+    writeTextFile: (path: string, content: string) => Promise<void>;
+  };
+  provider: GitProvider;
+  sourceRepoId: string;
+}): Promise<{ fileCount: number; from: "source" | "template" }> => {
+  if (opts.provider.listAllFiles) {
+    try {
+      const files = await opts.provider.listAllFiles(opts.sourceRepoId);
+      if (files.length > 0) {
+        for (const file of files) {
+          await opts.fs.writeTextFile(file.path, file.content);
+        }
+        return { fileCount: files.length, from: "source" };
+      }
+    } catch (err) {
+      process.stderr.write(
+        `template-seeder: source-repo seed failed for ${opts.sourceRepoId} (${(err as Error).message}); falling back to bundled template\n`,
+      );
+    }
+  }
+  const result = await seedSandboxFromTemplate({ fs: opts.fs });
+  return { fileCount: result.fileCount, from: "template" };
+};
+
 export const seedTemplateRepo = async (
   opts: SeedTemplateOptions,
 ): Promise<{ sha: string; fileCount: number }> => {

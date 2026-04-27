@@ -161,7 +161,10 @@ export const Assistant = ({
         return;
       }
 
-      const nextPath = `/${repoId}/${conversationId}`;
+      // repoId из Gitea — "owner/repo" со slash. Без encodeURIComponent
+      // route [repoId]/[conversationId] парсит owner как repoId, остальное
+      // как conversationId — открывается чужая (несуществующая) сессия.
+      const nextPath = `/${encodeURIComponent(repoId)}/${encodeURIComponent(conversationId)}`;
       window.history.replaceState(window.history.state, "", nextPath);
       setSeedMessages(EMPTY_MESSAGES);
       setLocalRepoId(repoId);
@@ -234,7 +237,7 @@ export const Assistant = ({
           throw new Error("Conversation creation did not return an id.");
         }
 
-        const nextPath = `/${activeRepoId}/${conversationId}`;
+        const nextPath = `/${encodeURIComponent(activeRepoId)}/${encodeURIComponent(conversationId)}`;
         window.history.replaceState(window.history.state, "", nextPath);
         setLocalConversationId(conversationId);
         activeConversationIdRef.current = conversationId;
@@ -279,7 +282,7 @@ export const Assistant = ({
         throw new Error("Repository creation did not return ids.");
       }
 
-      const nextPath = `/${repoId}/${conversationId}`;
+      const nextPath = `/${encodeURIComponent(repoId)}/${encodeURIComponent(conversationId)}`;
       window.history.replaceState(window.history.state, "", nextPath);
       setLocalRepoId(repoId);
       setLocalConversationId(conversationId);

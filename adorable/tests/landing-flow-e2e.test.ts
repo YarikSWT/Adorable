@@ -24,6 +24,9 @@ import {
   afterEach,
   vi,
 } from "vitest";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { tmpdir } from "node:os";
 
 // vi.mock поднимается наверх, поэтому cookieJar создаём через vi.hoisted.
 const { cookieJar } = vi.hoisted(() => ({
@@ -47,7 +50,10 @@ vi.mock("next/headers", () => ({
 
 import { __resetGitSingleton } from "@/lib/git/provider-singleton";
 import { __resetSandboxSingleton } from "@/lib/sandbox/provider-singleton";
-import { ADORABLE_IDENTITY_COOKIE } from "@/lib/identity-session";
+import {
+  ADORABLE_IDENTITY_COOKIE,
+  __resetIdentitySessionCache,
+} from "@/lib/identity-session";
 
 import * as reposRoute from "@/app/api/repos/route";
 import * as chatRoute from "@/app/api/chat/route";
@@ -61,27 +67,32 @@ type AssistantMessage = {
 
 const pristineEnv = { ...process.env };
 
-// ACL (identity → allowed repo ids) живёт в globalThis — сбрасываем между
-// тестами, чтобы утечка из предыдущего run не влияла на 403-сценарий.
-const clearIdentityAcl = () => {
-  const g = globalThis as unknown as Record<string, unknown>;
-  g["__adorableIdentityAcl"] = new Map<string, Set<string>>();
-};
+// ACL (identity → allowed repo ids) теперь персистится в файл (см.
+// lib/identity-session.ts). Чтобы тесты не пачкали диск, каждому тесту
+// даём свой tmp-путь и чистим в afterEach.
+let aclTmpDir = "";
 
-beforeEach(() => {
+beforeEach(async () => {
   cookieJar.clear();
-  clearIdentityAcl();
   process.env.LLM_PROVIDER = "mock";
   process.env.GIT_PROVIDER = "mock";
   process.env.SANDBOX_PROVIDER = "mock";
   process.env.PROXY_PROVIDER = "mock";
+  aclTmpDir = await fs.mkdtemp(path.join(tmpdir(), "adorable-acl-e2e-"));
+  process.env.ADORABLE_ACL_FILE = path.join(aclTmpDir, "acl.json");
+  __resetIdentitySessionCache();
   __resetGitSingleton();
   __resetSandboxSingleton();
 });
 
-afterEach(() => {
+afterEach(async () => {
   __resetSandboxSingleton();
   __resetGitSingleton();
+  __resetIdentitySessionCache();
+  if (aclTmpDir) {
+    await fs.rm(aclTmpDir, { recursive: true, force: true });
+    aclTmpDir = "";
+  }
   for (const key of Object.keys(process.env)) {
     if (!(key in pristineEnv)) delete process.env[key];
   }

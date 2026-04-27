@@ -50,10 +50,20 @@ export function RepoWorkspaceShell({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const rawSecondSegment = pathname.split("/").filter(Boolean)[1];
+  // pathname сохраняет %2F. Декодируем сегмент, иначе для conversationId с
+  // несвойственными символами match не сработает (хотя UUID обычно safe,
+  // на будущее).
+  const decodedSecondSegment = (() => {
+    if (!rawSecondSegment) return null;
+    try {
+      return decodeURIComponent(rawSecondSegment);
+    } catch {
+      return rawSecondSegment;
+    }
+  })();
   const selectedConversationId =
-    selectedConversationIdOverride ??
-    pathname.split("/").filter(Boolean)[1] ??
-    null;
+    selectedConversationIdOverride ?? decodedSecondSegment ?? null;
 
   const [repos, setRepos] = useState<RepoItem[]>([]);
   const [reposLoading, setReposLoading] = useState(true);
@@ -115,6 +125,39 @@ export function RepoWorkspaceShell({
   useEffect(() => {
     if (!repoId) return;
     loadRepos();
+  }, [loadRepos, repoId]);
+
+  // При открытии workspace для repoId оживляем sandbox, если он мёртв
+  // (cleanup-worker давно реапнул контейнер). Server-side endpoint сам
+  // решает: если жив — no-op, если мёртв — пересоздаёт и обновляет
+  // metadata. После — перечитываем repos, чтобы UI получил новые
+  // previewUrl/vmId.
+  const wokenRepoIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!repoId) return;
+    if (wokenRepoIds.current.has(repoId)) return;
+    wokenRepoIds.current.add(repoId);
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(
+          `/api/repos/${encodeURIComponent(repoId)}/wake`,
+          { method: "POST" },
+        );
+        if (!r.ok) return;
+        const data = (await r.json()) as { recreated?: boolean };
+        if (data.recreated && !cancelled) {
+          await loadRepos();
+        }
+      } catch {
+        // wake — best-effort; оригинальный previewUrl всё равно может
+        // быть жив (Caddy 200 c body), просто не показываем UX-степ
+        // "оживляю sandbox".
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [loadRepos, repoId]);
 
   useEffect(() => {
@@ -218,7 +261,11 @@ export function RepoWorkspaceShell({
 
   const handleSelectProject = useCallback(
     (nextRepoId: string) => {
-      router.push(`/${nextRepoId}`);
+      // repoId из Gitea — "owner/repo" со slash. router.push с raw slash
+      // создаёт многосегментный URL, который Next dynamic route [repoId]
+      // парсит как repoId=owner — открывается не тот репо. encodeURIComponent
+      // превращает "/" в "%2F" и Next decode'ит его обратно в один сегмент.
+      router.push(`/${encodeURIComponent(nextRepoId)}`);
     },
     [router],
   );
@@ -246,13 +293,16 @@ export function RepoWorkspaceShell({
     () => ({
       repoId,
       conversations: selectedRepo?.conversations ?? [],
+      activeConversationId: selectedConversationId,
       onSelectConversation: (conversationId: string) => {
         if (repoId) {
-          router.push(`/${repoId}/${conversationId}`);
+          router.push(
+            `/${encodeURIComponent(repoId)}/${encodeURIComponent(conversationId)}`,
+          );
         }
       },
     }),
-    [repoId, selectedRepo?.conversations, router],
+    [repoId, selectedRepo?.conversations, selectedConversationId, router],
   );
 
   const onSetProductionDomain = useCallback(
@@ -339,7 +389,7 @@ export function RepoWorkspaceShell({
                             detail: { repoId },
                           }),
                         );
-                        router.push(`/${repoId}`);
+                        router.push(`/${encodeURIComponent(repoId)}`);
                       } else {
                         window.dispatchEvent(new Event("adorable:go-home"));
                         router.push("/");
@@ -537,6 +587,11 @@ function AppPreview({
   const [activeTab, setActiveTab] = useState("dev-server");
   const [counter, setCounter] = useState(1);
   const [iframeLoaded, setIframeLoaded] = useState(false);
+  // Bump'аем reloadKey на iframe, чтобы пере-mount'ить его и заставить
+  // браузер сделать свежий запрос. Нужно после wake'а sandbox'а: Vite
+  // dev-server стартует ~10-30s после `npm install`, и первые попытки
+  // iframe.load возвращают 502 от Caddy (контейнер ещё не слушает).
+  const [reloadKey, setReloadKey] = useState(0);
   const [loadedTerminals, setLoadedTerminals] = useState<Set<string>>(
     new Set(),
   );
@@ -547,6 +602,16 @@ function AppPreview({
 
   useEffect(() => {
     setIframeLoaded(false);
+    setReloadKey(0);
+    // Запускаем серию re-load'ов iframe на ~45 секундах после смены
+    // previewUrl. К этому моменту dev-сервер обычно уже слушает.
+    const delays = [4_000, 9_000, 16_000, 26_000, 40_000];
+    const handles = delays.map((delay) =>
+      window.setTimeout(() => setReloadKey((k) => k + 1), delay),
+    );
+    return () => {
+      handles.forEach((h) => window.clearTimeout(h));
+    };
   }, [metadata.previewUrl]);
 
   const addTerminal = useCallback(() => {
@@ -602,6 +667,10 @@ function AppPreview({
             </div>
           )}
           <iframe
+            // key=reloadKey пере-mount'ит iframe и заставит браузер
+            // сделать новый запрос — нужно во время wake-bootstrap'а,
+            // пока Vite dev-server поднимается.
+            key={reloadKey}
             ref={iframeRef}
             src={metadata.previewUrl}
             className={cn(

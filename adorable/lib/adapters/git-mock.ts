@@ -164,6 +164,29 @@ export const createMockGitProvider = (): MockGitProvider => {
     store.delete(repoId);
   };
 
+  const listAllFiles: NonNullable<GitProvider["listAllFiles"]> = async (
+    repoId: string,
+  ) => {
+    const state = store.get(repoId);
+    if (!state) throw new Error(`mock-git: repo not found: ${repoId}`);
+    return Array.from(state.files.entries()).map(([path, content]) => ({
+      path,
+      content,
+    }));
+  };
+
+  const renameRepo: NonNullable<GitProvider["renameRepo"]> = async (
+    repoId: string,
+    newName: string,
+  ) => {
+    const state = store.get(repoId);
+    if (!state) throw new Error(`mock-git: repo not found: ${repoId}`);
+    // Mock хранит state по repoId-as-uuid, но "id" в нашем тесте — это
+    // просто string. Меняем имя in-place; `id` остаётся стабильным.
+    state.name = newName;
+    return { repoId, cloneUrl: `mock://git/${repoId}.git` };
+  };
+
   const seedFiles: MockGitProvider["seedFiles"] = (repoId, files) => {
     const state = store.get(repoId);
     if (!state) throw new Error(`mock-git: repo not found: ${repoId}`);
@@ -182,6 +205,8 @@ export const createMockGitProvider = (): MockGitProvider => {
     listRepos,
     getRepo,
     deleteRepo,
+    renameRepo,
+    listAllFiles,
     seedFiles,
     inspect,
     reset,

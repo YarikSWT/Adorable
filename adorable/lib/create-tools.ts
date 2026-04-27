@@ -20,6 +20,22 @@ type SandboxLike = SandboxHandle | {
 type CreateToolsOptions = {
   sourceRepoId?: string;
   metadataRepoId?: string;
+  /**
+   * Server-side auto-commit hook. Каждый раз, когда агент пишет файл
+   * через writeFileTool / replaceInFileTool / appendToFileTool, мы
+   * вызываем onFileChange(path, content). Caller (chat/route.ts)
+   * собирает эти изменения в Map и в onFinish стрима делает один
+   * batch-commit через `gitProvider.commits.create`. Это обходит
+   * проблему: sandbox-контейнер не имеет сетевого доступа к Gitea
+   * (разные docker-network), агентский `git push` всегда падает.
+   * Записываем в Gitea с server-side, у которого доступ есть.
+   */
+  onFileChange?: (path: string, content: string) => void;
+  /**
+   * Аналогично для delete: агент может удалить файл; передаём в caller
+   * чтобы он включил deletion в batch-commit.
+   */
+  onFileDelete?: (path: string) => void;
 };
 
 const normalizeRelativePath = (rawPath: string): string | null => {
@@ -145,6 +161,7 @@ export const createTools = (vm: SandboxLike, options?: CreateToolsOptions) => {
       const safeFile = file ? normalizeRelativePath(file) : null;
       if (!safeFile) return { ok: false, error: "File path is required." };
       await vm.fs.writeTextFile(safeFile, content);
+      options?.onFileChange?.(safeFile, content);
       return { ok: true };
     },
   });
@@ -249,6 +266,7 @@ export const createTools = (vm: SandboxLike, options?: CreateToolsOptions) => {
           : 1;
 
       await vm.fs.writeTextFile(safeFile, nextContent);
+      options?.onFileChange?.(safeFile, nextContent);
       return { ok: true, file: safeFile, replacements };
     },
   });
@@ -274,7 +292,9 @@ export const createTools = (vm: SandboxLike, options?: CreateToolsOptions) => {
         existing = "";
       }
 
-      await vm.fs.writeTextFile(safeFile, `${existing}${content}`);
+      const nextContent = `${existing}${content}`;
+      await vm.fs.writeTextFile(safeFile, nextContent);
+      options?.onFileChange?.(safeFile, nextContent);
       return { ok: true, file: safeFile, appendedBytes: content.length };
     },
   });
@@ -309,9 +329,16 @@ export const createTools = (vm: SandboxLike, options?: CreateToolsOptions) => {
       if (!safeFrom || !safeTo) {
         return { ok: false, error: "Invalid source or destination path." };
       }
-      return runExecCommand(
+      const result = await runExecCommand(
         `cd ${shellQuote(WORKDIR)} && mv ${shellQuote(safeFrom)} ${shellQuote(safeTo)}`,
       );
+      // Best-effort: фиксируем move как delete старого + (write нового
+      // тут не делаем — он подхватится следующим writeFileTool либо
+      // снапшотом /workspace при flush'е).
+      if (result.ok) {
+        options?.onFileDelete?.(safeFrom);
+      }
+      return result;
     },
   });
 
@@ -325,9 +352,13 @@ export const createTools = (vm: SandboxLike, options?: CreateToolsOptions) => {
     execute: async ({ path }) => {
       const safePath = normalizeRelativePath(path);
       if (!safePath) return { ok: false, error: "Invalid path." };
-      return runExecCommand(
+      const result = await runExecCommand(
         `cd ${shellQuote(WORKDIR)} && rm -rf ${shellQuote(safePath)}`,
       );
+      if (result.ok) {
+        options?.onFileDelete?.(safePath);
+      }
+      return result;
     },
   });
 
