@@ -18,6 +18,7 @@
 import type { PreviewProvider } from "@/lib/adapters/preview";
 import type { SandboxProvider } from "@/lib/adapters/sandbox";
 import type { RepoMetadata } from "@/lib/repo-storage";
+import type { AuditLogger } from "@/lib/sandbox/audit-log";
 
 export interface MigrateToStaticInput {
   /** Source repo id (= projectId for the preview provider). */
@@ -37,6 +38,11 @@ export interface MigrateToStaticInput {
   boilerplateVersion: string;
   /** Override now() for tests. */
   now?: () => string;
+  /**
+   * Optional audit logger — emits one boilerplate_migration event per
+   * call (changed=1 on success, =0 on no-op). SECURITY.md §6.
+   */
+  auditLogger?: AuditLogger;
 }
 
 export interface MigrateToStaticResult {
@@ -64,6 +70,20 @@ export const migrateRepoToStatic = async (
   }
 
   if (input.metadata.preview?.provider === "static") {
+    if (input.auditLogger) {
+      void input.auditLogger
+        .log({
+          event: "boilerplate_migration",
+          script: "migrate-repo-to-static",
+          fromVersion: input.metadata.preview.capabilities ? "static" : undefined,
+          toVersion: "static",
+          inspected: 1,
+          changed: 0,
+          skipped: 1,
+          errored: 0,
+        })
+        .catch(() => undefined);
+    }
     return {
       metadata: input.metadata,
       changed: false,
@@ -123,6 +143,21 @@ export const migrateRepoToStatic = async (
   applied.push("preview.provider=static");
   applied.push("vm-resynthesized");
   applied.push(`boilerplateVersion=${input.boilerplateVersion}`);
+
+  if (input.auditLogger) {
+    void input.auditLogger
+      .log({
+        event: "boilerplate_migration",
+        script: "migrate-repo-to-static",
+        fromVersion: input.metadata.preview?.provider ?? "sandbox",
+        toVersion: "static",
+        inspected: 1,
+        changed: 1,
+        skipped: 0,
+        errored: 0,
+      })
+      .catch(() => undefined);
+  }
 
   return {
     metadata: next,

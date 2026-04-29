@@ -24,6 +24,7 @@ import { createPreviewProvider } from "@/lib/adapters/preview";
 import { readBoilerplateVersion } from "@/lib/preview/boilerplate-version";
 import { migrateRepoToStatic } from "@/lib/preview/migrate-to-static";
 import { readRepoMetadata, writeRepoMetadata } from "@/lib/repo-storage";
+import { getSharedAuditLogger } from "@/lib/sandbox/audit-log";
 
 interface CliArgs {
   repoId: string;
@@ -85,6 +86,7 @@ const main = async (): Promise<void> => {
     staticProvider,
     sandboxProvider,
     boilerplateVersion,
+    auditLogger: getSharedAuditLogger(),
   });
 
   if (!result.changed) {

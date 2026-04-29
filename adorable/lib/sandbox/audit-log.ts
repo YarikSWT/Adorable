@@ -145,6 +145,17 @@ export type AuditEvent =
       projectId: string;
       action: "rebuild" | "build-status" | "upload";
       reason: string;
+    })
+  | (AuditEventBase & {
+      event: "boilerplate_migration";
+      script: "migrate-repo-metadata" | "migrate-repo-to-static";
+      fromVersion?: string;
+      toVersion?: string;
+      inspected?: number;
+      changed?: number;
+      skipped?: number;
+      errored?: number;
+      dryRun?: boolean;
     });
 
 // Distributive helper: turns a union of object types into a union where

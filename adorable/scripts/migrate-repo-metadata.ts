@@ -16,6 +16,7 @@ import { getGitProvider } from "@/lib/git/provider-singleton";
 import { getPreviewProvider } from "@/lib/preview/provider-singleton";
 import { readBoilerplateVersion } from "@/lib/preview/boilerplate-version";
 import { runMetadataMigration } from "@/lib/preview/migrate-metadata-runner";
+import { getSharedAuditLogger } from "@/lib/sandbox/audit-log";
 
 interface CliArgs {
   dryRun: boolean;
@@ -73,6 +74,7 @@ const main = async (): Promise<void> => {
     dryRun: args.dryRun,
     limit: args.limit,
     log: (m) => console.log(m),
+    auditLogger: getSharedAuditLogger(),
   });
 
   console.log("---");

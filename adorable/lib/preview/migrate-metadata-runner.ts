@@ -11,6 +11,7 @@ import {
   writeRepoMetadata,
 } from "@/lib/repo-storage";
 import type { GitProvider } from "@/lib/adapters/git";
+import type { AuditLogger } from "@/lib/sandbox/audit-log";
 
 import {
   migrateRepoMetadata,
@@ -31,6 +32,12 @@ export interface MigrationRunOptions {
    * The CLI script wraps with console.log.
    */
   log?: (msg: string) => void;
+  /**
+   * Optional audit logger. When set, emits a single
+   * `boilerplate_migration` event with the run summary
+   * (SECURITY.md §6).
+   */
+  auditLogger?: AuditLogger;
 }
 
 export interface MigrationRunReport {
@@ -149,5 +156,19 @@ export const runMetadataMigration = async (
     }
   }
 
+  if (opts.auditLogger) {
+    await opts.auditLogger
+      .log({
+        event: "boilerplate_migration",
+        script: "migrate-repo-metadata",
+        toVersion: opts.migrate.boilerplateVersion,
+        inspected: report.inspected,
+        changed: report.changed,
+        skipped: report.skipped,
+        errored: report.errored,
+        ...(opts.dryRun ? { dryRun: true } : {}),
+      })
+      .catch(() => undefined);
+  }
   return report;
 };
