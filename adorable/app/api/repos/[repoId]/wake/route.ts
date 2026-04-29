@@ -40,6 +40,19 @@ export async function POST(
     );
   }
 
+  // Static-mode projects have no sandbox container to wake — the
+  // preview is served directly from the artifact dir by Caddy. Skip
+  // the entire sandbox lifecycle and report the existing vm metadata
+  // verbatim. Without this, /wake spawns an unwanted sandbox container
+  // for every static project the UI loads, then `npm install` inside
+  // it fails on the locked-down docker network.
+  if (metadata.preview?.capabilities.shellAccess === false) {
+    return NextResponse.json({
+      recreated: false,
+      vm: metadata.vm,
+    });
+  }
+
   const provider = await getSandboxProvider();
   let alive = false;
   try {
