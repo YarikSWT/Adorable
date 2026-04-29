@@ -128,6 +128,19 @@ describe("landing-page generation default flow (e2e)", () => {
       metadata: {
         vm: { vmId: string };
         conversations: Array<{ id: string; title: string }>;
+        boilerplateVersion?: string;
+        preview?: {
+          provider: string;
+          capabilities: {
+            shellAccess: boolean;
+            customDependencies: boolean;
+            serverRuntime: boolean;
+            hotReload: boolean;
+            manualRebuild: boolean;
+          };
+          createdAt: string;
+          migrationStatus?: string;
+        };
       };
     };
 
@@ -138,6 +151,23 @@ describe("landing-page generation default flow (e2e)", () => {
     expect(created.metadata.conversations[0]?.title).toBe(
       "Landing for wholesale flowers",
     );
+
+    // Phase 4 — boilerplateVersion + preview block pinned at create time
+    // (CONTRACTS §12). In test env the preview provider resolves to the
+    // mock (vitest = mock), so capabilities reflect the mock's STATIC_*
+    // defaults — but the *shape* is what matters: every subsequent
+    // chat/route.ts read uses these pinned values.
+    expect(created.metadata.boilerplateVersion).toBe("1.0.0");
+    expect(created.metadata.preview).toBeDefined();
+    expect(created.metadata.preview?.provider).toBe("mock");
+    expect(typeof created.metadata.preview?.capabilities.shellAccess).toBe(
+      "boolean",
+    );
+    expect(typeof created.metadata.preview?.capabilities.manualRebuild).toBe(
+      "boolean",
+    );
+    expect(created.metadata.preview?.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(created.metadata.preview?.migrationStatus).toBe("ok");
 
     // Identity cookie проставлен серверным кодом.
     expect(cookieJar.get(ADORABLE_IDENTITY_COOKIE)).toBeTruthy();
