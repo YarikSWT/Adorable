@@ -10,7 +10,13 @@ import {
 import { getGitProvider } from "@/lib/git/provider-singleton";
 import { getOrCreateIdentitySession } from "@/lib/identity-session";
 import { readRepoMetadata, saveConversationMessages } from "@/lib/repo-storage";
-import { SYSTEM_PROMPT } from "@/lib/system-prompt";
+import { getSystemPrompt } from "@/lib/system-prompt";
+import {
+  getBuildQueue,
+  getPreviewProvider,
+} from "@/lib/preview/provider-singleton";
+import { shouldEnqueueAfterTurn } from "@/lib/preview/post-turn";
+import { SANDBOX_CAPABILITIES } from "@/lib/adapters/preview";
 import type { SandboxHandle } from "@/lib/adapters/sandbox";
 
 /**
@@ -129,6 +135,15 @@ export async function POST(req: Request) {
 
   await saveConversationMessages(repoId, metadata, conversationId, messages);
 
+  // Capabilities pinned per-project (CONTRACTS §12 / ADR-015) — fall
+  // back to the live PreviewProvider's capabilities for old metadata
+  // without a `preview` block. Defaults are sandbox in env until
+  // Phase 6 acceptance, so behaviour is unchanged.
+  const livePreviewProvider = await getPreviewProvider();
+  const capabilities =
+    metadata.preview?.capabilities ??
+    (livePreviewProvider.capabilities ?? SANDBOX_CAPABILITIES);
+
   await ensureCleanupWorkerRunning().catch(() => undefined);
   const provider = await getSandboxProvider();
   const vm = await provider.ref({
@@ -164,7 +179,7 @@ export async function POST(req: Request) {
   }
 
   const llm = await streamLlmResponse({
-    system: SYSTEM_PROMPT,
+    system: getSystemPrompt(capabilities),
     messages,
     tools,
     // Only pass user key if there's no global key
@@ -206,6 +221,20 @@ export async function POST(req: Request) {
         process.stderr.write(
           `chat onFinish: auto-commit failed for ${latestMetadata.sourceRepoId}: ${(err as Error).message}\n`,
         );
+      }
+
+      // Phase 4 — non-blocking build trigger (BUILD_PIPELINE §2). Sandbox
+      // mode (hotReload=true) skips this — Vite HMR handles updates.
+      // Static mode enqueues a vite build; user sees fresh artifact via
+      // SSE / iframe reload.
+      if (shouldEnqueueAfterTurn(capabilities)) {
+        void getBuildQueue()
+          .enqueue({ projectId: repoId, reason: "turn-finished" })
+          .catch((err: Error) => {
+            process.stderr.write(
+              `chat onFinish: build enqueue failed for ${repoId}: ${err.message}\n`,
+            );
+          });
       }
     },
   });
