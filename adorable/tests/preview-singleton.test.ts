@@ -34,6 +34,53 @@ describe("PreviewProvider singleton", () => {
     const b = await getPreviewProvider();
     expect(b).not.toBe(a);
   });
+
+  it("PREVIEW_PROVIDER_FORCE_SANDBOX=1 overrides PREVIEW_PROVIDER env", async () => {
+    const originalForce = process.env["PREVIEW_PROVIDER_FORCE_SANDBOX"];
+    const originalProvider = process.env["PREVIEW_PROVIDER"];
+    try {
+      // Even when env says static, the force-flag wins → sandbox.
+      process.env["PREVIEW_PROVIDER"] = "static";
+      process.env["PREVIEW_PROVIDER_FORCE_SANDBOX"] = "1";
+      __resetPreviewSingleton();
+      const provider = await getPreviewProvider();
+      expect(provider.name).toBe("sandbox");
+    } finally {
+      if (originalForce === undefined) {
+        delete process.env["PREVIEW_PROVIDER_FORCE_SANDBOX"];
+      } else {
+        process.env["PREVIEW_PROVIDER_FORCE_SANDBOX"] = originalForce;
+      }
+      if (originalProvider === undefined) {
+        delete process.env["PREVIEW_PROVIDER"];
+      } else {
+        process.env["PREVIEW_PROVIDER"] = originalProvider;
+      }
+      __resetPreviewSingleton();
+    }
+  });
+
+  it("PREVIEW_PROVIDER_FORCE_SANDBOX=0 (or absent) honours PREVIEW_PROVIDER env", async () => {
+    const originalForce = process.env["PREVIEW_PROVIDER_FORCE_SANDBOX"];
+    const originalProvider = process.env["PREVIEW_PROVIDER"];
+    try {
+      process.env["PREVIEW_PROVIDER"] = "static";
+      delete process.env["PREVIEW_PROVIDER_FORCE_SANDBOX"];
+      __resetPreviewSingleton();
+      const provider = await getPreviewProvider();
+      expect(provider.name).toBe("static");
+    } finally {
+      if (originalForce !== undefined) {
+        process.env["PREVIEW_PROVIDER_FORCE_SANDBOX"] = originalForce;
+      }
+      if (originalProvider === undefined) {
+        delete process.env["PREVIEW_PROVIDER"];
+      } else {
+        process.env["PREVIEW_PROVIDER"] = originalProvider;
+      }
+      __resetPreviewSingleton();
+    }
+  });
 });
 
 describe("BuildQueue (Phase 3 real impl)", () => {

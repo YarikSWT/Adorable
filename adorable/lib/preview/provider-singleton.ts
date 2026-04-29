@@ -27,9 +27,27 @@ const g = globalThis as unknown as Record<string, SingletonCache | undefined>;
 g[GLOBAL_KEY] ??= {};
 const cache = g[GLOBAL_KEY]!;
 
+/**
+ * Production safety hatch (MIGRATION_PATH §6). Set
+ * `PREVIEW_PROVIDER_FORCE_SANDBOX=1` to override `PREVIEW_PROVIDER` for
+ * a running builder — every new project resolution returns the sandbox
+ * provider, regardless of what the env says.
+ *
+ * Use case: static-mode is broken in production (build-runner image
+ * regression, Caddy file_server crash) — flip this env, restart
+ * builder, all NEW projects route to sandbox until the static path is
+ * fixed. Existing static-pinned projects keep their pinned capabilities
+ * (ADR-015) — chat/route.ts still branches on `metadata.preview.
+ * capabilities` per-project, so this only affects newly-created repos.
+ */
+const isForceSandbox = (): boolean =>
+  process.env["PREVIEW_PROVIDER_FORCE_SANDBOX"] === "1";
+
 export const getPreviewProvider = async (): Promise<PreviewProvider> => {
   if (!cache.providerPromise) {
-    cache.providerPromise = createPreviewProvider();
+    cache.providerPromise = isForceSandbox()
+      ? createPreviewProvider({ providerOverride: "sandbox" })
+      : createPreviewProvider();
   }
   return cache.providerPromise;
 };
