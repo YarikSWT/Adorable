@@ -327,3 +327,51 @@ PreviewProvider, ссылка на детальный `docs/preview-provider/SEC
 ---
 
 _Last updated: 2026-04-28. Закрытые вопросы переносить в DECISIONS.md как ADR'ы._
+
+---
+
+## L. Phase 6 acceptance — staging required (added 2026-04-29)
+
+### L1. Product scenarios 1–8 (VERIFICATION.md §1)
+**Источник**: VERIFICATION.md §1.
+**Приоритет**: blocker for Phase 6 acceptance / default-switch.
+**Status (loop env)**: cannot be verified locally — they require:
+- z.ai/glm-5.1 LLM credentials (real API),
+- live Caddy 2 admin API (real reverse proxy),
+- live Docker daemon (build-runner + sandbox containers),
+- live Gitea (source/wrapper repos with real commits).
+
+Loop completed all unit + contract tests for the underlying code
+paths (lifecycle, build, queue, SSE, upload, parser, atomic swap,
+migration). Product scenarios are end-to-end through the full
+production stack and need a staging environment.
+
+**Action required from user**:
+1. Run scenarios 1–8 on staging with PREVIEW_PROVIDER=static for a
+   newly-created project.
+2. Capture metrics from §3 (p50/p95 cold + warm build, success rate,
+   volume size, memory peak).
+3. If green → manually flip `PREVIEW_PROVIDER` default in
+   `.env.example` to `static` (one-line change, separate commit
+   per migration rules).
+
+### L2. Infra checks IC-1 / IC-5 / IC-9 — live docker run
+**Источник**: VERIFICATION.md §2.
+**Приоритет**: blocker for production deploy.
+**Status (loop env)**:
+- IC-1 (build-runner spawn + isolation): pure config covered by
+  unit-tests (`tests/build-runner-docker-config.test.ts`); the live
+  `docker run` integration test is gated on `RUN_DOCKER_TESTS=1`
+  (`tests/build-runner-docker-integration.test.ts`).
+- IC-5 (cancel mid-flight): orchestration cooperation covered by
+  `tests/ic5-cancel-midflight.test.ts` (executor + queue); live
+  container.kill SIGTERM/SIGKILL flow gated on RUN_DOCKER_TESTS.
+- IC-9 (pnpm symlink integrity): structural Dockerfile + init-volume
+  tests cover the script's invariants (`tests/build-runner-image.test.ts`);
+  actual `cp -a` symlink walk needs the build-runner image built.
+
+**Action required**:
+- `cd repo && docker build -f docker/build-runner-react/Dockerfile -t build-runner-react:1.0.0 .`
+- `docker network create adorable_build`
+- `docker volume create adorable_node_modules_react_1_0_0` + run init-volume.sh
+- `RUN_DOCKER_TESTS=1 cd adorable && pnpm test`
