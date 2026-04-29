@@ -56,3 +56,4 @@ Append-only лог. Каждый итер дописывает 1 строку в
 [2026-04-29 11:28] phase=3 task=rebuild-endpoint status=done commit=2f23b5c note=POST /api/projects/[id]/rebuild — identity check + manualRebuild capability + buildQueue.enqueue; 3 tests; 371/22
 [2026-04-29 11:30] phase=3 task=sse-build-status status=done commit=2d59a5b note=GET /api/projects/[id]/build-status SSE stream — initial snapshot + queue.subscribe + keep-alive + abort cleanup; 4 tests; 375/22
 [2026-04-29 11:34] phase=3 task=upload-endpoint status=done commit=280e2db note=upload-validator (magic-bytes detector + filename sanitiser + validateUpload) + POST /api/projects/[id]/upload route writing to /data/projects/<id>/public/; 28+6 tests; 409/22. Phase 3 complete.
+[2026-04-29 11:37] phase=4 task=repo-metadata-preview-fields status=done commit=3b29edb note=RepoMetadata gains optional boilerplateVersion + preview block (CONTRACTS §12); read/write round-trip + back-compat for old repos; 4 tests; 413/22
