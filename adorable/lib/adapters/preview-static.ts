@@ -323,6 +323,66 @@ export const createStaticPreviewProvider = (
     path.join(staticRoot, repoId);
   const currentSymlinkPath = (repoId: string): string =>
     path.join(projectStaticDir(repoId), "current");
+  const persistedStatePath = (repoId: string): string =>
+    path.join(projectStaticDir(repoId), ".preview-state.json");
+
+  /**
+   * Lazy re-hydration of the in-memory state Map after a process
+   * restart (OPEN_QUESTIONS §L3). The Map lives only in the singleton
+   * closure, but `create()` writes a tiny `.preview-state.json` next to
+   * the static dir so subsequent boots can reconstruct the entry from
+   * disk without re-doing template seeding or proxy registration.
+   *
+   * Returns the state if disk has enough to rebuild it; null otherwise
+   * (treated as "project never created").
+   */
+  const tryRehydrateFromDisk = async (
+    repoId: string,
+  ): Promise<StaticPreviewState | null> => {
+    const projectDir = projectScratchDir(repoId);
+    const staticDir = projectStaticDir(repoId);
+    let stat;
+    try {
+      stat = await fs.stat(projectDir);
+    } catch {
+      return null;
+    }
+    if (!stat.isDirectory()) return null;
+
+    let persisted: { boilerplateVersion: string; createdAt: string };
+    try {
+      const raw = await fs.readFile(persistedStatePath(repoId), "utf8");
+      persisted = JSON.parse(raw) as typeof persisted;
+    } catch {
+      // No persisted state — the project pre-dates §L3 fix. Fall back
+      // to "1.0.0" (the only version that ever existed before this
+      // commit) and now-as-createdAt. Subsequent build() will use the
+      // current build-runner image tag.
+      persisted = {
+        boilerplateVersion: "1.0.0",
+        createdAt: new Date().toISOString(),
+      };
+    }
+    const meta = buildPreviewMetadata(repoId, persisted.createdAt);
+    const entry: StaticPreviewState = {
+      meta,
+      projectDir,
+      staticDir,
+      routeId: `static-${repoId}`,
+      lastTouchedAt: persisted.createdAt,
+      boilerplateVersion: persisted.boilerplateVersion,
+    };
+    state.set(repoId, entry);
+    return entry;
+  };
+
+  const getOrRehydrate = async (
+    repoId: string,
+  ): Promise<StaticPreviewState | null> => {
+    const inMem = state.get(repoId);
+    if (inMem) return inMem;
+    return tryRehydrateFromDisk(repoId);
+  };
 
   const buildPreviewMetadata = (
     repoId: string,
@@ -404,11 +464,32 @@ export const createStaticPreviewProvider = (
         lastTouchedAt: meta.createdAt,
         boilerplateVersion: opts.boilerplateVersion,
       });
+
+      // Persist the bits we can't re-derive (boilerplateVersion +
+      // createdAt) so subsequent process restarts can re-hydrate the
+      // in-memory entry without re-seeding (OPEN_QUESTIONS §L3).
+      try {
+        await fs.writeFile(
+          persistedStatePath(opts.repoId),
+          JSON.stringify(
+            {
+              boilerplateVersion: opts.boilerplateVersion,
+              createdAt: meta.createdAt,
+            },
+            null,
+            2,
+          ),
+        );
+      } catch (err) {
+        process.stderr.write(
+          `preview-static: failed to persist .preview-state.json for ${opts.repoId}: ${(err as Error).message}\n`,
+        );
+      }
       return meta;
     },
 
     async build(opts: BuildOptions): Promise<BuildResult> {
-      const entry = state.get(opts.projectId);
+      const entry = await getOrRehydrate(opts.projectId);
       if (!entry) {
         return {
           status: "failed",
@@ -538,7 +619,7 @@ export const createStaticPreviewProvider = (
     },
 
     async destroy(projectId: string): Promise<void> {
-      const entry = state.get(projectId);
+      const entry = await getOrRehydrate(projectId);
       if (!entry) return;
 
       try {
@@ -568,13 +649,13 @@ export const createStaticPreviewProvider = (
     },
 
     async touch(projectId: string): Promise<void> {
-      const entry = state.get(projectId);
+      const entry = await getOrRehydrate(projectId);
       if (!entry) return;
       entry.lastTouchedAt = new Date().toISOString();
     },
 
     async getProjectFs(projectId: string): Promise<ProjectFs | null> {
-      const entry = state.get(projectId);
+      const entry = await getOrRehydrate(projectId);
       if (!entry) return null;
       return createNodeFsProjectFs({ rootDir: entry.projectDir });
     },
