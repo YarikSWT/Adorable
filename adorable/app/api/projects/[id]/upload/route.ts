@@ -20,6 +20,7 @@ import {
   validateUpload,
   type UploadValidationErr,
 } from "@/lib/preview/upload-validator";
+import { getSharedAuditLogger } from "@/lib/sandbox/audit-log";
 
 const DEFAULT_PROJECTS_ROOT = "/data/projects";
 const DEFAULT_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
@@ -83,6 +84,18 @@ export async function POST(
     sizeLimitBytes: resolveUploadMax(),
   });
   if (!result.ok) {
+    // SECURITY.md §6: log every rejected upload so operators can spot
+    // probing patterns. Fire-and-forget — the rejection response goes
+    // out either way.
+    void getSharedAuditLogger()
+      .log({
+        event: "upload_rejected",
+        projectId,
+        filename: blob.name || "upload",
+        size: buf.byteLength,
+        reason: result.error,
+      })
+      .catch(() => undefined);
     return errorResponse(400, result);
   }
 

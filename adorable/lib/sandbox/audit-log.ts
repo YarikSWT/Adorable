@@ -102,6 +102,18 @@ export type AuditEvent =
       jobId: string;
       projectId: string;
       reason: "superseded" | "destroy" | "manual";
+    })
+  // Security audit events (SECURITY.md §6).
+  | (AuditEventBase & {
+      event: "upload_rejected";
+      projectId: string;
+      filename: string;
+      size: number;
+      reason:
+        | "size-exceeded"
+        | "ext-not-allowed"
+        | "magic-bytes-mismatch"
+        | "invalid-name";
     });
 
 // Distributive helper: turns a union of object types into a union where
