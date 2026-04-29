@@ -375,3 +375,36 @@ production stack and need a staging environment.
 - `docker network create adorable_build`
 - `docker volume create adorable_node_modules_react_1_0_0` + run init-volume.sh
 - `RUN_DOCKER_TESTS=1 cd adorable && pnpm test`
+
+### L3. preview-static state is in-memory only — lost on restart (added 2026-04-29)
+**Источник**: discovered via Phase 6 STATIC e2e test.
+**Приоритет**: blocker for Phase 6 acceptance.
+**Symptom**: After dev-server restart, an existing static project's
+files are still on disk under `PROJECTS_ROOT/<repoId>/` and
+`STATIC_ROOT/<repoId>/` (with `current` symlink + builds/), but
+`POST /api/projects/<id>/rebuild` returns
+`build_finished status=failed exitCode=-1 errorsCount=1` with the
+error `preview-static.build: project "<id>" not found — call create()
+first.`
+
+**Root cause**: `lib/adapters/preview-static.ts` keeps the per-project
+state (meta + projectDir + staticDir + routeId + boilerplateVersion +
+lastTouchedAt) in a JS `Map` that lives only in the singleton's
+closure. On restart that Map is empty until `create()` is called for
+each project — but `create()` is only called during initial
+`POST /api/repos`, never on subsequent boots.
+
+**Action required (ADR + impl)**:
+Either (a) re-create-on-demand: in `build()`/`getProjectFs()`/etc.,
+if `state.get(projectId)` is undefined, attempt to re-hydrate from
+disk (PROJECTS_ROOT + STATIC_ROOT + RepoMetadata.preview); OR
+(b) persist state to disk at create() time and reload on first
+provider use after restart.
+
+Sandbox-mode doesn't have this problem because its state is the
+docker container itself + RepoMetadata.vm.vmId — the container
+lifecycle is inspectable from docker daemon at any point.
+
+**Discovered**: 2026-04-29 via Playwright e2e test against
+`PREVIEW_PROVIDER=static` (existing static project survived restart
+on disk but `rebuild` failed).
