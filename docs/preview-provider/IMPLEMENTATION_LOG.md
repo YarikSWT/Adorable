@@ -54,3 +54,4 @@ Append-only лог. Каждый итер дописывает 1 строку в
 [2026-04-29 11:21] phase=2 task=dockerode-build-executor status=done commit=32ecdc2 note=createDockerBuildExecutor with full BUILD_PIPELINE §4.2 mounts/limits/hardening + cancel/timeout/log-bounded buffers; 10 unit tests + RUN_DOCKER_TESTS-gated integration; 356/22. Phase 2 complete.
 [2026-04-29 11:25] phase=3 task=build-queue status=done commit=514ede8 note=in-memory BuildQueue (max 1+1 cancel+replace) + singleton wired through getPreviewProvider().build(); 12 build-queue tests + singleton test rewrite; 368/22
 [2026-04-29 11:28] phase=3 task=rebuild-endpoint status=done commit=2f23b5c note=POST /api/projects/[id]/rebuild — identity check + manualRebuild capability + buildQueue.enqueue; 3 tests; 371/22
+[2026-04-29 11:30] phase=3 task=sse-build-status status=done commit=2d59a5b note=GET /api/projects/[id]/build-status SSE stream — initial snapshot + queue.subscribe + keep-alive + abort cleanup; 4 tests; 375/22
