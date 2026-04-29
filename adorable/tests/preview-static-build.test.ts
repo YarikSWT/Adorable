@@ -239,3 +239,46 @@ describe("preview-static.build() — unknown project", () => {
     expect(res.errors[0].message).toMatch(/not found/i);
   });
 });
+
+describe("preview-static.build() — boilerplateVersion plumbing", () => {
+  it("passes the create-time boilerplateVersion to the executor (not a hardcoded constant)", async () => {
+    const seen: string[] = [];
+    const executor: BuildExecutor = {
+      async runBuild(opts) {
+        seen.push(opts.boilerplateVersion);
+        return successResult();
+      },
+    };
+    const provider = makeProvider(executor);
+    await provider.create({ repoId: "pbv", boilerplateVersion: "2.7.3" });
+
+    await provider.build({ projectId: "pbv", reason: "initial" });
+    await provider.build({ projectId: "pbv", reason: "manual" });
+
+    expect(seen).toEqual(["2.7.3", "2.7.3"]);
+  });
+
+  it("isolates boilerplateVersion per project", async () => {
+    const seen: Array<{ projectId: string; version: string }> = [];
+    const executor: BuildExecutor = {
+      async runBuild(opts) {
+        seen.push({
+          projectId: opts.projectId,
+          version: opts.boilerplateVersion,
+        });
+        return successResult();
+      },
+    };
+    const provider = makeProvider(executor);
+    await provider.create({ repoId: "p-old", boilerplateVersion: "1.0.0" });
+    await provider.create({ repoId: "p-new", boilerplateVersion: "3.1.0" });
+
+    await provider.build({ projectId: "p-old", reason: "initial" });
+    await provider.build({ projectId: "p-new", reason: "initial" });
+
+    expect(seen).toEqual([
+      { projectId: "p-old", version: "1.0.0" },
+      { projectId: "p-new", version: "3.1.0" },
+    ]);
+  });
+});

@@ -132,6 +132,7 @@ interface StaticPreviewState {
   staticDir: string;
   routeId: string;
   lastTouchedAt: string;
+  boilerplateVersion: string;
 }
 
 const resolveProjectsRoot = (override?: string): string =>
@@ -401,6 +402,7 @@ export const createStaticPreviewProvider = (
         staticDir,
         routeId,
         lastTouchedAt: meta.createdAt,
+        boilerplateVersion: opts.boilerplateVersion,
       });
       return meta;
     },
@@ -435,9 +437,7 @@ export const createStaticPreviewProvider = (
         buildId,
         scratchDir: entry.projectDir,
         artifactDir,
-        boilerplateVersion: "1.0.0",
-        // ASSUMPTION: boilerplateVersion подтянется из RepoMetadata в
-        // Phase 4 (chat/route.ts wire-up). До тех пор — pin "1.0.0".
+        boilerplateVersion: entry.boilerplateVersion,
         signal: opts.signal,
       });
 
