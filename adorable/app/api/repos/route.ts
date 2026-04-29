@@ -275,22 +275,44 @@ export async function POST(req: Request) {
     repoId: wrapperRepoId,
   });
 
-  const vm = await createVmForRepo(sourceRepoId);
+  // Branch by preview-provider name (CONTRACTS §10):
+  //   - "sandbox": legacy createVmForRepo path stays (it already does
+  //     proxy registration + identity grants via the sandbox provider's
+  //     internals). previewProvider.create() in sandbox-mode is
+  //     idempotent but does its own createVmForRepo — calling both would
+  //     double-create the container, so we skip the provider call here.
+  //   - "static" / "mock": call previewProvider.create() so the project
+  //     is registered with the provider (scratch dir, Caddy file_server
+  //     route, in-memory state). Synthesize the legacy `vm` field from
+  //     PreviewMetadata for backwards compat with existing UI/storage.
+  const boilerplateVersion = await readBoilerplateVersion();
+  const previewProvider = await getPreviewProvider();
+
+  let vm;
+  if (previewProvider.name === "sandbox") {
+    vm = await createVmForRepo(sourceRepoId);
+  } else {
+    const previewMeta = await previewProvider.create({
+      repoId: sourceRepoId,
+      boilerplateVersion,
+    });
+    vm = {
+      // For static-mode there is no container; expose sourceRepoId as a
+      // stable identifier so downstream code that passes vmId around
+      // still has something. /wake endpoint already handles missing
+      // sandboxes by falling back to recreate.
+      vmId: previewMeta.projectId,
+      previewUrl: previewMeta.previewUrl,
+      devCommandTerminalUrl: previewMeta.terminalUrls?.devCommand ?? "",
+      additionalTerminalsUrl: previewMeta.terminalUrls?.additional ?? "",
+    };
+  }
 
   // VM identity grants were a Freestyle concept. In the self-hosted
   // model the builder process is the sole controller of sandbox
   // containers, so per-identity ACLs on VMs don't exist. The Git repo
   // grant above remains (Phase 3 will migrate that to Gitea).
 
-  // Phase 4 — pin boilerplateVersion + preview metadata on the wrapper.
-  // We don't yet route VM creation through getPreviewProvider().create()
-  // (that swap requires SandboxPreviewProvider to expose its internal
-  // sandboxId; tracked for a follow-up iter). For now we read the
-  // provider's name + capabilities to populate the metadata block, so
-  // future migrations and capability-driven branching (system-prompt,
-  // tools) have something to read.
-  const boilerplateVersion = await readBoilerplateVersion();
-  const previewProvider = await getPreviewProvider();
   const previewMetadata: RepoPreviewMetadata = {
     provider: previewProvider.name,
     capabilities: { ...previewProvider.capabilities },

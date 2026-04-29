@@ -260,12 +260,17 @@ export async function POST(req: Request) {
       // mode (hotReload=true) skips this — Vite HMR handles updates.
       // Static mode enqueues a vite build; user sees fresh artifact via
       // SSE / iframe reload.
+      //
+      // The queue keys on sourceRepoId (matches PreviewProvider.create()
+      // contract — projectId == sourceRepoId, the wrapper is just the
+      // metadata holder).
       if (shouldEnqueueAfterTurn(capabilities)) {
+        const buildProjectId = latestMetadata.sourceRepoId;
         void getBuildQueue()
-          .enqueue({ projectId: repoId, reason: "turn-finished" })
+          .enqueue({ projectId: buildProjectId, reason: "turn-finished" })
           .catch((err: Error) => {
             process.stderr.write(
-              `chat onFinish: build enqueue failed for ${repoId}: ${err.message}\n`,
+              `chat onFinish: build enqueue failed for ${buildProjectId}: ${err.message}\n`,
             );
           });
       }
