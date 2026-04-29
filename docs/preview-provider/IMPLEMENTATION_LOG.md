@@ -33,4 +33,4 @@ Append-only лог. Каждый итер дописывает 1 строку в
 
 ## Записи
 
-(пусто — будет заполнено Ralph Loop'ом, начиная с Phase 0)
+[2026-04-29 10:33] phase=0 task=boilerplate-version-files status=done commit=e01e8e0 note=created templates/vite-react/VERSION (1.0.0) + AVAILABLE_DEPS.md placeholder; tests green
