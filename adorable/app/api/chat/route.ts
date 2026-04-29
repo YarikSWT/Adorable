@@ -17,7 +17,11 @@ import {
   getPreviewProvider,
 } from "@/lib/preview/provider-singleton";
 import { shouldEnqueueAfterTurn } from "@/lib/preview/post-turn";
-import { SANDBOX_CAPABILITIES } from "@/lib/adapters/preview";
+import { autoCommitProjectFs } from "@/lib/preview/auto-commit-project-fs";
+import {
+  SANDBOX_CAPABILITIES,
+  type ProjectFs,
+} from "@/lib/adapters/preview";
 import type { SandboxHandle } from "@/lib/adapters/sandbox";
 
 /**
@@ -150,6 +154,7 @@ export async function POST(req: Request) {
   //   - static  (false): ProjectFs + createStaticTools, no sandbox lifecycle.
   // The static branch leaves `vm` undefined; downstream onFinish guards on it.
   let vm: SandboxHandle | undefined;
+  let staticFs: ProjectFs | undefined;
   let tools: ToolSet;
 
   if (capabilities.shellAccess) {
@@ -176,6 +181,7 @@ export async function POST(req: Request) {
         { status: 500 },
       );
     }
+    staticFs = projectFs;
     tools = createStaticTools({
       fs: projectFs,
       buildQueue: getBuildQueue(),
@@ -238,11 +244,11 @@ export async function POST(req: Request) {
       // Sandbox не имеет сетевого доступа к Gitea (разные docker-network),
       // поэтому agent'ский git push не работает. Server-side у нас
       // прямой доступ к Gitea API.
-      // autoCommit is sandbox-only — it shells into the running container
-      // (find + readTextFile) to snapshot the workspace. In static-mode
-      // the LLM only writes through ProjectFs (createStaticTools) — those
-      // writes already land in the scratch dir, but a server-side commit
-      // to Gitea for static-mode is a follow-up iter.
+      // Auto-commit branch:
+      //   sandbox: snapshot via vm.exec(find) + vm.fs.readTextFile.
+      //   static:  walk ProjectFs.list(recursive) + readTextFile —
+      //            covers files written by createStaticTools (which all
+      //            go through ProjectFs).
       if (vm) {
         try {
           await autoCommitWorkspace({
@@ -252,6 +258,19 @@ export async function POST(req: Request) {
         } catch (err) {
           process.stderr.write(
             `chat onFinish: auto-commit failed for ${latestMetadata.sourceRepoId}: ${(err as Error).message}\n`,
+          );
+        }
+      } else if (staticFs) {
+        try {
+          const gitProvider = await getGitProvider();
+          await autoCommitProjectFs({
+            fs: staticFs,
+            gitProvider,
+            sourceRepoId: latestMetadata.sourceRepoId,
+          });
+        } catch (err) {
+          process.stderr.write(
+            `chat onFinish: static auto-commit failed for ${latestMetadata.sourceRepoId}: ${(err as Error).message}\n`,
           );
         }
       }
