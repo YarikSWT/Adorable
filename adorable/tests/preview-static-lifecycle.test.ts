@@ -160,15 +160,7 @@ describe("StaticPreviewProvider — getProjectFs()", () => {
   });
 });
 
-describe("StaticPreviewProvider — build() Phase 2 stub", () => {
-  it("returns failed result with explicit not-implemented message", async () => {
-    await provider.create({ repoId: "proj-bs", boilerplateVersion: "1.0.0" });
-    const res = await provider.build({
-      projectId: "proj-bs",
-      reason: "initial",
-    });
-    expect(res.status).toBe("failed");
-    expect(res.errors[0].code).toBe("unknown");
-    expect(res.errors[0].message).toMatch(/not implemented/i);
-  });
-});
+// build() flow is fully covered by tests/preview-static-build.test.ts
+// (uses an injected mock BuildExecutor). Calling build() here without
+// an executor would attempt a real docker connection — out of scope
+// for lifecycle tests.
