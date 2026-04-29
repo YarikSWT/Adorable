@@ -14,6 +14,7 @@ import {
   type BuildQueue,
   type PreviewProvider,
 } from "@/lib/adapters/preview";
+import { createInMemoryBuildQueue } from "@/lib/preview/build-queue";
 
 type SingletonCache = {
   providerPromise?: Promise<PreviewProvider>;
@@ -33,38 +34,32 @@ export const getPreviewProvider = async (): Promise<PreviewProvider> => {
 };
 
 /**
- * BuildQueue singleton — в Phase 1 это стаб, который кидает при попытке
- * использовать. Реальная in-memory реализация (cancel + replace, max 1+1)
- * появится в Phase 3 (см. MIGRATION_PATH §3, CONTRACTS §7).
+ * BuildQueue singleton. Real impl (cancel+replace, max 1+1) lives in
+ * lib/preview/build-queue.ts. runJob closure routes the build through
+ * getPreviewProvider().build(), so the queue stays decoupled from the
+ * provider.
  *
- * Caller'ы которые получат провайдер с capabilities.manualRebuild=false
- * (sandbox-режим) не должны звать getBuildQueue() в Phase 4 — branching
- * в chat/route.ts должен их защитить.
+ * Sandbox-режим имеет capabilities.manualRebuild=true, но build() —
+ * succeeded-stub. То есть очередь технически "работает" и в sandbox-
+ * режиме (job моментально завершается). chat/route.ts всё равно НЕ
+ * должен звать enqueue в sandbox-режиме (HMR подхватывает изменения),
+ * но если случайно дернёт — никакого вреда.
  */
 export const getBuildQueue = (): BuildQueue => {
   if (!cache.buildQueue) {
-    cache.buildQueue = createNotImplementedBuildQueue();
+    cache.buildQueue = createInMemoryBuildQueue({
+      runJob: async ({ job, signal }) => {
+        const provider = await getPreviewProvider();
+        return provider.build({
+          projectId: job.projectId,
+          reason: job.reason,
+          signal,
+        });
+      },
+    });
   }
   return cache.buildQueue;
 };
-
-const NOT_IMPLEMENTED_MSG =
-  "BuildQueue is not implemented yet (lands in Phase 3 of preview-provider migration).";
-
-const rejectNotImplemented = (): Promise<never> =>
-  Promise.reject(new Error(NOT_IMPLEMENTED_MSG));
-
-const throwNotImplemented = (): never => {
-  throw new Error(NOT_IMPLEMENTED_MSG);
-};
-
-const createNotImplementedBuildQueue = (): BuildQueue => ({
-  enqueue: rejectNotImplemented,
-  cancel: rejectNotImplemented,
-  getActive: throwNotImplemented,
-  getQueued: throwNotImplemented,
-  subscribe: throwNotImplemented,
-});
 
 // Test helper — reset singleton between tests.
 export const __resetPreviewSingleton = (): void => {

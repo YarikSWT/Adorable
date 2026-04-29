@@ -1,7 +1,8 @@
-// Тесты HMR-safe singleton'а PreviewProvider + BuildQueue stub.
+// Тесты HMR-safe singleton'а PreviewProvider + BuildQueue.
 //
 // Проверяет что getPreviewProvider() возвращает один и тот же инстанс
-// между вызовами, и что BuildQueue в Phase 1 — explicit stub.
+// между вызовами, и что getBuildQueue() возвращает рабочую очередь
+// (с Phase 3 — реальная in-memory impl, не stub).
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -35,7 +36,7 @@ describe("PreviewProvider singleton", () => {
   });
 });
 
-describe("BuildQueue stub (Phase 1)", () => {
+describe("BuildQueue (Phase 3 real impl)", () => {
   afterEach(() => {
     __resetPreviewSingleton();
   });
@@ -49,11 +50,24 @@ describe("BuildQueue stub (Phase 1)", () => {
     expect(typeof queue.subscribe).toBe("function");
   });
 
-  it("enqueue throws an explicit not-implemented error", async () => {
+  it("enqueue starts a job through the preview provider", async () => {
+    // Mock preview provider lives in vitest env; build() returns a
+    // succeeded BuildResult quickly, so enqueue + tick is enough.
     const queue = getBuildQueue();
-    await expect(
-      queue.enqueue({ projectId: "x", reason: "manual" }),
-    ).rejects.toThrow(/Phase 3/);
+    const provider = await getPreviewProvider();
+    await provider.create({ repoId: "p-sing", boilerplateVersion: "1.0.0" });
+
+    const events: string[] = [];
+    queue.subscribe("p-sing", (e) => events.push(e.status));
+    const res = await queue.enqueue({
+      projectId: "p-sing",
+      reason: "manual",
+    });
+    expect(res.status).toBe("running");
+    // Allow the runJob promise to resolve.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(events).toContain("running");
+    expect(events).toContain("succeeded");
   });
 
   it("getBuildQueue is stable across calls (singleton)", () => {
