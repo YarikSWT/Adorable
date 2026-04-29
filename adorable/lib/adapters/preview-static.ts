@@ -23,6 +23,7 @@ import {
   parseBuildErrors,
   parseBuildWarnings,
 } from "@/lib/preview/build-error-parser";
+import { getSharedAuditLogger } from "@/lib/sandbox/audit-log";
 
 import {
   STATIC_CAPABILITIES,
@@ -117,6 +118,12 @@ export interface StaticPreviewProviderOptions {
   buildExecutor?: BuildExecutor;
   /** Override BUILD_HISTORY_LIMIT (default env или 5). */
   buildHistoryLimit?: number;
+  /**
+   * Optional audit logger — when set, build_swap + build_gc events
+   * are emitted (BUILD_PIPELINE §9). Default: not logged. The
+   * production singleton wires getSharedAuditLogger() automatically.
+   */
+  auditLogger?: import("@/lib/sandbox/audit-log").AuditLogger;
 }
 
 interface StaticPreviewState {
@@ -301,6 +308,11 @@ export const createStaticPreviewProvider = (
   const templateDir = options.templateDir ?? resolveTemplateDir();
   const buildHistoryLimit = resolveBuildHistoryLimit(options.buildHistoryLimit);
   const executor = options.buildExecutor;
+  // Default to the shared audit logger; tests pass `auditLogger: null`
+  // (cast to any) when they want to silence it. Most tests just set
+  // SANDBOX_AUDIT_LOG to a tmp path.
+  const audit =
+    "auditLogger" in options ? options.auditLogger : getSharedAuditLogger();
 
   const state = new Map<string, StaticPreviewState>();
 
@@ -447,8 +459,22 @@ export const createStaticPreviewProvider = (
       let wasSwapped = false;
       if (succeeded && !opts.skipCurrentSwap) {
         try {
-          await atomicSymlinkSwap(entry.staticDir, buildId);
+          const { oldTarget } = await atomicSymlinkSwap(
+            entry.staticDir,
+            buildId,
+          );
           wasSwapped = true;
+          if (audit) {
+            const event: import("@/lib/sandbox/audit-log").AuditEventInput = {
+              event: "build_swap",
+              projectId: opts.projectId,
+              buildId,
+              ...(oldTarget
+                ? { previousBuildId: oldTarget.replace(/^builds\//, "") }
+                : {}),
+            };
+            void audit.log(event).catch(() => undefined);
+          }
         } catch (err) {
           errors.push({
             code: "unknown",
@@ -467,9 +493,18 @@ export const createStaticPreviewProvider = (
         }
       } else {
         // Success — GC старых билдов.
-        await garbageCollectBuilds(entry.staticDir, buildHistoryLimit).catch(
-          () => undefined,
-        );
+        const gcResult = await garbageCollectBuilds(
+          entry.staticDir,
+          buildHistoryLimit,
+        ).catch(() => null);
+        if (audit && gcResult && gcResult.deleted.length > 0) {
+          const event: import("@/lib/sandbox/audit-log").AuditEventInput = {
+            event: "build_gc",
+            projectId: opts.projectId,
+            deletedBuilds: gcResult.deleted,
+          };
+          void audit.log(event).catch(() => undefined);
+        }
       }
 
       if (execResult.timedOut && !execResult.cancelled) {

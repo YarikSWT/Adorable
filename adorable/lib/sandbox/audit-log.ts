@@ -114,6 +114,17 @@ export type AuditEvent =
         | "ext-not-allowed"
         | "magic-bytes-mismatch"
         | "invalid-name";
+    })
+  | (AuditEventBase & {
+      event: "build_swap";
+      projectId: string;
+      buildId: string;
+      previousBuildId?: string;
+    })
+  | (AuditEventBase & {
+      event: "build_gc";
+      projectId: string;
+      deletedBuilds: string[];
     });
 
 // Distributive helper: turns a union of object types into a union where
