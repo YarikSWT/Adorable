@@ -35,3 +35,5 @@ Append-only лог. Каждый итер дописывает 1 строку в
 
 [2026-04-29 10:33] phase=0 task=boilerplate-version-files status=done commit=e01e8e0 note=created templates/vite-react/VERSION (1.0.0) + AVAILABLE_DEPS.md placeholder; tests green
 [2026-04-29 10:34] phase=0 task=env-example-additions status=done commit=f64f6fe note=added PREVIEW_PROVIDER (default=sandbox) + build-runner/queue/upload/scratch envs from BUILD_PIPELINE §10
+[2026-04-29 10:38] phase=0 task=sanity-snapshot status=done note=baseline = 13 files passed / 4 skipped, 160 tests passed / 20 skipped (no docker/gitea/caddy infra in loop env)
+[2026-04-29 10:38] phase=1 task=preview-types-and-factory status=done commit=b34791c note=lib/adapters/preview.ts (CONTRACTS §1-10 types + factory) + throwing stubs for mock/static/sandbox; tsc clean; tests green
