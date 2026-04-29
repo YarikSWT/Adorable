@@ -116,3 +116,17 @@ npx tsx scripts/migrate-repo-to-static.ts <wrapper-repo-id>
 A repo already on `provider: "static"` is a no-op. The static preview
 provider is forced regardless of the global `PREVIEW_PROVIDER` env so
 the script works correctly while production default stays `sandbox`.
+
+### 3. Emergency rollback flag
+
+`PREVIEW_PROVIDER_FORCE_SANDBOX=1` overrides the env-resolved
+provider for *newly-created* projects only. Existing projects keep
+their pinned `metadata.preview.capabilities` (ADR-015), so a flipping
+this flag does not migrate them retroactively — it just stops the
+bleeding while you fix the static pipeline.
+
+Use case: build-runner image broken in production → set the flag,
+restart builder, all NEW projects route to sandbox while you debug.
+Per-project recovery (after fix) is via `migrate-repo-to-static.ts`.
+
+Spec: `docs/preview-provider/MIGRATION_PATH.md` §6.
