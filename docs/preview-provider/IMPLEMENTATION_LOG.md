@@ -43,3 +43,4 @@ Append-only лог. Каждый итер дописывает 1 строку в
 [2026-04-29 10:47] phase=2 task=isWritablePath-whitelist status=done commit=62afcb9 note=lib/preview/project-fs.ts pure isWritablePath + explainNonWritable (CONTRACTS §9) + 48 tests; 231/20
 [2026-04-29 10:50] phase=2 task=node-fs-project-fs status=done commit=34227f8 note=createNodeFsProjectFs(rootDir) impl with safeJoin + whitelist + recursive list/search; 25 tests; 256/20
 [2026-04-29 10:53] phase=2 task=available-deps-table status=done commit=35cc988 note=lib/preview/available-deps.ts with BOILERPLATE_DEPS sets + SYNONYMS map + classifyMissingModule(); 14 tests; 270/20
+[2026-04-29 10:56] phase=2 task=build-error-parser status=done commit=0fac192 note=lib/preview/build-error-parser.ts (parseBuildErrors + parseBuildWarnings) covering module-not-found / import-not-allowed / syntax / transform / config / unknown fallback; 18 tests; 288/20
