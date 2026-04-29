@@ -115,6 +115,22 @@ describe("POST /api/projects/[id]/upload", () => {
     expect((await res.json()).error).toBe("invalid-name");
   });
 
+  it("rejects 400 invalid-name when body is not multipart/form-data", async () => {
+    mockIdentity([{ id: "p-up-raw", name: "p-up-raw" }]);
+    const res = await POST(
+      new Request("http://localhost/api/projects/p-up-raw/upload", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ raw: true }),
+      }),
+      { params: Promise.resolve({ id: "p-up-raw" }) },
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string; details: string };
+    expect(body.error).toBe("invalid-name");
+    expect(body.details).toMatch(/multipart\/form-data/);
+  });
+
   it("respects UPLOAD_MAX_BYTES env", async () => {
     mockIdentity([{ id: "p-up-6", name: "p-up-6" }]);
     process.env["UPLOAD_MAX_BYTES"] = "10";
