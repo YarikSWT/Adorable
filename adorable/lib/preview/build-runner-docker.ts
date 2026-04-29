@@ -150,10 +150,31 @@ export const buildContainerCreateOptions = (
     AttachStderr: true,
     User: "1000:1000",
     WorkingDir: "/workspace",
+    // Vite's loadConfigFromBundledFile writes a sibling
+    // `vite.config.js.timestamp-*.mjs` to the config dir on every
+    // build. With ReadonlyRootfs=true the image's /workspace is
+    // read-only, so the write fails with EACCES and the build dies
+    // before producing any artifact. Workaround: copy the trusted
+    // vite.config.js into the container's writable tmpfs (/tmp) and
+    // point Vite at it via --config. Vite's timestamp file then
+    // lands next to the copy in /tmp, not next to the read-only
+    // original. The config itself is still controlled by the image
+    // (build-runner) — operators can't smuggle in a custom config.
+    Cmd: [
+      "sh",
+      "-c",
+      "cp /workspace/vite.config.js /tmp/vite.config.js && exec npx vite build --config /tmp/vite.config.js",
+    ],
     Env: [
       "NODE_ENV=production",
       `VITE_PROJECT_ID=${input.projectId}`,
       `VITE_BUILD_ID=${input.buildId}`,
+      // Vite config lives in /tmp (so its timestamp file write
+      // succeeds), but `import {defineConfig} from "vite"` needs
+      // node module resolution to find /workspace/node_modules.
+      // NODE_PATH gives Node a fallback search root so the config
+      // loader picks up vite/react/etc from the named volume.
+      "NODE_PATH=/workspace/node_modules",
     ],
     HostConfig: {
       NetworkMode: env.network,

@@ -52,12 +52,18 @@ describe("buildContainerCreateOptions", () => {
     expect(cfg.AttachStderr).toBe(true);
   });
 
+  it("sets NODE_PATH=/workspace/node_modules so vite.config.js loaded from /tmp can resolve modules", () => {
+    const cfg = buildContainerCreateOptions({ env: baseEnv, input: baseInput });
+    expect(cfg.Env).toContain("NODE_PATH=/workspace/node_modules");
+  });
+
   it("sets NODE_ENV=production + project/build env", () => {
     const cfg = buildContainerCreateOptions({ env: baseEnv, input: baseInput });
     expect(cfg.Env).toEqual([
       "NODE_ENV=production",
       "VITE_PROJECT_ID=proj-1",
       "VITE_BUILD_ID=2026-04-29T11-00-00Z-abcd",
+      "NODE_PATH=/workspace/node_modules",
     ]);
   });
 
@@ -104,8 +110,17 @@ describe("buildContainerCreateOptions", () => {
     );
   });
 
-  it("does NOT specify Cmd — relies on Dockerfile default", () => {
+  it("Cmd copies vite.config.js to writable /tmp before running build", () => {
+    // Vite's loadConfigFromBundledFile writes a sibling
+    // vite.config.js.timestamp-*.mjs file. With ReadonlyRootfs=true
+    // the image's /workspace can't take that write — the override
+    // copies the trusted config to /tmp (tmpfs, writable) and points
+    // Vite at it via --config so the timestamp file lands there.
     const cfg = buildContainerCreateOptions({ env: baseEnv, input: baseInput });
-    expect(cfg.Cmd).toBeUndefined();
+    expect(cfg.Cmd).toEqual([
+      "sh",
+      "-c",
+      "cp /workspace/vite.config.js /tmp/vite.config.js && exec npx vite build --config /tmp/vite.config.js",
+    ]);
   });
 });
