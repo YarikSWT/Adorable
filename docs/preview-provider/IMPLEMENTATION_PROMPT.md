@@ -306,30 +306,50 @@ Co-Authored-By: Ralph Loop <noreply@adorable>
 
 В Claude Code, в директории `/home/agent/Adorable/`:
 
-```
-/ralph-loop "<тело промпта>" --max-iterations 120 --completion-promise "SPEC IMPLEMENTATION COMPLETE"
-```
+### Шаг 1 — извлечь промпт в файл (один раз)
 
-Где `<тело промпта>` — содержимое блока «Промпт для Ralph Loop»
-выше (между ``` ``` ```), целиком, экранировано для shell.
-
-### Практичный вариант — через файл
-
-Удобнее не вставлять весь промпт в командную строку, а сослаться
-на файл. Сохрани промпт в отдельный файл и используй его как тело:
+Запускается через обычный bash (не slash-command), потому что
+slash-команда может не уметь делать сложную shell-substitution с
+sed:
 
 ```bash
-# 1) Извлекаем промпт из IMPLEMENTATION_PROMPT.md в отдельный файл
-sed -n '/^=== Источники правды/,/^Один итер — одна работоспособная единица.$/p' \
-  docs/preview-provider/IMPLEMENTATION_PROMPT.md \
-  > .ralph-prompt.txt
+sed -n '/^=== Источники правды/,/^Один итер — одна работоспособная единица.$/p' docs/preview-provider/IMPLEMENTATION_PROMPT.md > .ralph-prompt.txt
+```
 
-# 2) Запускаем ralph-loop передавая содержимое файла
+Проверь: `wc -l .ralph-prompt.txt` должно быть ≥200 строк. Файл
+`.ralph-prompt.txt` уже добавлен в `.gitignore` (см. ниже).
+
+### Шаг 2 — запустить ralph-loop
+
+```
 /ralph-loop "$(cat .ralph-prompt.txt)" --max-iterations 120 --completion-promise "SPEC IMPLEMENTATION COMPLETE"
 ```
 
-(Alternative: можно скопировать промпт из IMPLEMENTATION_PROMPT.md
-вручную в команду, если IDE/терминал поддерживает многострочный paste.)
+Внимание:
+- `"$(cat .ralph-prompt.txt)"` — в двойных кавычках, шелл-подстановка
+  передаёт всё содержимое файла как ОДИН аргумент.
+- `--completion-promise "SPEC IMPLEMENTATION COMPLETE"` — фраза с
+  одиночными пробелами; следи чтобы не было двойных пробелов.
+- `--max-iterations 120` — fail-safe лимит.
+
+### Альтернатива — inline-промпт
+
+Если содержимое `.ralph-prompt.txt` поместится в одну командную
+строку и IDE поддерживает многострочный paste:
+
+```
+/ralph-loop "<вставить содержимое .ralph-prompt.txt>" --max-iterations 120 --completion-promise "SPEC IMPLEMENTATION COMPLETE"
+```
+
+Но через файл — надёжнее (длинный промпт не упадёт по argv-лимиту).
+
+### Что НЕ работает
+
+- **Inline `sed` в slash-команде**: `/ralph-loop "$(sed -n '...'docs/...md)" ...`
+  — сложная substitution может пропустить пробел / экранирование.
+  Сначала **отдельно** запустить sed через bash в `.ralph-prompt.txt`,
+  потом `cat` в slash-команде. Простая `cat`-substitution срабатывает
+  стабильно.
 
 ---
 

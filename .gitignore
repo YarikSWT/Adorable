@@ -38,3 +38,4 @@ yarn-debug.log*
 # misc
 .DS_Store
 *.tsbuildinfo
+.ralph-prompt.txt
