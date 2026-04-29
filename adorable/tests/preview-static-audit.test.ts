@@ -174,6 +174,52 @@ describe("preview-static — audit", () => {
     expect(allDeleted).toContain("b001");
   });
 
+  it("emits build_runner_killed_timeout when executor reports timedOut", async () => {
+    const auditLogger = createAuditLogger({ path: logPath });
+    const timeoutExecutor: BuildExecutor = {
+      async runBuild(): Promise<BuildExecutorResult> {
+        return {
+          exitCode: 137,
+          stdout: "",
+          stderr: "",
+          cancelled: false,
+          timedOut: true,
+          durationMs: 120_000,
+        };
+      },
+    };
+    const provider: PreviewProvider = createStaticPreviewProvider({
+      projectsRoot,
+      staticRoot,
+      previewDomainSuffix: "preview.test",
+      previewProtocol: "http",
+      previewPortSegment: "",
+      proxyProviderFactory: async () => proxy,
+      buildExecutor: timeoutExecutor,
+      auditLogger,
+    });
+    await provider.create({ repoId: "p-to", boilerplateVersion: "1.0.0" });
+    const r = await provider.build({
+      projectId: "p-to",
+      reason: "initial",
+      buildId: "timed-out",
+    });
+    expect(r.status).toBe("failed");
+    expect(r.errors.some((e) => /timed out/i.test(e.message))).toBe(true);
+
+    const events = (await readEvents()) as Array<Record<string, unknown>>;
+    const ev = events.find(
+      (e) => e.event === "build_runner_killed_timeout",
+    );
+    expect(ev).toMatchObject({
+      event: "build_runner_killed_timeout",
+      projectId: "p-to",
+      buildId: "timed-out",
+      durationMs: 120_000,
+      exitCode: 137,
+    });
+  });
+
   it("skips audit emission when no auditLogger is configured", async () => {
     const provider: PreviewProvider = createStaticPreviewProvider({
       projectsRoot,

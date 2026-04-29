@@ -512,6 +512,16 @@ export const createStaticPreviewProvider = (
           code: "unknown",
           message: `Build timed out (exit ${execResult.exitCode}).`,
         });
+        if (audit) {
+          const event: import("@/lib/sandbox/audit-log").AuditEventInput = {
+            event: "build_runner_killed_timeout",
+            projectId: opts.projectId,
+            buildId,
+            durationMs: execResult.durationMs,
+            exitCode: execResult.exitCode,
+          };
+          void audit.log(event).catch(() => undefined);
+        }
       }
 
       return {

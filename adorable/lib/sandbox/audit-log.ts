@@ -125,6 +125,13 @@ export type AuditEvent =
       event: "build_gc";
       projectId: string;
       deletedBuilds: string[];
+    })
+  | (AuditEventBase & {
+      event: "build_runner_killed_timeout";
+      projectId: string;
+      buildId: string;
+      durationMs: number;
+      exitCode: number;
     });
 
 // Distributive helper: turns a union of object types into a union where
