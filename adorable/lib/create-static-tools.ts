@@ -14,6 +14,10 @@ import { z } from "zod";
 import type { BuildQueue, ProjectFs } from "@/lib/adapters/preview";
 import { ProjectFsError } from "@/lib/adapters/preview";
 import { explainNonWritable } from "@/lib/preview/project-fs";
+import {
+  getSharedAuditLogger,
+  type AuditLogger,
+} from "@/lib/sandbox/audit-log";
 
 export interface StaticToolsOptions {
   /** ProjectFs for all read/write/list/search ops. Required. */
@@ -27,6 +31,13 @@ export interface StaticToolsOptions {
   onFileChange?: (path: string, content: string) => void;
   /** Hook into delete/move-source for batch-commit. */
   onFileDelete?: (path: string) => void;
+
+  /**
+   * Audit logger for security-relevant events (path_rejected when the
+   * LLM tries to escape the writable whitelist). Defaults to the shared
+   * audit logger; pass null to silence.
+   */
+  auditLogger?: AuditLogger | null;
 }
 
 const friendlyError = (err: unknown): { ok: false; error: string } => {
@@ -41,6 +52,28 @@ const friendlyError = (err: unknown): { ok: false; error: string } => {
 
 export const createStaticTools = (opts: StaticToolsOptions) => {
   const { fs, buildQueue, projectId } = opts;
+  const audit =
+    "auditLogger" in opts ? opts.auditLogger : getSharedAuditLogger();
+
+  const auditPathRejection = (
+    err: unknown,
+    tool: "write" | "remove" | "rename" | "mkdir",
+  ): void => {
+    if (!audit) return;
+    if (!(err instanceof ProjectFsError)) return;
+    if (err.code !== "path-not-writable" && err.code !== "invalid-path") {
+      return;
+    }
+    void audit
+      .log({
+        event: "path_rejected",
+        projectId,
+        path: err.path ?? "",
+        tool,
+        reason: err.message,
+      })
+      .catch(() => undefined);
+  };
 
   const readFileTool = tool({
     description: "Read the content of a project file (utf-8 text).",
@@ -74,6 +107,7 @@ export const createStaticTools = (opts: StaticToolsOptions) => {
         opts.onFileChange?.(file, content);
         return { ok: true };
       } catch (err) {
+        auditPathRejection(err, "write");
         return friendlyError(err);
       }
     },
@@ -191,6 +225,7 @@ export const createStaticTools = (opts: StaticToolsOptions) => {
         await fs.mkdir(path);
         return { ok: true };
       } catch (err) {
+        auditPathRejection(err, "mkdir");
         return friendlyError(err);
       }
     },
@@ -210,6 +245,7 @@ export const createStaticTools = (opts: StaticToolsOptions) => {
         // expensive for large files.
         return { ok: true };
       } catch (err) {
+        auditPathRejection(err, "rename");
         return friendlyError(err);
       }
     },
@@ -224,6 +260,7 @@ export const createStaticTools = (opts: StaticToolsOptions) => {
         opts.onFileDelete?.(path);
         return { ok: true };
       } catch (err) {
+        auditPathRejection(err, "remove");
         return friendlyError(err);
       }
     },

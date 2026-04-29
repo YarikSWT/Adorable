@@ -132,6 +132,13 @@ export type AuditEvent =
       buildId: string;
       durationMs: number;
       exitCode: number;
+    })
+  | (AuditEventBase & {
+      event: "path_rejected";
+      projectId: string;
+      path: string;
+      tool: "write" | "remove" | "rename" | "mkdir";
+      reason: string;
     });
 
 // Distributive helper: turns a union of object types into a union where
