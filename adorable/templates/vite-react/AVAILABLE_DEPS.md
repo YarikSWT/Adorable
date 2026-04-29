@@ -1,19 +1,52 @@
-# AVAILABLE_DEPS.md
+# AVAILABLE DEPENDENCIES — boilerplate v1.0.0
 
-Boilerplate version: see `VERSION` file in this directory.
+This is the COMPLETE list of npm packages available in this project.
+Do NOT import packages that are not listed here — the build will fail.
 
-This file enumerates the npm dependencies available to LLM-generated code in
-the static (Vite + React) preview mode. It is consumed by the system prompt
-to constrain which `import` statements the model emits.
+## Runtime dependencies
 
-This file is a **placeholder** — generated from `package.json` by
-`scripts/generate-available-deps.ts` (see Phase 2 of MIGRATION_PATH.md).
-Do not edit by hand.
+- class-variance-authority
+- clsx
+- lucide-react
+- react
+- react-dom
+- react-router-dom
+- tailwind-merge
 
-## allow
+## Build / dev dependencies (typecheck only — not bundled)
 
-(empty — populated by generator script)
+- @vitejs/plugin-react
+- autoprefixer
+- postcss
+- tailwindcss
+- tailwindcss-animate
+- vite
 
-## deny / suggestions
+## NOT AVAILABLE — common requests with suggested replacements
 
-(empty — populated by generator script)
+- `@chakra-ui/react` → Build UI with Tailwind classes + lucide-react icons instead of Chakra.
+- `@emotion/react` → Use Tailwind utility classes instead of @emotion/react.
+- `@emotion/styled` → Use Tailwind utility classes instead of @emotion/styled.
+- `@mui/material` → Build UI with Tailwind classes + lucide-react icons instead of MUI.
+- `@tanstack/query-core` → Import from `@tanstack/react-query`.
+- `axios` → Use the built-in `fetch` API instead of axios.
+- `dayjs` → Use `date-fns` instead of dayjs.
+- `express` → This project is a static SPA — no Express server. Connect to the managed BaaS for backend functionality.
+- `fastify` → This project is a static SPA — no Fastify. Connect to the managed BaaS for backend functionality.
+- `jquery` → Replace jQuery with React refs (`useRef`) and state (`useState`).
+- `lodash-es` → Import from `lodash` (e.g. `import { debounce } from 'lodash'`).
+- `luxon` → Use `date-fns` instead of luxon.
+- `mongodb` → This project is a static SPA — no DB. Use the managed BaaS for persistent data.
+- `mysql` → This project is a static SPA — no DB. Use the managed BaaS for persistent data.
+- `mysql2` → This project is a static SPA — no DB. Use the managed BaaS for persistent data.
+- `next` → Use Vite + react-router-dom for routing instead of Next.js.
+- `pg` → This project is a static SPA — no DB. Use the managed BaaS for persistent data.
+- `react-query` → Import from `@tanstack/react-query` (v5).
+- `styled-components` → Use Tailwind utility classes instead of styled-components.
+
+## How this file is generated
+
+Generated automatically from `templates/vite-react/package.json`
+and `adorable/lib/preview/available-deps.ts` SYNONYMS table by
+`adorable/scripts/generate-available-deps.ts`. Re-run after every
+boilerplate version bump (BOILERPLATE.md §3).
