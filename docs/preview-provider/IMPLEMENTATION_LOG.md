@@ -39,3 +39,4 @@ Append-only лог. Каждый итер дописывает 1 строку в
 [2026-04-29 10:38] phase=1 task=preview-types-and-factory status=done commit=b34791c note=lib/adapters/preview.ts (CONTRACTS §1-10 types + factory) + throwing stubs for mock/static/sandbox; tsc clean; tests green
 [2026-04-29 10:41] phase=1 task=preview-mock-and-contract-tests status=done commit=230fcb9 note=in-memory MockPreviewProvider with lifecycle/idempotence/capabilities/ProjectFs + 13 contract tests; 173/20 (was 160/20)
 [2026-04-29 10:43] phase=1 task=preview-sandbox-wrapper status=done commit=9e839c2 note=SandboxPreviewProvider wraps adorable-vm + sandboxProvider, build()=stub-success (HMR), shell-backed ProjectFs adapter; 177/20
+[2026-04-29 10:45] phase=1 task=provider-singleton status=done commit=9df0209 note=lib/preview/provider-singleton.ts (HMR-safe getPreviewProvider + getBuildQueue stub) + 6 tests; 183/20. Phase 1 complete.
