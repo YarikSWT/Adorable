@@ -285,12 +285,54 @@ export const readConversationMessages = async (
   );
 };
 
+/**
+ * Sanitise a conversation transcript before persisting:
+ *  - Drops user/tool messages that ended up with zero parts. The
+ *    assistant-ui runtime sometimes emits a placeholder user/tool slot
+ *    that never gets filled; persisting it loads back as a phantom row
+ *    and the iteration in `tapResources` can then duplicate-key on the
+ *    surrounding tool-call parts.
+ *  - Within each message, dedupes parts by `toolCallId`. Two parts
+ *    with the same id is a known crash trigger
+ *    (`Duplicate key toolCallId-… in tapResources`). Keeps the LAST
+ *    occurrence, since later events (output-available) supersede
+ *    earlier ones (input-streaming).
+ *
+ * Pure / side-effect-free so it's covered by a unit test.
+ */
+export const sanitiseConversationMessages = (
+  messages: UIMessage[],
+): UIMessage[] => {
+  const cleaned: UIMessage[] = [];
+  for (const msg of messages) {
+    const parts = Array.isArray(msg.parts) ? msg.parts : [];
+    if (parts.length === 0 && msg.role !== "assistant") {
+      // phantom placeholder — drop
+      continue;
+    }
+    // Dedupe by toolCallId, keeping last write.
+    const lastIdxByCallId = new Map<string, number>();
+    parts.forEach((p, i) => {
+      const callId = (p as { toolCallId?: string }).toolCallId;
+      if (callId != null) lastIdxByCallId.set(callId, i);
+    });
+    const dedupedParts = parts.filter((p, i) => {
+      const callId = (p as { toolCallId?: string }).toolCallId;
+      if (callId == null) return true;
+      return lastIdxByCallId.get(callId) === i;
+    });
+    cleaned.push({ ...msg, parts: dedupedParts });
+  }
+  return cleaned;
+};
+
 export const saveConversationMessages = async (
   repoId: string,
   metadata: RepoMetadata,
   conversationId: string,
   messages: UIMessage[],
 ) => {
+  const sanitisedMessages = sanitiseConversationMessages(messages);
   const latestMetadata = (await readRepoMetadata(repoId)) ?? metadata;
   const now = new Date().toISOString();
 
@@ -300,7 +342,7 @@ export const saveConversationMessages = async (
   const fallbackTitle =
     existing?.title ??
     `Conversation ${latestMetadata.conversations.length + 1}`;
-  const title = deriveConversationTitle(messages, fallbackTitle);
+  const title = deriveConversationTitle(sanitisedMessages, fallbackTitle);
 
   const updatedConversation: RepoConversationSummary = {
     id: conversationId,
@@ -326,7 +368,7 @@ export const saveConversationMessages = async (
     },
     {
       path: conversationPath(conversationId),
-      content: encodeJson(messages),
+      content: encodeJson(sanitisedMessages),
     },
   ]);
 

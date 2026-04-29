@@ -69,9 +69,18 @@ export const Assistant = ({
         : "home:draft",
   );
 
+  // Re-seed only when the conversation actually changes — NOT on every
+  // parent re-render that hands us a fresh `initialMessages` array
+  // reference. Re-seeding mid-stream replaces useChat's state and
+  // collides with in-flight tool-call updates, producing the
+  // "Duplicate key toolCallId-… in tapResources" crash.
+  const lastSeededConversationRef = useRef(selectedConversationId);
   useEffect(() => {
-    setSeedMessages(resolvedInitialMessages);
-  }, [resolvedInitialMessages]);
+    if (lastSeededConversationRef.current !== selectedConversationId) {
+      lastSeededConversationRef.current = selectedConversationId;
+      setSeedMessages(resolvedInitialMessages);
+    }
+  }, [resolvedInitialMessages, selectedConversationId]);
 
   useEffect(() => {
     setLocalRepoId((previous) => selectedRepoId ?? previous);
