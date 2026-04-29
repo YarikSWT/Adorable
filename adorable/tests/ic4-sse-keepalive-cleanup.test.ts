@@ -88,6 +88,40 @@ describe("IC-4 — SSE keep-alive", () => {
   });
 });
 
+describe("IC-4 — controller cancel cleanup (consumer-side teardown)", () => {
+  it("reader.cancel() (without req.signal.abort) still tears down keepalive + queue listener", async () => {
+    mockIdentity([{ id: "p-ic4-rc", name: "p-ic4-rc" }]);
+    const provider = await getPreviewProvider();
+    await provider.create({
+      repoId: "p-ic4-rc",
+      boilerplateVersion: "1.0.0",
+    });
+
+    const queue = getBuildQueue();
+    const externalEvents: string[] = [];
+    queue.subscribe("p-ic4-rc", (e) => externalEvents.push(e.status));
+
+    // No AbortController.abort() — only the ReadableStream consumer
+    // cancels. This exercises the cancel() path on the controller.
+    const ac = new AbortController();
+    const res = await callGet("p-ic4-rc", ac.signal);
+    const reader = res.body!.getReader();
+
+    // Cancel from the consumer side; req.signal stays armed.
+    await reader.cancel();
+    // Tick to let cancel propagate.
+    await new Promise((r) => setTimeout(r, 5));
+
+    // Fire a build event AFTER cancel. No throw means the SSE listener
+    // is gone (otherwise it would try to enqueue into a torn-down
+    // controller and surface as an error somewhere in queue.subscribe).
+    await queue.enqueue({ projectId: "p-ic4-rc", reason: "manual" });
+    await new Promise((r) => setTimeout(r, 5));
+
+    expect(externalEvents).toContain("running");
+  });
+});
+
 describe("IC-4 — disconnect cleanup", () => {
   it("aborting the request closes the stream and stops further events", async () => {
     mockIdentity([{ id: "p-ic4-cu", name: "p-ic4-cu" }]);

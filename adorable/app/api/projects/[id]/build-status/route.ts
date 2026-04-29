@@ -61,6 +61,11 @@ export async function GET(
   const queue = getBuildQueue();
   const encoder = new TextEncoder();
 
+  // Cleanup handle shared between req.signal abort and ReadableStream
+  // cancel() — whichever fires first frees the resources, the other
+  // becomes a no-op via the `closed` flag.
+  let cleanup: (() => void) | undefined;
+
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       let closed = false;
@@ -118,17 +123,22 @@ export async function GET(
         send(":keep-alive\n\n");
       }, resolveKeepAliveMs());
 
-      // 4. Tear down when client disconnects.
-      req.signal.addEventListener("abort", () => {
+      cleanup = (): void => {
         clearInterval(keepAlive);
         unsubscribe();
         close();
+      };
+
+      // 4. Tear down when client disconnects.
+      req.signal.addEventListener("abort", () => {
+        cleanup?.();
       });
     },
     cancel() {
-      // Backup teardown if controller side is cancelled before request abort.
-      // (subscribe/keepalive cleanup is handled inside `start()` via
-      // request.signal — same path.)
+      // Fires when the consumer side cancels (e.g., Next.js tears the
+      // response down without req.signal having fired yet). Run the
+      // same cleanup so we don't leak a setInterval + queue listener.
+      cleanup?.();
     },
   });
 
