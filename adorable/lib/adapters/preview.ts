@@ -415,6 +415,20 @@ export const resolvePreviewProviderName = (
 };
 
 /**
+ * If env says PREVIEW_PROVIDER=sandbox|docker but vitest forces "mock",
+ * the mock should simulate sandbox semantics (shellAccess=true, hotReload).
+ * Otherwise the mock simulates static semantics. This lets the existing
+ * sandbox-flow tests (landing-flow-e2e) keep working with the mock by
+ * simply setting `PREVIEW_PROVIDER=sandbox` in their setup.
+ */
+const mockCapabilitiesFromEnv = (): PreviewCapabilities | undefined => {
+  const envName = (process.env["PREVIEW_PROVIDER"] ?? "").toLowerCase().trim();
+  if (envName === "sandbox" || envName === "docker") return SANDBOX_CAPABILITIES;
+  if (envName === "static") return STATIC_CAPABILITIES;
+  return undefined; // fall through to mock's STATIC default
+};
+
+/**
  * Async factory — повторяет паттерн createSandboxProvider.
  * Lazy import — чтобы mock-тесты не подтягивали dockerode/caddy.
  */
@@ -425,7 +439,10 @@ export const createPreviewProvider = async (
   switch (name) {
     case "mock": {
       const mod = await import("./preview-mock");
-      return mod.createMockPreviewProvider();
+      const envCaps = mockCapabilitiesFromEnv();
+      return mod.createMockPreviewProvider(
+        envCaps ? { capabilities: envCaps } : {},
+      );
     }
     case "static": {
       const mod = await import("./preview-static");

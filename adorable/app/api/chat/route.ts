@@ -1,6 +1,7 @@
-import { type UIMessage } from "ai";
+import { type ToolSet, type UIMessage } from "ai";
 import { cookies } from "next/headers";
 import { createTools as createVmTools } from "@/lib/create-tools";
+import { createStaticTools } from "@/lib/create-static-tools";
 import { streamLlmResponse } from "@/lib/llm-provider";
 import {
   getSandboxProvider,
@@ -144,18 +145,43 @@ export async function POST(req: Request) {
     metadata.preview?.capabilities ??
     (livePreviewProvider.capabilities ?? SANDBOX_CAPABILITIES);
 
-  await ensureCleanupWorkerRunning().catch(() => undefined);
-  const provider = await getSandboxProvider();
-  const vm = await provider.ref({
-    sandboxId: metadata.vm.vmId,
-    repoId: metadata.sourceRepoId,
-  });
-  touchSandbox(vm.sandboxId);
+  // Branch by capabilities.shellAccess (CONTRACTS §13):
+  //   - sandbox (true): existing flow — vm.ref + createVmTools, autoCommit via vm.fs.
+  //   - static  (false): ProjectFs + createStaticTools, no sandbox lifecycle.
+  // The static branch leaves `vm` undefined; downstream onFinish guards on it.
+  let vm: SandboxHandle | undefined;
+  let tools: ToolSet;
 
-  const tools = createVmTools(vm, {
-    sourceRepoId: metadata.sourceRepoId,
-    metadataRepoId: repoId,
-  });
+  if (capabilities.shellAccess) {
+    await ensureCleanupWorkerRunning().catch(() => undefined);
+    const provider = await getSandboxProvider();
+    vm = await provider.ref({
+      sandboxId: metadata.vm.vmId,
+      repoId: metadata.sourceRepoId,
+    });
+    touchSandbox(vm.sandboxId);
+    tools = createVmTools(vm, {
+      sourceRepoId: metadata.sourceRepoId,
+      metadataRepoId: repoId,
+    }) as unknown as ToolSet;
+  } else {
+    const projectFs = await livePreviewProvider.getProjectFs(
+      metadata.sourceRepoId,
+    );
+    if (!projectFs) {
+      return Response.json(
+        {
+          error: `Static project "${metadata.sourceRepoId}" not initialised — call PreviewProvider.create() first.`,
+        },
+        { status: 500 },
+      );
+    }
+    tools = createStaticTools({
+      fs: projectFs,
+      buildQueue: getBuildQueue(),
+      projectId: metadata.sourceRepoId,
+    }) as unknown as ToolSet;
+  }
 
   // Read user-provided API key from cookie (if no global env key)
   const jar = await cookies();
@@ -212,15 +238,22 @@ export async function POST(req: Request) {
       // Sandbox не имеет сетевого доступа к Gitea (разные docker-network),
       // поэтому agent'ский git push не работает. Server-side у нас
       // прямой доступ к Gitea API.
-      try {
-        await autoCommitWorkspace({
-          vm,
-          sourceRepoId: latestMetadata.sourceRepoId,
-        });
-      } catch (err) {
-        process.stderr.write(
-          `chat onFinish: auto-commit failed for ${latestMetadata.sourceRepoId}: ${(err as Error).message}\n`,
-        );
+      // autoCommit is sandbox-only — it shells into the running container
+      // (find + readTextFile) to snapshot the workspace. In static-mode
+      // the LLM only writes through ProjectFs (createStaticTools) — those
+      // writes already land in the scratch dir, but a server-side commit
+      // to Gitea for static-mode is a follow-up iter.
+      if (vm) {
+        try {
+          await autoCommitWorkspace({
+            vm,
+            sourceRepoId: latestMetadata.sourceRepoId,
+          });
+        } catch (err) {
+          process.stderr.write(
+            `chat onFinish: auto-commit failed for ${latestMetadata.sourceRepoId}: ${(err as Error).message}\n`,
+          );
+        }
       }
 
       // Phase 4 — non-blocking build trigger (BUILD_PIPELINE §2). Sandbox

@@ -78,6 +78,10 @@ beforeEach(async () => {
   process.env.GIT_PROVIDER = "mock";
   process.env.SANDBOX_PROVIDER = "mock";
   process.env.PROXY_PROVIDER = "mock";
+  // Phase 4 — chat/route.ts branches on preview capabilities; this e2e
+  // exercises the sandbox flow, so the mock preview provider must report
+  // SANDBOX_CAPABILITIES (shellAccess=true → sandbox tool branch).
+  process.env.PREVIEW_PROVIDER = "sandbox";
   aclTmpDir = await fs.mkdtemp(path.join(tmpdir(), "adorable-acl-e2e-"));
   process.env.ADORABLE_ACL_FILE = path.join(aclTmpDir, "acl.json");
   __resetIdentitySessionCache();
@@ -159,13 +163,14 @@ describe("landing-page generation default flow (e2e)", () => {
     // chat/route.ts read uses these pinned values.
     expect(created.metadata.boilerplateVersion).toBe("1.0.0");
     expect(created.metadata.preview).toBeDefined();
-    expect(created.metadata.preview?.provider).toBe("mock");
-    expect(typeof created.metadata.preview?.capabilities.shellAccess).toBe(
-      "boolean",
-    );
-    expect(typeof created.metadata.preview?.capabilities.manualRebuild).toBe(
-      "boolean",
-    );
+    // PREVIEW_PROVIDER=sandbox in setup → sandbox provider (= adorable-vm
+    // wrapper) gets resolved; vm.create itself is never called by
+    // repos/route.ts in Phase 4 (we only read provider.capabilities for
+    // pinning), so the underlying SANDBOX_PROVIDER=mock VM is created
+    // exactly once via createVmForRepo.
+    expect(created.metadata.preview?.provider).toBe("sandbox");
+    expect(created.metadata.preview?.capabilities.shellAccess).toBe(true);
+    expect(created.metadata.preview?.capabilities.hotReload).toBe(true);
     expect(created.metadata.preview?.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(created.metadata.preview?.migrationStatus).toBe("ok");
 
