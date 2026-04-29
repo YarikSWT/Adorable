@@ -19,10 +19,12 @@ import {
   getSharedAuditLogger,
   type AuditLogger,
 } from "@/lib/sandbox/audit-log";
-import type {
-  ProxyProvider,
-  ProxyRouteInfo,
-  ProxyRouteSpec,
+import {
+  resolveRouteTarget,
+  type ProxyProvider,
+  type ProxyRouteInfo,
+  type ProxyRouteSpec,
+  type ProxyRouteTarget,
 } from "./proxy";
 
 type CaddyRoute = {
@@ -50,28 +52,36 @@ const ID_PREFIX = "adorable-route-";
 
 const buildId = (rawId: string): string => `${ID_PREFIX}${rawId}`;
 
-const buildRoute = (spec: ProxyRouteSpec): CaddyRoute => {
+const buildRoute = (
+  spec: ProxyRouteSpec,
+  target: ProxyRouteTarget,
+): CaddyRoute => {
+  if (target.type === "static") {
+    // file_server impl ландит в следующей итерации Phase 2.
+    throw new Error(
+      "proxy-caddy: target.type='static' (file_server) not implemented yet — lands in Phase 2 follow-up iter.",
+    );
+  }
   // Caddy `health_checks.active.expect_status` хочет одно число-префикс
   // (например 2 = 2xx). По-умолчанию отключаем active health check и
   // полагаемся на passive (Caddy сам marks bad upstream при сетевых
   // ошибках). Это также упрощает dev: dev-сервер на sandbox-контейнере
   // не всегда успевает ответить 2xx сразу после старта.
-  const healthCheckConfig = spec.healthCheck
+  const hc = target.healthCheck ?? spec.healthCheck;
+  const healthCheckConfig = hc
     ? {
         active: {
-          uri: spec.healthCheck.path ?? "/",
-          interval: `${spec.healthCheck.intervalSec ?? 10}s`,
-          timeout: `${spec.healthCheck.timeoutSec ?? 2}s`,
-          expect_status: Math.floor(
-            (spec.healthCheck.expectStatusMin ?? 200) / 100,
-          ),
+          uri: hc.path ?? "/",
+          interval: `${hc.intervalSec ?? 10}s`,
+          timeout: `${hc.timeoutSec ?? 2}s`,
+          expect_status: Math.floor((hc.expectStatusMin ?? 200) / 100),
         },
       }
     : undefined;
 
   const handle: NonNullable<CaddyRoute["handle"]>[number] = {
     handler: "reverse_proxy",
-    upstreams: [{ dial: spec.upstream }],
+    upstreams: [{ dial: target.address }],
     ...(healthCheckConfig ? { health_checks: healthCheckConfig } : {}),
   };
 
@@ -181,13 +191,18 @@ export const createCaddyProxyProvider = (
       id: id.slice(ID_PREFIX.length),
       hostname: host,
       upstream,
+      target: { type: "upstream", address: upstream },
     };
   };
 
   const addRoute: ProxyProvider["addRoute"] = async (spec: ProxyRouteSpec) => {
     await ensureServer();
-    const route = buildRoute(spec);
+    const target = resolveRouteTarget(spec);
+    const route = buildRoute(spec, target);
     const id = route["@id"]!;
+    // Legacy field — undefined for static targets, address for upstream:
+    const upstreamAddr =
+      target.type === "upstream" ? target.address : undefined;
 
     // Semantics for Caddy's /id/<@id> endpoint:
     //   PUT   — inserts at the indexed path (list INSERT, not replace).
@@ -202,13 +217,14 @@ export const createCaddyProxyProvider = (
       await auditLogger.log({
         event: "proxy_route_added",
         hostname: spec.hostname,
-        upstream: spec.upstream,
+        upstream: upstreamAddr ?? "",
         sandboxId: spec.sandboxId,
       });
       return {
         id: spec.id,
         hostname: spec.hostname,
-        upstream: spec.upstream,
+        target,
+        ...(upstreamAddr !== undefined ? { upstream: upstreamAddr } : {}),
         ...(spec.sandboxId ? { sandboxId: spec.sandboxId } : {}),
       };
     }
@@ -232,13 +248,14 @@ export const createCaddyProxyProvider = (
     await auditLogger.log({
       event: "proxy_route_added",
       hostname: spec.hostname,
-      upstream: spec.upstream,
+      upstream: upstreamAddr ?? "",
       sandboxId: spec.sandboxId,
     });
     return {
       id: spec.id,
       hostname: spec.hostname,
-      upstream: spec.upstream,
+      target,
+      ...(upstreamAddr !== undefined ? { upstream: upstreamAddr } : {}),
       ...(spec.sandboxId ? { sandboxId: spec.sandboxId } : {}),
     };
   };

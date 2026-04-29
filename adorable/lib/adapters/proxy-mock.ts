@@ -2,10 +2,11 @@
 //
 // Хранит роуты в Map, семантика addRoute = idempotent upsert.
 
-import type {
-  ProxyProvider,
-  ProxyRouteInfo,
-  ProxyRouteSpec,
+import {
+  resolveRouteTarget,
+  type ProxyProvider,
+  type ProxyRouteInfo,
+  type ProxyRouteSpec,
 } from "./proxy";
 
 export interface MockProxyProvider extends ProxyProvider {
@@ -24,10 +25,14 @@ export const createMockProxyProvider = (): MockProxyProvider => {
   let removes = 0;
 
   const addRoute: ProxyProvider["addRoute"] = async (spec: ProxyRouteSpec) => {
+    const target = resolveRouteTarget(spec);
+    const upstreamAddr =
+      target.type === "upstream" ? target.address : undefined;
     const info: ProxyRouteInfo = {
       id: spec.id,
       hostname: spec.hostname,
-      upstream: spec.upstream,
+      target,
+      ...(upstreamAddr !== undefined ? { upstream: upstreamAddr } : {}),
       ...(spec.sandboxId ? { sandboxId: spec.sandboxId } : {}),
     };
     routes.set(spec.id, info);
