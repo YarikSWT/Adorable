@@ -96,6 +96,15 @@ export interface StaticPreviewProviderOptions {
   /** Override корня артефактов. Default — env STATIC_ROOT или /data/static. */
   staticRoot?: string;
   /**
+   * Path the Caddy container sees for the same content as staticRoot.
+   * Default — env CADDY_STATIC_ROOT или "/data/static". Used when
+   * registering the file_server route so Caddy gets a path it can
+   * actually open (it lives in a container; staticRoot is the host
+   * path). When dev runs Caddy and Node on the same FS at the same
+   * path, set this equal to staticRoot for a no-op rewrite.
+   */
+  caddyStaticRoot?: string;
+  /**
    * Override domain-suffix для preview URL'ов. Default — env
    * PREVIEW_DOMAIN_SUFFIX или "preview.localhost".
    */
@@ -142,6 +151,21 @@ const resolveProjectsRoot = (override?: string): string =>
 
 const resolveStaticRoot = (override?: string): string =>
   path.resolve(override ?? process.env["STATIC_ROOT"] ?? "/data/static");
+
+/**
+ * Path the Caddy container sees for the same content as STATIC_ROOT
+ * on the host. The Node process writes via STATIC_ROOT (host path);
+ * Caddy serves via this in-container path. They must point at the
+ * same bytes — wired by docker-compose's bind mount.
+ *
+ * Default `/data/static` matches the bind mount target in
+ * docker-compose.yml (`${STATIC_ROOT:-/tmp/adorable-data/static}:/data/static:ro`).
+ *
+ * When dev runs Caddy and Node on the SAME filesystem with the same
+ * STATIC_ROOT, set CADDY_STATIC_ROOT to the same value (no rewrite).
+ */
+const resolveCaddyStaticRoot = (override?: string): string =>
+  override ?? process.env["CADDY_STATIC_ROOT"] ?? "/data/static";
 
 const resolveDomainSuffix = (override?: string): string =>
   override ??
@@ -298,6 +322,7 @@ export const createStaticPreviewProvider = (
 ): PreviewProvider => {
   const projectsRoot = resolveProjectsRoot(options.projectsRoot);
   const staticRoot = resolveStaticRoot(options.staticRoot);
+  const caddyStaticRoot = resolveCaddyStaticRoot(options.caddyStaticRoot);
   const previewSuffix = resolveDomainSuffix(options.previewDomainSuffix);
   const publishedSuffix =
     options.publishedDomainSuffix ??
@@ -459,10 +484,19 @@ export const createStaticPreviewProvider = (
       const previewHost = `${slug}.${previewSuffix}`;
       try {
         const proxy = await proxyFactory();
+        // Caddy lives in a container; pass the container-internal
+        // path so its file_server can actually open the bytes. The
+        // mapping is host:`${staticRoot}` ↔ container:`${caddyStaticRoot}`
+        // (wired by docker-compose bind mount).
+        const caddyCurrentLink = path.join(
+          caddyStaticRoot,
+          opts.repoId,
+          "current",
+        );
         await proxy.addRoute({
           id: routeId,
           hostname: previewHost,
-          target: { type: "static", rootDir: currentLink },
+          target: { type: "static", rootDir: caddyCurrentLink },
         });
       } catch (err) {
         process.stderr.write(

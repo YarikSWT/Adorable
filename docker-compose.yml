@@ -115,6 +115,14 @@ services:
       - ./config/caddy/caddy.init.json:/etc/caddy/caddy.init.json:ro
       - caddy_data:/data
       - caddy_config:/config
+      # Static-mode preview artifacts. The PreviewProvider (static)
+      # writes to ${STATIC_ROOT:-/data/static}/<projectId>/builds/...
+      # on the HOST; Caddy's file_server serves them. Without this
+      # bind the file_server returns 404 because the container has
+      # no view of those files. The bind mount points the same
+      # in-container path so file_server's `root: /data/static/...`
+      # config (built by preview-static.ts) resolves correctly.
+      - ${STATIC_ROOT:-/tmp/adorable-data/static}:/data/static:ro
     networks:
       adorable_infra:
         aliases:

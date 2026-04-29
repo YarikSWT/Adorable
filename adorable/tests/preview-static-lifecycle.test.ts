@@ -106,6 +106,31 @@ describe("StaticPreviewProvider — create()", () => {
     expect(routes[0].target.type).toBe("static");
   });
 
+  it("file_server route's rootDir uses caddyStaticRoot (container-internal path)", async () => {
+    // Override caddyStaticRoot so we can assert it lands in the
+    // route config. In production the host writes via STATIC_ROOT
+    // and Caddy reads via this in-container path; both must be set
+    // up by docker-compose bind mount.
+    const localProxy = createMockProxyProvider();
+    const localProvider = createStaticPreviewProvider({
+      projectsRoot,
+      staticRoot,
+      caddyStaticRoot: "/data/static",
+      previewDomainSuffix: "preview.test",
+      previewProtocol: "http",
+      previewPortSegment: "",
+      proxyProviderFactory: async () => localProxy,
+    });
+    await localProvider.create({
+      repoId: "proj-cdy",
+      boilerplateVersion: "1.0.0",
+    });
+    const routes = await localProxy.listRoutes();
+    const target = routes[0].target as { type: "static"; rootDir: string };
+    expect(target.rootDir).toBe("/data/static/proj-cdy/current");
+    expect(target.rootDir).not.toContain("tmp"); // not the host path
+  });
+
   it("is idempotent — second create returns same metadata, no duplicate routes", async () => {
     const a = await provider.create({
       repoId: "proj-e",
