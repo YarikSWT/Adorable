@@ -105,3 +105,31 @@ Freestyle SaaS-сервиса (VMs, Git, Deploy) и Anthropic Claude. Этот �
   для MVP sandbox клонирует код из Gitea при старте.
 - **Better Auth:** `identity-session.ts` использует простой cookie UUID +
   in-memory ACL. В v2 заменится на Better Auth с Postgres.
+
+## PreviewProvider migration (sandbox + static)
+
+Добавлен второй preview-режим: `static` — `vite build` в ephemeral docker
+build-runner'е, Caddy раздаёт артефакт через `file_server`. Sandbox-режим
+(long-running container с Vite dev-server'ом) сохранён как fallback.
+
+Полная спецификация — `docs/preview-provider/`:
+- `MIGRATION_PATH.md` — 7 фаз; loop прошёл фазы 0–5 и весь автоматический
+  объём фазы 6 (см. `IMPLEMENTATION_LOG.md`).
+- `CONTRACTS.md` — TypeScript-сигнатуры (PreviewProvider, BuildQueue,
+  ProjectFs, ProxyRouteTarget union).
+- `BUILD_PIPELINE.md` — docker run flags, atomic swap, cancel flow,
+  audit-log events.
+- `SECURITY.md` — модель угроз + список митигаций (path-rejected,
+  upload-rejected, magic-bytes, build-runner isolation).
+- `VERIFICATION.md` — acceptance criteria; продуктовые сценарии 1–8 +
+  10 инфра-проверок. Loop covered 10/10 локальные эквиваленты;
+  product scenarios + p50/p95 metrics требуют staging (см.
+  `docs/preview-provider/OPEN_QUESTIONS.md` §L1+L2).
+
+Default `PREVIEW_PROVIDER=sandbox` сохранён до явного human-acceptance
+фазы 6. Switch на `static` — отдельный коммит после ревью staging.
+
+Migration scripts: `adorable/scripts/migrate-repo-metadata.ts` (bulk
+backfill `boilerplateVersion` + `preview` block) +
+`migrate-repo-to-static.ts` (per-project sandbox → static). Подробности
+в `adorable/README.md`.
