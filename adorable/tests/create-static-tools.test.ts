@@ -42,11 +42,13 @@ afterEach(async () => {
 });
 
 const callTool = async (
-  tool: { execute?: (input: unknown, ctx: unknown) => Promise<unknown> },
+  tool: unknown,
   input: unknown,
 ): Promise<unknown> => {
-  if (!tool.execute) throw new Error("tool has no execute");
-  return tool.execute(input, {} as unknown);
+  const exec = (tool as { execute?: (i: unknown, ctx: unknown) => Promise<unknown> })
+    .execute;
+  if (!exec) throw new Error("tool has no execute");
+  return exec(input, {} as unknown);
 };
 
 describe("createStaticTools — file tools", () => {

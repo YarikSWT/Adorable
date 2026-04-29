@@ -7,12 +7,15 @@ import {
 } from "@/lib/identity-session";
 import { getGitProvider } from "@/lib/git/provider-singleton";
 import { seedTemplateRepo } from "@/lib/template-seeder";
+import { readBoilerplateVersion } from "@/lib/preview/boilerplate-version";
+import { getPreviewProvider } from "@/lib/preview/provider-singleton";
 import {
   ADORABLE_WRAPPER_REPO_PREFIX,
   isWrapperRepoName,
   stripWrapperPrefix,
   type RepoMetadata,
   type RepoDeploymentSummary,
+  type RepoPreviewMetadata,
   createConversationInRepo,
   readRepoMetadata,
   writeRepoMetadata,
@@ -279,6 +282,22 @@ export async function POST(req: Request) {
   // containers, so per-identity ACLs on VMs don't exist. The Git repo
   // grant above remains (Phase 3 will migrate that to Gitea).
 
+  // Phase 4 — pin boilerplateVersion + preview metadata on the wrapper.
+  // We don't yet route VM creation through getPreviewProvider().create()
+  // (that swap requires SandboxPreviewProvider to expose its internal
+  // sandboxId; tracked for a follow-up iter). For now we read the
+  // provider's name + capabilities to populate the metadata block, so
+  // future migrations and capability-driven branching (system-prompt,
+  // tools) have something to read.
+  const boilerplateVersion = await readBoilerplateVersion();
+  const previewProvider = await getPreviewProvider();
+  const previewMetadata: RepoPreviewMetadata = {
+    provider: previewProvider.name,
+    capabilities: { ...previewProvider.capabilities },
+    createdAt: new Date().toISOString(),
+    migrationStatus: "ok",
+  };
+
   const initialMetadata: RepoMetadata = {
     version: 2,
     sourceRepoId,
@@ -288,6 +307,8 @@ export async function POST(req: Request) {
     deployments: [],
     productionDomain: null,
     productionDeploymentId: null,
+    boilerplateVersion,
+    preview: previewMetadata,
   };
 
   await writeRepoMetadata(wrapperRepoId, initialMetadata);
