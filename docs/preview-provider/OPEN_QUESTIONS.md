@@ -376,9 +376,16 @@ production stack and need a staging environment.
 - `docker volume create adorable_node_modules_react_1_0_0` + run init-volume.sh
 - `RUN_DOCKER_TESTS=1 cd adorable && pnpm test`
 
-### L3. preview-static state is in-memory only — lost on restart (added 2026-04-29)
+### L3. preview-static state is in-memory only — lost on restart (added 2026-04-29) — RESOLVED 2026-04-29 commit 064a5ad
 **Источник**: discovered via Phase 6 STATIC e2e test.
 **Приоритет**: blocker for Phase 6 acceptance.
+**Resolution**: combined approach (b)-then-(a) below — `create()` writes
+`.preview-state.json` (boilerplateVersion + createdAt) next to static
+dir; `getOrRehydrate()` is called from build/getProjectFs/destroy/touch
+and reconstructs the in-memory entry on miss. Legacy projects without
+the persisted file fall back to `boilerplateVersion="1.0.0"` (the only
+version that ever existed before this commit). 5 tests cover persistence
++ each rehydration path.
 **Symptom**: After dev-server restart, an existing static project's
 files are still on disk under `PROJECTS_ROOT/<repoId>/` and
 `STATIC_ROOT/<repoId>/` (with `current` symlink + builds/), but
