@@ -19,7 +19,17 @@
 import { getOrCreateIdentitySession } from "@/lib/identity-session";
 import { getBuildQueue } from "@/lib/preview/provider-singleton";
 
-const KEEP_ALIVE_MS = 30_000;
+const DEFAULT_KEEP_ALIVE_MS = 30_000;
+
+// Test-friendly override — production never sets this. Tests pin a small
+// value so they can assert keep-alive comments arrive within reasonable
+// wait time.
+const resolveKeepAliveMs = (): number => {
+  const raw = process.env["SSE_KEEP_ALIVE_MS"];
+  if (!raw) return DEFAULT_KEEP_ALIVE_MS;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_KEEP_ALIVE_MS;
+};
 
 export const dynamic = "force-dynamic";
 
@@ -97,7 +107,7 @@ export async function GET(
       // 3. Periodic keep-alive (so proxies don't time the connection out).
       const keepAlive = setInterval(() => {
         send(":keep-alive\n\n");
-      }, KEEP_ALIVE_MS);
+      }, resolveKeepAliveMs());
 
       // 4. Tear down when client disconnects.
       req.signal.addEventListener("abort", () => {
