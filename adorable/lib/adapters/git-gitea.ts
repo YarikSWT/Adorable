@@ -374,15 +374,32 @@ export const createGiteaGitProvider = (): GitProvider => {
   };
 
   const listRepos: GitProvider["listRepos"] = async ({ limit = 100 } = {}) => {
-    // Only list repos owned by our configured user/org.
-    const r = await api(
-      cfg,
-      "GET",
-      `/users/${encodeURIComponent(cfg.owner)}/repos?limit=${limit}`,
-    );
-    if (!r.ok) return [];
-    const list = Array.isArray(r.json) ? (r.json as GiteaRepoInfo[]) : [];
-    return list.map((x) => ({ id: x.full_name, name: x.name }));
+    // Gitea caps `?limit=N` at its per-page setting (50 by default).
+    // Without pagination an instance with >50 repos hides everything
+    // past page 1, which silently breaks ACL checks for newly-created
+    // projects (the wrapper just isn't in the returned list → identity
+    // sees a 403 on the API for its own repo). Page until we either
+    // hit the caller's limit or run out.
+    const PAGE_SIZE = 50;
+    const out: Array<{ id: string; name: string }> = [];
+    let page = 1;
+    while (out.length < limit) {
+      const r = await api(
+        cfg,
+        "GET",
+        `/users/${encodeURIComponent(cfg.owner)}/repos?limit=${PAGE_SIZE}&page=${page}`,
+      );
+      if (!r.ok) break;
+      const list = Array.isArray(r.json) ? (r.json as GiteaRepoInfo[]) : [];
+      if (list.length === 0) break;
+      for (const x of list) {
+        out.push({ id: x.full_name, name: x.name });
+        if (out.length >= limit) break;
+      }
+      if (list.length < PAGE_SIZE) break; // last page
+      page++;
+    }
+    return out;
   };
 
   const getRepo: GitProvider["getRepo"] = (repoId: string) => buildRef(repoId);
