@@ -41,6 +41,31 @@ describe("resolvePreviewProviderName", () => {
     expect(resolvePreviewProviderName("  Static  ")).toBe("static");
     expect(resolvePreviewProviderName("SANDBOX")).toBe("sandbox");
   });
+
+  it("defaults to sandbox in production (no PREVIEW_PROVIDER, no vitest)", () => {
+    // MIGRATION_PATH.md §6 — default stays sandbox until Phase 6 user
+    // acceptance switches it to static. Spoof a non-test environment
+    // and assert the bare default lands on sandbox (so a missing env
+    // var in a deployment doesn't silently flip behavior).
+    const originalEnv = process.env["PREVIEW_PROVIDER"];
+    const originalVitest = process.env["VITEST"];
+    // NODE_ENV is read-only in Next.js's typings — go through the
+    // index signature to bypass the check while still mutating the
+    // real env for the duration of the test.
+    const env = process.env as Record<string, string | undefined>;
+    const originalNode = env["NODE_ENV"];
+    try {
+      delete env["PREVIEW_PROVIDER"];
+      delete env["VITEST"];
+      env["NODE_ENV"] = "production";
+      expect(resolvePreviewProviderName()).toBe("sandbox");
+    } finally {
+      if (originalEnv !== undefined) env["PREVIEW_PROVIDER"] = originalEnv;
+      if (originalVitest !== undefined) env["VITEST"] = originalVitest;
+      if (originalNode !== undefined) env["NODE_ENV"] = originalNode;
+      else delete env["NODE_ENV"];
+    }
+  });
 });
 
 describe("PreviewProvider contract (mock, static caps)", () => {

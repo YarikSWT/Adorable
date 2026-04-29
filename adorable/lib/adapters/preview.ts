@@ -411,7 +411,12 @@ export const resolvePreviewProviderName = (
   if (process.env["NODE_ENV"] === "test" || process.env["VITEST"]) {
     return "mock";
   }
-  return "static";
+  // Default stays "sandbox" until Phase 6 acceptance switches it to
+  // "static" (MIGRATION_PATH.md §6). Operators who want static must
+  // set PREVIEW_PROVIDER=static explicitly. The .env.example file
+  // documents this default; the hardcode here is the safety net so
+  // that a missing env var does not silently flip behavior.
+  return "sandbox";
 };
 
 /**
