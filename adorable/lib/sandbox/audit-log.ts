@@ -139,6 +139,12 @@ export type AuditEvent =
       path: string;
       tool: "write" | "remove" | "rename" | "mkdir";
       reason: string;
+    })
+  | (AuditEventBase & {
+      event: "auth_denied";
+      projectId: string;
+      action: "rebuild" | "build-status" | "upload";
+      reason: string;
     });
 
 // Distributive helper: turns a union of object types into a union where
@@ -158,6 +164,12 @@ export interface AuditLogger {
   log: (event: AuditEventInput) => Promise<void>;
   /** Path the logger is writing to, or null if disabled. */
   readonly path: string | null;
+  /**
+   * Block until all currently-queued writes have flushed to disk. Use
+   * in tests after fire-and-forget `void audit.log(...)` calls; the
+   * production caller doesn't need to call this.
+   */
+  flush: () => Promise<void>;
 }
 
 const resolveLogPath = (override?: string | null): string | null => {
@@ -224,7 +236,11 @@ export const createAuditLogger = (
     await tail;
   };
 
-  return { log, path };
+  const flush: AuditLogger["flush"] = async () => {
+    await tail;
+  };
+
+  return { log, path, flush };
 };
 
 /**

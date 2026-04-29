@@ -49,8 +49,10 @@ const callTool = async (
   return exec(input, {} as unknown);
 };
 
+let activeAuditLogger: ReturnType<typeof createAuditLogger> | null = null;
+
 const readEvents = async (): Promise<unknown[]> => {
-  await new Promise((r) => setTimeout(r, 5));
+  if (activeAuditLogger) await activeAuditLogger.flush();
   let raw = "";
   try {
     raw = await readFile(logPath, "utf8");
@@ -67,6 +69,7 @@ const buildTools = () => {
   const fs = createNodeFsProjectFs({ rootDir: workDir });
   const queue = createInMemoryBuildQueue({ runJob: async () => succeeded() });
   const auditLogger = createAuditLogger({ path: logPath });
+  activeAuditLogger = auditLogger;
   return createStaticTools({
     fs,
     buildQueue: queue,

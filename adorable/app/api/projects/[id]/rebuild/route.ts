@@ -19,6 +19,7 @@ import {
   getBuildQueue,
   getPreviewProvider,
 } from "@/lib/preview/provider-singleton";
+import { getSharedAuditLogger } from "@/lib/sandbox/audit-log";
 
 export async function POST(
   _req: Request,
@@ -31,6 +32,14 @@ export async function POST(
   const { identity } = await getOrCreateIdentitySession();
   const { repositories } = await identity.permissions.git.list({ limit: 200 });
   if (!repositories.some((r) => r.id === projectId)) {
+    void getSharedAuditLogger()
+      .log({
+        event: "auth_denied",
+        projectId,
+        action: "rebuild",
+        reason: "caller has no grant on repo",
+      })
+      .catch(() => undefined);
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

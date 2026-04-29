@@ -18,6 +18,7 @@
 
 import { getOrCreateIdentitySession } from "@/lib/identity-session";
 import { getBuildQueue } from "@/lib/preview/provider-singleton";
+import { getSharedAuditLogger } from "@/lib/sandbox/audit-log";
 
 const DEFAULT_KEEP_ALIVE_MS = 30_000;
 
@@ -43,6 +44,14 @@ export async function GET(
   const { identity } = await getOrCreateIdentitySession();
   const { repositories } = await identity.permissions.git.list({ limit: 200 });
   if (!repositories.some((r) => r.id === projectId)) {
+    void getSharedAuditLogger()
+      .log({
+        event: "auth_denied",
+        projectId,
+        action: "build-status",
+        reason: "caller has no grant on repo",
+      })
+      .catch(() => undefined);
     return new Response(JSON.stringify({ error: "Forbidden" }), {
       status: 403,
       headers: { "Content-Type": "application/json" },

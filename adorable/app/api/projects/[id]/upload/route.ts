@@ -56,6 +56,14 @@ export async function POST(
   const { identity } = await getOrCreateIdentitySession();
   const { repositories } = await identity.permissions.git.list({ limit: 200 });
   if (!repositories.some((r) => r.id === projectId)) {
+    void getSharedAuditLogger()
+      .log({
+        event: "auth_denied",
+        projectId,
+        action: "upload",
+        reason: "caller has no grant on repo",
+      })
+      .catch(() => undefined);
     return errorResponse(403, { error: "Forbidden" });
   }
 

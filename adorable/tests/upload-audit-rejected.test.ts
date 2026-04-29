@@ -15,7 +15,10 @@ vi.mock("@/lib/identity-session", () => ({
 }));
 
 import { getOrCreateIdentitySession } from "@/lib/identity-session";
-import { __resetSharedAuditLogger } from "@/lib/sandbox/audit-log";
+import {
+  __resetSharedAuditLogger,
+  getSharedAuditLogger,
+} from "@/lib/sandbox/audit-log";
 import { POST } from "@/app/api/projects/[id]/upload/route";
 
 const mockIdentity = (repos: Array<{ id: string; name: string }>): void => {
@@ -78,9 +81,8 @@ const callPost = async (id: string, file: File): Promise<Response> => {
 };
 
 const readEvents = async (): Promise<unknown[]> => {
-  // Audit logger writes are queued through a serial promise chain; give
-  // them a tick to flush.
-  await new Promise((r) => setTimeout(r, 5));
+  // Drain the shared logger's serial write chain deterministically.
+  await getSharedAuditLogger().flush();
   let raw = "";
   try {
     raw = await readFile(logPath, "utf8");

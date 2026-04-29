@@ -40,8 +40,10 @@ let staticRoot: string;
 let logPath: string;
 let proxy: ReturnType<typeof createMockProxyProvider>;
 
+let activeLogger: ReturnType<typeof createAuditLogger> | null = null;
+
 const readEvents = async (): Promise<unknown[]> => {
-  await new Promise((r) => setTimeout(r, 5));
+  if (activeLogger) await activeLogger.flush();
   let raw = "";
   try {
     raw = await readFile(logPath, "utf8");
@@ -69,6 +71,7 @@ afterEach(async () => {
 describe("preview-static — audit", () => {
   it("emits build_swap after atomic symlink swap", async () => {
     const auditLogger = createAuditLogger({ path: logPath });
+    activeLogger = auditLogger;
     const provider: PreviewProvider = createStaticPreviewProvider({
       projectsRoot,
       staticRoot,
@@ -101,6 +104,7 @@ describe("preview-static — audit", () => {
 
   it("includes previousBuildId on second swap", async () => {
     const auditLogger = createAuditLogger({ path: logPath });
+    activeLogger = auditLogger;
     const provider: PreviewProvider = createStaticPreviewProvider({
       projectsRoot,
       staticRoot,
@@ -140,6 +144,7 @@ describe("preview-static — audit", () => {
 
   it("emits build_gc with deleted build IDs when limit is exceeded", async () => {
     const auditLogger = createAuditLogger({ path: logPath });
+    activeLogger = auditLogger;
     const provider: PreviewProvider = createStaticPreviewProvider({
       projectsRoot,
       staticRoot,
@@ -176,6 +181,7 @@ describe("preview-static — audit", () => {
 
   it("emits build_runner_killed_timeout when executor reports timedOut", async () => {
     const auditLogger = createAuditLogger({ path: logPath });
+    activeLogger = auditLogger;
     const timeoutExecutor: BuildExecutor = {
       async runBuild(): Promise<BuildExecutorResult> {
         return {
