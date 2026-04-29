@@ -4,23 +4,25 @@
 // Контракт: docs/preview-provider/CONTRACTS.md §1–10.
 // Operational details: docs/preview-provider/BUILD_PIPELINE.md.
 //
-// Phase 2 scope (этот файл): create / destroy / touch / getProjectFs.
-//   - create(): allocate scratch dir, copy templates/vite-react/{src,public,
-//     functions} into it, register Caddy file_server route to current symlink.
-//   - destroy(): rm -rf scratch + static dirs, removeRoute.
-//   - touch(): update lastTouched timestamp (для будущего cleanup-worker).
-//   - getProjectFs(): node:fs ProjectFs scoped to scratch dir.
+// Этот файл владеет lifecycle (create/destroy/touch/getProjectFs) и
+// orchestration build()'а: формирование buildId, вызов executor'а,
+// парсинг ошибок, atomic swap, build-history GC.
 //
-// build() — реальная docker-сборка — лендит в следующей итерации Phase 2.
-// Сейчас броcает explicit "not implemented yet" чтобы caller получил
-// чёткое сообщение.
+// Сам docker-run абстрагирован за `BuildExecutor` (см. ниже). Default
+// real-docker executor лежит в lib/preview/build-runner-docker.ts (lazy
+// import); тесты передают свой executor через factory option.
 
 import { promises as fs } from "node:fs";
 import * as path from "node:path";
+import { randomUUID } from "node:crypto";
 
 import { resolveTemplateDir } from "@/lib/template-seeder";
 import { getProxyProvider } from "@/lib/proxy/provider-singleton";
 import { createNodeFsProjectFs } from "@/lib/preview/project-fs";
+import {
+  parseBuildErrors,
+  parseBuildWarnings,
+} from "@/lib/preview/build-error-parser";
 
 import {
   STATIC_CAPABILITIES,
@@ -32,6 +34,51 @@ import {
   type ProjectFs,
 } from "./preview";
 import type { ProxyProvider } from "./proxy";
+
+// ---------------------------------------------------------------------------
+// BuildExecutor — то что фактически запускает контейнер.
+// ---------------------------------------------------------------------------
+
+export interface BuildExecutorInput {
+  projectId: string;
+  /** Уникальный id внутри билда — вкл. в имя artifact dir. */
+  buildId: string;
+  /** Источник: project source files (RW в .vite, RO в src/public). */
+  scratchDir: string;
+  /** Где должен лежать готовый артефакт (RW для контейнера). */
+  artifactDir: string;
+  /** Версия boilerplate'а — определяет image tag и named volume. */
+  boilerplateVersion: string;
+  /** Опциональный signal для cancel. Реализация шлёт SIGTERM/SIGKILL. */
+  signal?: AbortSignal;
+}
+
+export interface BuildExecutorResult {
+  /** Exit code контейнера (-1 если cancelled до старта). */
+  exitCode: number;
+  /** Captured stdout (capped по BUILD_LOG_MAX_BYTES). */
+  stdout: string;
+  /** Captured stderr (capped по BUILD_LOG_MAX_BYTES). */
+  stderr: string;
+  /** True если получили signal == abort и контейнер был убит. */
+  cancelled: boolean;
+  /** True если hard-timeout сработал (BUILD_RUNNER_TIMEOUT_MS). */
+  timedOut: boolean;
+  /** Длительность от старта до выхода контейнера, мс. */
+  durationMs: number;
+}
+
+export interface BuildExecutor {
+  /**
+   * Run vite build inside an ephemeral container. Implementation responsibility:
+   *   - mount scratch + artifactDir per BUILD_PIPELINE §4.2
+   *   - stream logs into bounded buffers
+   *   - honour AbortSignal (kill container on abort)
+   *   - apply hard timeout (BUILD_RUNNER_TIMEOUT_MS)
+   * Implementation MUST NOT touch atomic swap or symlinks — that's orchestration.
+   */
+  runBuild(opts: BuildExecutorInput): Promise<BuildExecutorResult>;
+}
 
 const TEMPLATE_COPY_DIRS = ["src", "public", "functions"] as const;
 const TEMPLATE_COPY_IGNORE = new Set<string>([
@@ -62,6 +109,14 @@ export interface StaticPreviewProviderOptions {
   proxyProviderFactory?: () => Promise<ProxyProvider>;
   /** Override template dir. */
   templateDir?: string;
+  /**
+   * BuildExecutor — реализация docker-run для билда. Default — lazy
+   * import build-runner-docker.ts (требует docker daemon). Тесты
+   * передают свой mock executor.
+   */
+  buildExecutor?: BuildExecutor;
+  /** Override BUILD_HISTORY_LIMIT (default env или 5). */
+  buildHistoryLimit?: number;
 }
 
 interface StaticPreviewState {
@@ -137,6 +192,99 @@ const copyTreeFiltered = async (
   }
 };
 
+const resolveBuildHistoryLimit = (override?: number): number => {
+  if (typeof override === "number" && override > 0) return override;
+  const env = Number.parseInt(process.env["BUILD_HISTORY_LIMIT"] ?? "", 10);
+  return Number.isFinite(env) && env > 0 ? env : 5;
+};
+
+const allocateBuildId = (override?: string): string => {
+  if (override) return override;
+  const ts = new Date().toISOString().replace(/[:.]/g, "-");
+  return `${ts}-${randomUUID().slice(0, 4)}`;
+};
+
+/** Pure helper — атомарно (через mkdir+rename) переключает symlink. */
+const atomicSymlinkSwap = async (
+  staticDir: string,
+  newBuildId: string,
+): Promise<{ oldTarget: string | null }> => {
+  const currentLink = path.join(staticDir, "current");
+  const tmpLink = path.join(staticDir, "current.tmp");
+  let oldTarget: string | null = null;
+  try {
+    oldTarget = await fs.readlink(currentLink);
+  } catch {
+    /* нет предыдущего — ОК */
+  }
+  // Удалим возможный stale tmp:
+  await fs.rm(tmpLink, { force: true });
+  await fs.symlink(`builds/${newBuildId}`, tmpLink);
+  await fs.rename(tmpLink, currentLink);
+
+  // previous = старый current target.
+  if (oldTarget) {
+    const previousLink = path.join(staticDir, "previous");
+    const previousTmp = path.join(staticDir, "previous.tmp");
+    await fs.rm(previousTmp, { force: true });
+    await fs.symlink(oldTarget, previousTmp);
+    await fs.rename(previousTmp, previousLink);
+  }
+  return { oldTarget };
+};
+
+const garbageCollectBuilds = async (
+  staticDir: string,
+  limit: number,
+): Promise<{ deleted: string[] }> => {
+  const buildsDir = path.join(staticDir, "builds");
+  let entries: string[];
+  try {
+    entries = await fs.readdir(buildsDir);
+  } catch {
+    return { deleted: [] };
+  }
+  const protect = new Set<string>();
+  for (const sym of ["current", "previous"]) {
+    try {
+      const t = await fs.readlink(path.join(staticDir, sym));
+      // Targets like "builds/<id>" — extract <id>.
+      protect.add(path.basename(t));
+    } catch {
+      /* nothing to protect */
+    }
+  }
+  protect.add("placeholder"); // Never delete the placeholder.
+  // Sort descending so the newest stay (ISO timestamps sort lexicographically).
+  const sorted = entries.sort().reverse();
+  const keep = new Set<string>();
+  for (const id of sorted) {
+    if (protect.has(id)) {
+      keep.add(id);
+      continue;
+    }
+    if (keep.size < limit) {
+      keep.add(id);
+    }
+  }
+  const deleted: string[] = [];
+  for (const id of sorted) {
+    if (keep.has(id)) continue;
+    await fs.rm(path.join(buildsDir, id), { recursive: true, force: true });
+    deleted.push(id);
+  }
+  return { deleted };
+};
+
+let cachedDefaultExecutor: BuildExecutor | null = null;
+const getDefaultBuildExecutor = async (): Promise<BuildExecutor> => {
+  if (cachedDefaultExecutor) return cachedDefaultExecutor;
+  // Lazy import — production-only, требует docker daemon.
+  const mod = await import("@/lib/preview/build-runner-docker");
+  cachedDefaultExecutor = mod.createDockerBuildExecutor();
+  return cachedDefaultExecutor;
+};
+
 export const createStaticPreviewProvider = (
   options: StaticPreviewProviderOptions = {},
 ): PreviewProvider => {
@@ -151,6 +299,8 @@ export const createStaticPreviewProvider = (
   const portSegment = resolvePortSegment(options.previewPortSegment, proto);
   const proxyFactory = options.proxyProviderFactory ?? getProxyProvider;
   const templateDir = options.templateDir ?? resolveTemplateDir();
+  const buildHistoryLimit = resolveBuildHistoryLimit(options.buildHistoryLimit);
+  const executor = options.buildExecutor;
 
   const state = new Map<string, StaticPreviewState>();
 
@@ -244,25 +394,101 @@ export const createStaticPreviewProvider = (
     },
 
     async build(opts: BuildOptions): Promise<BuildResult> {
-      // Реальный docker run + atomic swap лендят следующим итером.
-      // До тех пор build вернёт failed-stub чтобы caller'ы (chat onFinish)
-      // не упали при попытке вызова.
-      void opts;
-      return {
-        status: "failed",
-        exitCode: -1,
-        durationMs: 0,
-        wasSwapped: false,
-        errors: [
-          {
+      const entry = state.get(opts.projectId);
+      if (!entry) {
+        return {
+          status: "failed",
+          exitCode: -1,
+          durationMs: 0,
+          wasSwapped: false,
+          errors: [
+            {
+              code: "unknown",
+              message: `preview-static.build: project "${opts.projectId}" not found — call create() first.`,
+            },
+          ],
+          warnings: [],
+          stdout: "",
+          stderr: "",
+        };
+      }
+
+      const buildId = allocateBuildId(opts.buildId);
+      const artifactDir = path.join(entry.staticDir, "builds", buildId);
+      await fs.mkdir(artifactDir, { recursive: true });
+
+      const exec = executor ?? (await getDefaultBuildExecutor());
+      const execResult = await exec.runBuild({
+        projectId: opts.projectId,
+        buildId,
+        scratchDir: entry.projectDir,
+        artifactDir,
+        boilerplateVersion: "1.0.0",
+        // ASSUMPTION: boilerplateVersion подтянется из RepoMetadata в
+        // Phase 4 (chat/route.ts wire-up). До тех пор — pin "1.0.0".
+        signal: opts.signal,
+      });
+
+      const errors = parseBuildErrors({
+        stdout: execResult.stdout,
+        stderr: execResult.stderr,
+      });
+      const warnings = parseBuildWarnings({
+        stdout: execResult.stdout,
+        stderr: execResult.stderr,
+      });
+
+      const succeeded = execResult.exitCode === 0 && !execResult.cancelled;
+      let status: BuildResult["status"];
+      if (execResult.cancelled) status = "cancelled";
+      else if (succeeded) status = "succeeded";
+      else status = "failed";
+
+      let wasSwapped = false;
+      if (succeeded && !opts.skipCurrentSwap) {
+        try {
+          await atomicSymlinkSwap(entry.staticDir, buildId);
+          wasSwapped = true;
+        } catch (err) {
+          errors.push({
             code: "unknown",
-            message:
-              "preview-static.build() not implemented yet — Phase 2 docker integration follow-up iter.",
-          },
-        ],
-        warnings: [],
-        stdout: "",
-        stderr: "",
+            message: `Atomic swap failed: ${(err as Error).message}`,
+          });
+        }
+      }
+      if (!succeeded) {
+        // Cancel/fail: оставим artifactDir на диске для getBuildLogsTool;
+        // GC удалит когда дойдёт до limit'а. Но если cancelled — сразу
+        // вычистим чтобы не плодить мусор.
+        if (execResult.cancelled) {
+          await fs
+            .rm(artifactDir, { recursive: true, force: true })
+            .catch(() => undefined);
+        }
+      } else {
+        // Success — GC старых билдов.
+        await garbageCollectBuilds(entry.staticDir, buildHistoryLimit).catch(
+          () => undefined,
+        );
+      }
+
+      if (execResult.timedOut && !execResult.cancelled) {
+        errors.push({
+          code: "unknown",
+          message: `Build timed out (exit ${execResult.exitCode}).`,
+        });
+      }
+
+      return {
+        status,
+        exitCode: execResult.exitCode,
+        durationMs: execResult.durationMs,
+        ...(succeeded ? { artifactPath: artifactDir } : {}),
+        wasSwapped,
+        errors,
+        warnings,
+        stdout: execResult.stdout,
+        stderr: execResult.stderr,
       };
     },
 
