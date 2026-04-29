@@ -15,6 +15,7 @@ import {
   type PreviewProvider,
 } from "@/lib/adapters/preview";
 import { createInMemoryBuildQueue } from "@/lib/preview/build-queue";
+import { getSharedAuditLogger } from "@/lib/sandbox/audit-log";
 
 type SingletonCache = {
   providerPromise?: Promise<PreviewProvider>;
@@ -56,6 +57,7 @@ export const getBuildQueue = (): BuildQueue => {
           signal,
         });
       },
+      auditLogger: getSharedAuditLogger(),
     });
   }
   return cache.buildQueue;

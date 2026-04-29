@@ -71,6 +71,37 @@ export type AuditEvent =
   | (AuditEventBase & {
       event: "proxy_route_removed";
       hostname: string;
+    })
+  // Preview-provider build events (BUILD_PIPELINE §9, Phase 6).
+  | (AuditEventBase & {
+      event: "build_enqueued";
+      jobId: string;
+      projectId: string;
+      reason: string;
+      queueDepth: number;
+      replacedJobId?: string;
+    })
+  | (AuditEventBase & {
+      event: "build_started";
+      jobId: string;
+      projectId: string;
+      buildId?: string;
+      boilerplateVersion?: string;
+    })
+  | (AuditEventBase & {
+      event: "build_finished";
+      jobId: string;
+      projectId: string;
+      status: string;
+      exitCode: number;
+      durationMs: number;
+      errorsCount: number;
+    })
+  | (AuditEventBase & {
+      event: "build_cancelled";
+      jobId: string;
+      projectId: string;
+      reason: "superseded" | "destroy" | "manual";
     });
 
 // Distributive helper: turns a union of object types into a union where

@@ -27,6 +27,7 @@ import type {
   BuildQueue,
   BuildResult,
 } from "@/lib/adapters/preview";
+import type { AuditLogger } from "@/lib/sandbox/audit-log";
 
 export interface RunJobInput {
   job: BuildJob;
@@ -39,6 +40,12 @@ export interface InMemoryBuildQueueOptions {
   runJob: RunJobFn;
   /** Override now() для детерминизма в тестах. */
   now?: () => string;
+  /**
+   * Optional audit logger. When provided, queue emits build_* events
+   * (BUILD_PIPELINE §9). Default: not logged. Production singleton wires
+   * getSharedAuditLogger().
+   */
+  auditLogger?: AuditLogger;
 }
 
 interface RunningEntry {
@@ -73,6 +80,10 @@ export const createInMemoryBuildQueue = (
 ): BuildQueue => {
   const runJob = options.runJob;
   const now = options.now ?? (() => new Date().toISOString());
+  const audit = options.auditLogger;
+  const fireAndForget = (p: Promise<unknown>): void => {
+    p.catch(() => undefined);
+  };
 
   const running = new Map<string, RunningEntry>();
   const queued = new Map<string, BuildJob>();
@@ -106,6 +117,16 @@ export const createInMemoryBuildQueue = (
       status: "running",
       at: ts,
     });
+    if (audit) {
+      fireAndForget(
+        audit.log({
+          event: "build_started",
+          ts,
+          jobId: job.jobId,
+          projectId: job.projectId,
+        }),
+      );
+    }
 
     void runJob({ job, signal: abortCtrl.signal })
       .catch((err: Error) => failedResult(`runJob threw: ${err.message}`))
@@ -131,6 +152,20 @@ export const createInMemoryBuildQueue = (
           result: job.result,
           at: finalTs,
         });
+        if (audit) {
+          fireAndForget(
+            audit.log({
+              event: "build_finished",
+              ts: finalTs,
+              jobId: job.jobId,
+              projectId: job.projectId,
+              status: finalStatus,
+              exitCode: job.result.exitCode,
+              durationMs: job.result.durationMs,
+              errorsCount: job.result.errors.length,
+            }),
+          );
+        }
         // Promote queued if any.
         const next = queued.get(job.projectId);
         if (next) {
@@ -153,15 +188,44 @@ export const createInMemoryBuildQueue = (
       const isRunning = running.has(opts.projectId);
       const isQueued = queued.has(opts.projectId);
 
+      const auditEnqueued = (queueDepth: number, replacedJobId?: string): void => {
+        if (!audit) return;
+        fireAndForget(
+          audit.log({
+            event: "build_enqueued",
+            ts: newJob.enqueuedAt,
+            jobId: newJob.jobId,
+            projectId: opts.projectId,
+            reason: opts.reason,
+            queueDepth,
+            ...(replacedJobId ? { replacedJobId } : {}),
+          }),
+        );
+      };
+
       if (!isRunning && !isQueued) {
+        auditEnqueued(0);
         // Synchronously promote so caller's awaiters see "running" state.
         promote(newJob);
         return { jobId: newJob.jobId, status: "running" as BuildJobStatus };
       }
 
       if (isRunning && !isQueued) {
+        auditEnqueued(1);
         // Cancel running, queue new.
-        running.get(opts.projectId)!.abortCtrl.abort();
+        const runningEntry = running.get(opts.projectId)!;
+        runningEntry.abortCtrl.abort();
+        if (audit) {
+          fireAndForget(
+            audit.log({
+              event: "build_cancelled",
+              ts: now(),
+              jobId: runningEntry.job.jobId,
+              projectId: opts.projectId,
+              reason: "superseded",
+            }),
+          );
+        }
         queued.set(opts.projectId, newJob);
         emit({
           jobId: newJob.jobId,
@@ -174,6 +238,7 @@ export const createInMemoryBuildQueue = (
 
       // running + queued → supersede the old queued.
       const oldQueued = queued.get(opts.projectId)!;
+      auditEnqueued(2, oldQueued.jobId);
       const ts = now();
       emit({
         jobId: oldQueued.jobId,
@@ -181,6 +246,17 @@ export const createInMemoryBuildQueue = (
         status: "superseded",
         at: ts,
       });
+      if (audit) {
+        fireAndForget(
+          audit.log({
+            event: "build_cancelled",
+            ts,
+            jobId: oldQueued.jobId,
+            projectId: opts.projectId,
+            reason: "superseded",
+          }),
+        );
+      }
       queued.set(opts.projectId, newJob);
       emit({
         jobId: newJob.jobId,
@@ -193,7 +269,20 @@ export const createInMemoryBuildQueue = (
 
     async cancel(projectId: string) {
       const run = running.get(projectId);
-      if (run) run.abortCtrl.abort();
+      if (run) {
+        run.abortCtrl.abort();
+        if (audit) {
+          fireAndForget(
+            audit.log({
+              event: "build_cancelled",
+              ts: now(),
+              jobId: run.job.jobId,
+              projectId,
+              reason: "destroy",
+            }),
+          );
+        }
+      }
       const queuedJob = queued.get(projectId);
       if (queuedJob) {
         const ts = now();
@@ -203,6 +292,17 @@ export const createInMemoryBuildQueue = (
           status: "superseded",
           at: ts,
         });
+        if (audit) {
+          fireAndForget(
+            audit.log({
+              event: "build_cancelled",
+              ts,
+              jobId: queuedJob.jobId,
+              projectId,
+              reason: "destroy",
+            }),
+          );
+        }
         queued.delete(projectId);
       }
     },
