@@ -42,16 +42,29 @@ afterEach(async () => {
 });
 
 describe("StaticPreviewProvider — create()", () => {
-  it("returns metadata with static capabilities + URLs", async () => {
+  it("returns metadata with static capabilities + URLs (hashed subdomain)", async () => {
     const meta = await provider.create({
       repoId: "proj-a",
       boilerplateVersion: "1.0.0",
     });
     expect(meta.projectId).toBe("proj-a");
-    expect(meta.previewUrl).toBe("http://proj-a.preview.test");
-    expect(meta.publishedUrl).toBe("http://proj-a.test");
+    // Subdomain is sha256(repoId).slice(0,8) so HTTP Host stays valid
+    // even when repoId contains slashes (e.g. "owner/name").
+    expect(meta.previewUrl).toBe("http://5c303908.preview.test");
+    expect(meta.publishedUrl).toBe("http://5c303908.test");
     expect(meta.capabilities).toEqual(STATIC_CAPABILITIES);
     expect(meta.terminalUrls).toBeUndefined();
+  });
+
+  it("repoId with slash produces DNS-safe hashed subdomain (Caddy-compatible)", async () => {
+    const meta = await provider.create({
+      repoId: "owner/repo-with-slash",
+      boilerplateVersion: "1.0.0",
+    });
+    // Hostname must NOT contain a slash — that's invalid in HTTP Host.
+    const url = new URL(meta.previewUrl);
+    expect(url.hostname).not.toContain("/");
+    expect(url.hostname).toMatch(/^[0-9a-f]{8}\.preview\.test$/);
   });
 
   it("creates scratch dir with template src/public/functions copied", async () => {
@@ -87,7 +100,9 @@ describe("StaticPreviewProvider — create()", () => {
     const routes = await proxy.listRoutes();
     expect(routes).toHaveLength(1);
     expect(routes[0].id).toBe("static-proj-d");
-    expect(routes[0].hostname).toBe("proj-d.preview.test");
+    // Hostname uses the hashed subdomain so the registered route
+    // matches the previewUrl the iframe will request.
+    expect(routes[0].hostname).toBe("268d5ee9.preview.test");
     expect(routes[0].target.type).toBe("static");
   });
 

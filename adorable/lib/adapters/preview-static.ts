@@ -14,7 +14,7 @@
 
 import { promises as fs } from "node:fs";
 import * as path from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { resolveTemplateDir } from "@/lib/template-seeder";
 import { getProxyProvider } from "@/lib/proxy/provider-singleton";
@@ -384,12 +384,22 @@ export const createStaticPreviewProvider = (
     return tryRehydrateFromDisk(repoId);
   };
 
+  // Subdomain key — DNS-safe slug derived deterministically from repoId.
+  // Wrapper repoIds are `<owner>/<name>` with a slash; that slash kills
+  // any HTTP Host header (Caddy returns 400 "malformed Host header").
+  // Sandbox-mode dodges this by using a random 8-char UUID slice; we
+  // need the same shape for static-mode but stable per project so a
+  // restart doesn't change the URL. Hash gives us both.
+  const subdomainKey = (repoId: string): string =>
+    createHash("sha256").update(repoId).digest("hex").slice(0, 8);
+
   const buildPreviewMetadata = (
     repoId: string,
     createdAt: string,
   ): PreviewMetadata => {
-    const previewHost = `${repoId}.${previewSuffix}`;
-    const publishedHost = `${repoId}.${publishedSuffix || previewSuffix}`;
+    const slug = subdomainKey(repoId);
+    const previewHost = `${slug}.${previewSuffix}`;
+    const publishedHost = `${slug}.${publishedSuffix || previewSuffix}`;
     return {
       projectId: repoId,
       previewUrl: `${proto}://${previewHost}${portSegment}`,
@@ -439,9 +449,11 @@ export const createStaticPreviewProvider = (
         if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
       }
 
-      // Register Caddy file_server route → static current/.
+      // Register Caddy file_server route → static current/. Uses the
+      // same DNS-safe slug as buildPreviewMetadata so the registered
+      // hostname matches what the iframe will request.
       const routeId = `static-${opts.repoId}`;
-      const previewHost = `${opts.repoId}.${previewSuffix}`;
+      const previewHost = `${subdomainKey(opts.repoId)}.${previewSuffix}`;
       try {
         const proxy = await proxyFactory();
         await proxy.addRoute({
