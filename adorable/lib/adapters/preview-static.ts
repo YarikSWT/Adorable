@@ -368,7 +368,7 @@ export const createStaticPreviewProvider = (
       meta,
       projectDir,
       staticDir,
-      routeId: `static-${repoId}`,
+      routeId: `static-${subdomainKey(repoId)}`,
       lastTouchedAt: persisted.createdAt,
       boilerplateVersion: persisted.boilerplateVersion,
     };
@@ -451,9 +451,12 @@ export const createStaticPreviewProvider = (
 
       // Register Caddy file_server route → static current/. Uses the
       // same DNS-safe slug as buildPreviewMetadata so the registered
-      // hostname matches what the iframe will request.
-      const routeId = `static-${opts.repoId}`;
-      const previewHost = `${subdomainKey(opts.repoId)}.${previewSuffix}`;
+      // hostname matches what the iframe will request. routeId also
+      // uses the slug — Caddy's `/id/<@id>` REST URL would split on
+      // a literal `/` if we kept the raw repoId here.
+      const slug = subdomainKey(opts.repoId);
+      const routeId = `static-${slug}`;
+      const previewHost = `${slug}.${previewSuffix}`;
       try {
         const proxy = await proxyFactory();
         await proxy.addRoute({

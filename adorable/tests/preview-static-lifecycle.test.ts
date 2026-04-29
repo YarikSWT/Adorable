@@ -99,9 +99,9 @@ describe("StaticPreviewProvider — create()", () => {
     await provider.create({ repoId: "proj-d", boilerplateVersion: "1.0.0" });
     const routes = await proxy.listRoutes();
     expect(routes).toHaveLength(1);
-    expect(routes[0].id).toBe("static-proj-d");
-    // Hostname uses the hashed subdomain so the registered route
-    // matches the previewUrl the iframe will request.
+    // routeId also uses the slug — Caddy's `/id/<@id>` REST URL would
+    // otherwise split on a literal slash.
+    expect(routes[0].id).toBe("static-268d5ee9");
     expect(routes[0].hostname).toBe("268d5ee9.preview.test");
     expect(routes[0].target.type).toBe("static");
   });
