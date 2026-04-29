@@ -1,0 +1,3 @@
+# Edge-handler functions live here (ADR-021).
+# This file exists so the empty directory is tracked in git and can be
+# copied to scratch dir on PreviewProvider.create().
