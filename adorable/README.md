@@ -66,3 +66,53 @@ You can start customizing the UI by modifying components in the `components/assi
 - `lib/llm-provider.ts` - Provider wrapper (OpenAI + Claude)
 - `components/assistant-ui/thread.tsx` - Chat thread component
 - `components/app-sidebar.tsx` - Sidebar with thread list
+
+## Preview Provider migration (Phase 5)
+
+Existing repos created before the preview-provider migration don't carry
+`boilerplateVersion` or the `preview` block in their `metadata.json`.
+Two scripts backfill that state. Both are idempotent and safe to re-run.
+
+Spec: `docs/preview-provider/MIGRATION_PATH.md` §5.
+
+### 1. Bulk backfill of metadata fields
+
+Walks every wrapper repo in Gitea, fills missing
+`boilerplateVersion` (default from `templates/vite-react/VERSION`)
+and a `preview` block snapshotting the **active** preview provider's
+name + capabilities at migration time. Never overwrites an existing
+`preview.provider`.
+
+```bash
+# preview which repos would change
+npx tsx scripts/migrate-repo-metadata.ts --dry-run
+
+# apply (default scope: all wrapper repos)
+npx tsx scripts/migrate-repo-metadata.ts
+
+# stage by batches when you have many repos
+npx tsx scripts/migrate-repo-metadata.ts --limit 50
+```
+
+The script exits with code 1 if any per-repo write errored — re-run
+to retry just those.
+
+### 2. Per-project switch sandbox → static
+
+Manual, one repo at a time. Destroys the project's sandbox container
+(best-effort), allocates a static preview environment, and updates
+`metadata.preview.provider` to `"static"` with STATIC capabilities
+pinned. Doesn't trigger an initial build — that fires automatically
+on the next chat turn or via `POST /api/projects/:id/rebuild`.
+
+```bash
+# preview the change without writing
+npx tsx scripts/migrate-repo-to-static.ts <wrapper-repo-id> --dry-run
+
+# apply
+npx tsx scripts/migrate-repo-to-static.ts <wrapper-repo-id>
+```
+
+A repo already on `provider: "static"` is a no-op. The static preview
+provider is forced regardless of the global `PREVIEW_PROVIDER` env so
+the script works correctly while production default stays `sandbox`.
