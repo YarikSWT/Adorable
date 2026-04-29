@@ -315,6 +315,14 @@ Phase 5 (Kamal) отложен в v2. В static-модели «деплой» п
 - ✅ JSX/TS scope → **JSX в `src/`, TS в `functions/`; @types и typescript остаются в devDeps** (ADR-013 refined, ADR-021)
 - ✅ `functions/` директория → **TypeScript edge-handler'ы, не билдятся на MVP, активируются с BaaS-интеграцией** (ADR-021)
 
+Решено в раунде 7 (резолюция HIGH-вопросов из ASSUMPTIONS.md):
+- ✅ `PreviewProvider.create()` идемпотентен по repoId (ADR-022)
+- ✅ Initial preheat build + `seed/` placeholder под `current` (ADR-023)
+- ✅ `*.ts/*.tsx` разрешены в `src/` — Vite сам процессит, типы не валидируются (ADR-024 refines ADR-013)
+- ✅ Promote-flow остаётся, два симлинка `current` + `published`, два URL на проект (ADR-025)
+- ✅ `functions/` — честный UX gate в system-prompt'е, обсуждение с пользователем перед записью (ADR-026 refines ADR-021)
+- ✅ ARCHITECTURE CONSTRAINT wording placeholder, A/B тест после MVP (ADR-027)
+
 Остаётся открытым:
 
 1. **TTL scratch dir по inactivity** — какой период разумный (дни/недели)? (ADR-006)

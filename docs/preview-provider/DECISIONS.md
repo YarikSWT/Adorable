@@ -1573,4 +1573,299 @@ adorable/templates/vite-react/
 
 ---
 
-_Last updated: 2026-04-27._
+## ADR-022: `PreviewProvider.create()` идемпотентен по `repoId`
+
+**Status**: accepted (резолюция ASSUMPTIONS.md H1)
+**Date**: 2026-04-29
+
+### Decision
+
+Повторный вызов `create({repoId})` с уже существующим `repoId` —
+**не ошибка**, не создаёт дубликат, возвращает существующее
+`PreviewMetadata`. Полезно для crash recovery: при рестарте билдера
+`repos/route.ts` может безусловно дёргать `create()`, провайдер сам
+определит «уже существует».
+
+### Consequences
+
+- В `CONTRACTS.md` §5 — `create()` явно помечен идемпотентным
+  (формулировка «повторный вызов с тем же `repoId` НЕ создаёт
+  дубликат — возвращает существующее `PreviewMetadata`» — уже там).
+- Реализация `preview-static.ts.create()`: проверить наличие
+  `/data/projects/<repoId>/`; если есть и Caddy-роут активен —
+  hydratить metadata из RepoMetadata + return.
+- Реализация `preview-sandbox.ts.create()`: делегирует
+  `sandboxProvider.ref({sandboxId})` если sandbox существует.
+
+---
+
+## ADR-023: Initial preheat build при `create()`
+
+**Status**: accepted (резолюция ASSUMPTIONS.md H2)
+**Date**: 2026-04-29
+
+### Decision
+
+При `previewProvider.create({repoId})` сразу делается
+`buildQueue.enqueue({reason: "initial"})`. Пользователь моментально
+видит preview без ожидания первого LLM-turn'а.
+
+### Sequencing concerns
+
+До завершения первого билда `current` симлинка ещё нет — Caddy
+file_server отдаст 404. Решение:
+
+1. При первом `previewProvider.create()` сразу создаётся
+   `/data/static/<id>/builds/seed/` — это **prebuilt index.html**
+   из template'а (заглушка «Готовим ваш проект...» с auto-refresh
+   через 3 секунды).
+2. `current` симлинк сразу указывает на `seed/` — Caddy отдаёт
+   эту заглушку.
+3. Initial билд по завершении заменяет `current` атомарно (как
+   обычно).
+4. Если initial билд упал — `current` остаётся на `seed/`,
+   пользователь видит «Подготовка не удалась, нажмите Rebuild»
+   через UI overlay.
+
+`seed/` — единственный артефакт без шага Vite-билда; готовится
+наперёд и кладётся в build-runner image.
+
+### Consequences
+
+- В `BUILD_PIPELINE.md` — добавить раздел про `seed/` placeholder.
+- В Dockerfile build-runner'а — копировать pre-baked
+  `seed-index.html` в образ, доступный через bind/copy при `create()`.
+- В `preview-static.create()`: создать `builds/seed/` симлинком на
+  это же место (или копированием), `current → seed`, потом enqueue.
+- Open question: кто рендерит «Подготовка не удалась» overlay при
+  failed initial — UI smart-detect'ит по seed-content или Caddy
+  отдаёт спец-страницу. Default: UI smart-detect через `<meta>` тег
+  `<meta name="adorable-state" content="seed">` в seed-index.html.
+
+---
+
+## ADR-024: Разрешаем `*.ts/*.tsx` в `src/` — Vite их сам processит
+
+**Status**: accepted (резолюция ASSUMPTIONS.md H3 — refines ADR-013)
+**Date**: 2026-04-29
+
+### Decision
+
+ADR-013 (раунд 6) разделял: `src/` — JSX, `functions/` — TS. Раунд 7
+показал риск: LLM натренирован на TypeScript и постоянно создаёт
+`Foo.tsx`, получая `path-not-writable` reject — UX страдает,
+LLM-токены расходуются на retry.
+
+**Whitelist для `src/**` расширяется на `*.ts` и `*.tsx`**.
+Vite + esbuild сами умеют процессить `.tsx` без TypeScript-конфига
+(они трактуют файлы по расширению). Никаких правок vite.config.js
+не требуется. Тип-проверки **не делается** — это as-is JSX-mode,
+просто с альтернативными расширениями.
+
+### Practical impact
+
+- LLM может писать `Foo.tsx`, `bar.ts`, `Foo.jsx`, `bar.js` — все
+  работают.
+- Тип-аннотации в TS-файлах будут проигнорированы рантаймом (esbuild
+  их strip'ает).
+- `@types/*` в boilerplate'е (которые мы возвращали для `functions/`)
+  теперь полезны и для IDE-typecheck `src/**/*.tsx` тоже.
+- Никаких изменений в build pipeline — Vite уже это умеет.
+
+### Whitelist обновление
+
+`src/**/*.{ts,tsx,js,jsx,css,scss,html,json}` — все четыре
+JS-расширения разрешены.
+
+### Alternatives
+
+- **Silent transcode `.tsx` → `.jsx`** — отвергнуто: добавляет
+  middleware, где-то надо ронять типы, неочевидно. Vite справляется
+  нативно.
+- **Жёсткий reject** (текущий ADR-013) — отвергнуто: UX страдает.
+
+### Consequences
+
+- `CONTRACTS.md` §9 (`isWritablePath`) — regexp обновляется.
+- ADR-013 уточняется: «JSX-only» означает «**без TypeScript-runtime
+  валидации**», но расширения `.ts/.tsx` приемлемы. Functions-папка
+  всё ещё standardised на `.ts`.
+- `system-prompt.ts` static-вариант — упоминание «TypeScript types
+  are stripped at build time, no runtime checking».
+- В `LIMITATIONS.md` — обновить раздел 1.3.
+
+---
+
+## ADR-025: Promote-flow остаётся для static — `published` симлинк
+
+**Status**: accepted (резолюция ASSUMPTIONS.md H4)
+**Date**: 2026-04-29
+
+### Context
+
+В существующем форке есть `app/api/repos/[repoId]/promote/route.ts`
+для перехода preview → published. На MVP я предполагал убрать promote
+для упрощения; пользователь подтвердил что **promote-flow нужен**.
+
+### Decision
+
+Хранение для static расширяется ещё одним симлинком — `published`:
+
+```
+/data/static/<projectId>/
+├── current        → builds/<latest-success>/      ← preview URL
+├── previous       → builds/<previous-success>/    ← rollback
+├── published      → builds/<promoted>/            ← stable URL (для шаринга)
+├── builds/
+│   ├── ...
+```
+
+#### Два URL на проект
+
+- **Preview** — `<projectId>.preview.<base>` → file_server
+  `/data/static/<projectId>/current/`. Обновляется на каждый
+  successful build. Это рабочая среда LLM↔пользователь.
+- **Published** — `<projectId>.<base>` (без «preview» поддомена) →
+  file_server `/data/static/<projectId>/published/`. Обновляется
+  **только** при явном `POST /api/repos/<id>/promote`. Это
+  shareable «production» URL.
+
+#### Promote API
+
+`POST /api/repos/<repoId>/promote` (существующий endpoint
+адаптируется):
+1. Валидация: `current` симлинк существует и указывает на
+   валидный `builds/<id>/`.
+2. Atomic swap `published.tmp` → `published` (как `current` в ADR-004).
+3. Запись в `RepoMetadata.publishedAt = now()`,
+   `publishedBuildId = current target`.
+4. Audit-log: `promote {projectId, fromBuildId, toBuildId, userId}`.
+
+#### Caddy роуты
+
+- При `previewProvider.create()` регистрируется **два** static-роута:
+  - `<id>.preview.<base>` → `current/`
+  - `<id>.<base>` → `published/`
+- При первом `create()` оба симлинка указывают на `seed/` (ADR-023);
+  `published` остаётся на `seed/` пока пользователь не сделает первый
+  promote.
+
+### Consequences
+
+- `PreviewMetadata` (CONTRACTS.md §2) расширяется:
+  ```ts
+  publishedUrl: string;       // всегда есть, даже если ещё не promoted
+  publishedAt?: string;       // ISO timestamp последнего promote
+  ```
+- `RepoMetadata.preview` (CONTRACTS.md §12):
+  ```ts
+  publishedAt?: string;
+  publishedBuildId?: string;
+  ```
+- `ProxyProvider.addRoute` — два static-роута на проект.
+- BUILD_HISTORY_LIMIT GC расширяется: кроме `current` и `previous`,
+  защищается build, на который указывает `published`.
+- `app/api/repos/[repoId]/promote/route.ts` — переписать под static
+  (старый Freestyle-зависимый код заменяется).
+- В `LIMITATIONS.md` 2.2 пересмотреть: custom domain mappings всё
+  ещё out of scope, но базовый promote — есть.
+- В `VERIFICATION.md` — добавить scenario «promote после iteration'ов».
+
+---
+
+## ADR-026: Functions — честный UX-gate в LLM-промпте
+
+**Status**: accepted (резолюция ASSUMPTIONS.md H5 — refines ADR-021)
+**Date**: 2026-04-29
+
+### Context
+
+ADR-021 разрешил LLM писать `functions/**/*.ts`, но не указал
+явного UX когда пользователь просит «добавь backend-логику».
+Вариант silent-allow (как было) → LLM пишет файлы, пользователь не
+понимает почему `fetch('/api/foo')` 404'ит.
+
+### Decision
+
+**Честный gate в system-prompt'е (static-вариант)** — LLM явно
+проинструктирован:
+
+```
+SERVER FUNCTIONS (functions/**/*.ts)
+This project supports server-side functions in `functions/**/*.ts`,
+but they DO NOT EXECUTE on this MVP. Files are stored, but no
+runtime is connected yet.
+
+If the user asks for backend logic:
+1. Tell them clearly: "Server functions are not running yet on
+   this MVP. They will work after our managed BaaS integration is
+   connected. For now, I can:
+     (a) Use localStorage / sessionStorage for client-side persistence.
+     (b) Call existing public APIs via fetch.
+     (c) Write the function file as a placeholder for future activation —
+         it won't run until BaaS is connected."
+2. Default to (a) or (b) unless user explicitly chooses (c).
+3. If you write a function file, ALSO add a comment in the
+   matching frontend code: "// TODO: this calls /api/<name>, but
+   the function isn't running yet — uses mock data for now".
+```
+
+LLM-tool `writeFileTool` принимает запись в `functions/` (whitelist
+не меняется), но system-prompt велит **сначала** обсудить с пользователем.
+
+### Detection в frontend
+
+Опционально: парсер при билде ищет `fetch('/api/...')` в `src/`;
+если найдено — emit `BuildWarning` со ссылкой на functions gate.
+Это **не блокирует** билд, только предупреждает в UI.
+
+### Consequences
+
+- `system-prompt.ts` static-вариант — добавить SERVER FUNCTIONS блок.
+- `LIMITATIONS.md` 1.1 — обновить с указанием на (c) flow.
+- `VERIFICATION.md` Scenario 4 — обновить acceptance: LLM явно
+  предупреждает пользователя.
+- `lib/preview/build-error-parser.ts` — добавить best-effort
+  detection `fetch('/api/...')` в `src/**` → BuildWarning.
+- В `OPEN_QUESTIONS.md` F3 — закрыто: реализация (c) выбрана.
+
+---
+
+## ADR-027: ARCHITECTURE CONSTRAINT тестирование — после MVP
+
+**Status**: accepted (резолюция ASSUMPTIONS.md H6)
+**Date**: 2026-04-29
+
+### Decision
+
+Точный wording ARCHITECTURE CONSTRAINT блока (ADR-010 / ADR-026)
+**на MVP — рабочий placeholder**. Тесты на качество LLM-генерации
+(сколько % промптов рождают unsupported импорты, сколько raw
+backend-кода и т.д.) — **post-MVP**, когда будет реальный корпус
+запросов на staging.
+
+#### Что делаем сейчас
+
+- Wording из CONTRACTS.md §14 + ADR-026 — финальный для MVP.
+- Любая правка после MVP — отдельный ADR + A/B-тест.
+
+#### Что делаем позже
+
+- Корпус ≥100 реальных промптов из staging audit-log.
+- Метрики:
+  - % failed builds от unsupported import'ов.
+  - % успешных промптов (build green) на разных вариантах wording'а.
+  - % промптов с server-логикой — насколько LLM correctly
+    предупреждает.
+- Tuning по результатам.
+
+### Consequences
+
+- В `OPEN_QUESTIONS.md` H6 — переписать как «post-MVP A/B test
+  вариантов wording'а».
+- В `VERIFICATION.md` §3 metrics — добавить «ARCHITECTURE CONSTRAINT
+  effectiveness» как post-Phase 6 метрику.
+
+---
+
+_Last updated: 2026-04-29._

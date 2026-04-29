@@ -14,7 +14,23 @@ Source: проверка против всех документов спек-с�
 
 ---
 
-## 🔴 HIGH-impact допущения
+## ✅ Резолюция HIGH-вопросов (раунд 7, 2026-04-29)
+
+| Вопрос | Решение | ADR |
+|--------|---------|-----|
+| H1 | Идемпотентен — повторный `create({repoId})` возвращает existing | ADR-022 |
+| H2 | Preheat build + `seed/` placeholder под `current` | ADR-023 |
+| H3 | Разрешаем `*.ts/*.tsx` в `src/` — Vite сам процессит | ADR-024 |
+| H4 | Promote-flow нужен — `published` симлинк + второй URL | ADR-025 |
+| H5 | Честный gate в system-prompt'е | ADR-026 |
+| H6 | Wording placeholder OK на MVP, A/B тесты после | ADR-027 |
+
+Все 🔴 HIGH вопросы закрыты. Можно переходить к Phase 0 spec lock'у
+и запуску Ralph Loop'а.
+
+---
+
+## 🔴 HIGH-impact допущения (закрытые, для истории)
 
 ### H1. `PreviewProvider.create()` идемпотентен по `repoId`
 **Где**: CONTRACTS.md §5, ARCHITECTURE.md §4.

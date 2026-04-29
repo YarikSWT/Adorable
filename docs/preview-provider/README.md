@@ -36,6 +36,8 @@
 11. **`OPEN_QUESTIONS.md`** — 30+ открытых вопросов с приоритетами.
 12. **`ASSUMPTIONS.md`** — defaults и эвристические выборы спек-сессии,
     кандидаты на confirm/новый ADR. **Прочитать перед spec lock'ом**.
+13. **`IMPLEMENTATION_PROMPT.md`** — промпт для Ralph Loop'а
+    реализации, инструкция запуска и progress-tracking формат.
 
 ### Контекст
 - **`CURRENT_STATE.md`** — снимок репо на старте сессии (для

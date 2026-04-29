@@ -82,6 +82,16 @@ export interface PreviewMetadata {
   previewUrl: string;
 
   /**
+   * Публичный URL опубликованной версии. Формат: `<projectId>.<base>`.
+   * Указывает на `published` симлинк (ADR-025). До первого promote
+   * совпадает по содержимому с seed/placeholder.
+   */
+  publishedUrl: string;
+
+  /** ISO-timestamp последнего promote (если был). */
+  publishedAt?: string;
+
+  /**
    * Терминальные URL'ы — только в sandbox-режиме (3-хостная схема,
    * см. lib/adorable-vm.ts). В static-режиме `terminalUrls`
    * отсутствует, UI должен это проверять перед рендером панелей.
@@ -532,8 +542,9 @@ export const isWritablePath = (relPath: string): boolean => {
   if (relPath.includes("\0")) return false;
   if (relPath.startsWith("/")) return false;
 
-  // src/** — JSX-only frontend (ADR-013). TS не разрешён.
-  if (/^src\/.+\.(js|jsx|css|scss|html|json)$/.test(relPath)) {
+  // src/** — все JS/TS-расширения разрешены (ADR-024).
+  // Vite + esbuild сами процессят .ts/.tsx без TS-валидации.
+  if (/^src\/.+\.(js|jsx|ts|tsx|css|scss|html|json)$/.test(relPath)) {
     return true;
   }
   // public/** — только разрешённые текстовые расширения
@@ -560,9 +571,6 @@ export const explainNonWritable = (relPath: string): string => {
   }
   if (/\.(jpg|jpeg|png|webp|gif|mp4|webm|woff|woff2|ttf|otf|eot)$/.test(relPath)) {
     return `Path "${relPath}" is a binary asset. Binary files must be uploaded by the user via the UI.`;
-  }
-  if (/^src\/.+\.(ts|tsx)$/.test(relPath)) {
-    return `Path "${relPath}" is in src/ which is JSX-only. Use .jsx instead of .ts/.tsx for frontend code.`;
   }
   if (relPath === "functions/tsconfig.json") {
     return `Path "${relPath}" is a fixed boilerplate file and cannot be edited.`;
@@ -739,6 +747,10 @@ export interface RepoMetadata {
      * Source: ADR-008 + ADR-015.
      */
     migrationStatus?: "ok" | "needs-review" | "migrating";
+    /** ISO-timestamp последнего promote через POST /repos/<id>/promote. */
+    publishedAt?: string;
+    /** buildId на который указывает `published` симлинк. */
+    publishedBuildId?: string;
   };
 }
 ```

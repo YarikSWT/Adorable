@@ -1,0 +1,36 @@
+# IMPLEMENTATION_LOG.md — журнал итераций Ralph Loop'а
+
+Append-only лог. Каждый итер дописывает 1 строку в конец после
+успешного выполнения шага. Никогда не редактируй прошлые строки —
+если ошибка, добавляй corrective строку с тем же task'ом и
+`status=corrected`.
+
+## Формат
+
+```
+[YYYY-MM-DD HH:MM] phase=<P> task=<id> status=<done|in-progress|blocked|corrected> commit=<sha?> note=<short>
+```
+
+## Допустимые phases
+
+- `phase=0` — Подготовка (sanity, env defaults, VERSION).
+- `phase=1` — Контракты + mock + sandbox-wrapper.
+- `phase=2` — Static impl без queue (синхронный билд).
+- `phase=3` — BuildQueue + SSE + uploads + cancel.
+- `phase=4` — Wire orchestration с feature flag.
+- `phase=5` — Migration script для existing repos.
+- `phase=6` — Acceptance run (VERIFICATION.md).
+- `phase=7` — Cleanup (только после явного approval).
+
+## Допустимые statuses
+
+- `done` — завершён, тесты зелёные, коммит сделан.
+- `in-progress` — итер идёт, не закончился (multi-iter task).
+- `blocked` — упёрлись (HIGH ADR-вопрос / docker недоступен / 3+
+  fix attempts провалились).
+- `corrected` — предыдущая запись с тем же task'ом ошибочна, эта
+  заменяет.
+
+## Записи
+
+(пусто — будет заполнено Ralph Loop'ом, начиная с Phase 0)
