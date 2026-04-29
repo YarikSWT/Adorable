@@ -56,6 +56,38 @@ export type RepoDeploymentSummary = {
   state: "idle" | "deploying" | "live" | "failed";
 };
 
+/**
+ * Pinned preview-provider state per project. Source: CONTRACTS §12,
+ * ADR-008 (boilerplate versioning), ADR-015 (capability pinning).
+ *
+ * Optional in v2 metadata — existing repos created before Phase 4
+ * don't have it. Phase 5 migration script backfills with defaults
+ * derived from the active provider at migration time.
+ */
+export type RepoPreviewMetadata = {
+  /** "static" | "sandbox" | "mock" — the provider this project lives on. */
+  provider: "static" | "sandbox" | "mock";
+  /** Pinned copy of provider.capabilities at create time. */
+  capabilities: {
+    shellAccess: boolean;
+    customDependencies: boolean;
+    serverRuntime: boolean;
+    hotReload: boolean;
+    manualRebuild: boolean;
+  };
+  /** ISO-timestamp of preview environment creation. */
+  createdAt: string;
+  /**
+   * Migration status when the global env shifts away from the provider
+   * this project was created on. Default "ok".
+   */
+  migrationStatus?: "ok" | "needs-review" | "migrating";
+  /** ISO-timestamp of last promote (POST /repos/<id>/promote). */
+  publishedAt?: string;
+  /** Build id that the `published` symlink currently points to. */
+  publishedBuildId?: string;
+};
+
 export type RepoMetadata = {
   version: 2;
   sourceRepoId: string;
@@ -65,6 +97,15 @@ export type RepoMetadata = {
   deployments: RepoDeploymentSummary[];
   productionDomain: string | null;
   productionDeploymentId: string | null;
+  /**
+   * Semver of the boilerplate the project was created on. Read from
+   * `templates/vite-react/VERSION` at create time. Optional until
+   * Phase 5 migration backfills "1.0.0" for existing repos.
+   * Source: ADR-008.
+   */
+  boilerplateVersion?: string;
+  /** Pinned preview-provider state. Optional — see RepoPreviewMetadata. */
+  preview?: RepoPreviewMetadata;
 };
 
 type StoredRepoMetadata = {
@@ -76,6 +117,8 @@ type StoredRepoMetadata = {
   deployments: RepoDeploymentSummary[];
   productionDomain: string | null;
   productionDeploymentId: string | null;
+  boilerplateVersion?: string;
+  preview?: RepoPreviewMetadata;
 };
 
 const encodeJson = (value: unknown) => {
@@ -166,6 +209,10 @@ export const readRepoMetadata = async (
     deployments: metadata.deployments,
     productionDomain: metadata.productionDomain,
     productionDeploymentId: metadata.productionDeploymentId,
+    ...(metadata.boilerplateVersion !== undefined
+      ? { boilerplateVersion: metadata.boilerplateVersion }
+      : {}),
+    ...(metadata.preview !== undefined ? { preview: metadata.preview } : {}),
   };
 };
 
