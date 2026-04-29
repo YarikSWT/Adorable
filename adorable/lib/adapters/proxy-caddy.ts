@@ -52,15 +52,63 @@ const ID_PREFIX = "adorable-route-";
 
 const buildId = (rawId: string): string => `${ID_PREFIX}${rawId}`;
 
+const DEFAULT_TRY_FILES: ReadonlyArray<string> = [
+  "{http.request.uri.path}",
+  "{http.request.uri.path}/",
+  "/index.html",
+];
+
+const buildStaticRoute = (
+  spec: ProxyRouteSpec,
+  target: Extract<ProxyRouteTarget, { type: "static" }>,
+): CaddyRoute => {
+  // Equivalent to:
+  //   <hostname> { root * <rootDir>; try_files {path} {path}/ /index.html; file_server }
+  //
+  // В JSON это subroute с двумя routes: первый делает rewrite на
+  // try_files-matched путь, второй — file_server. Конструкция
+  // соответствует Caddyfile-направляющим try_files+file_server.
+  const tryFiles = target.tryFiles ?? Array.from(DEFAULT_TRY_FILES);
+  return {
+    "@id": buildId(spec.id),
+    match: [{ host: [spec.hostname] }],
+    handle: [
+      {
+        handler: "subroute",
+        routes: [
+          {
+            match: [{ file: { try_files: tryFiles } }],
+            handle: [
+              {
+                handler: "rewrite",
+                uri: "{http.matchers.file.relative}",
+              },
+            ],
+          },
+          {
+            handle: [
+              {
+                handler: "file_server",
+                root: target.rootDir,
+              },
+            ],
+          },
+        ],
+      } as unknown as NonNullable<CaddyRoute["handle"]>[number],
+    ],
+    terminal: true,
+  };
+};
+
+// Exposed as `__buildRouteForTest` ниже — internal helper, не часть
+// публичного API. Тесты на shape Caddy-config'а ходят через него
+// чтобы не запускать live Caddy.
 const buildRoute = (
   spec: ProxyRouteSpec,
   target: ProxyRouteTarget,
 ): CaddyRoute => {
   if (target.type === "static") {
-    // file_server impl ландит в следующей итерации Phase 2.
-    throw new Error(
-      "proxy-caddy: target.type='static' (file_server) not implemented yet — lands in Phase 2 follow-up iter.",
-    );
+    return buildStaticRoute(spec, target);
   }
   // Caddy `health_checks.active.expect_status` хочет одно число-префикс
   // (например 2 = 2xx). По-умолчанию отключаем active health check и
@@ -184,9 +232,42 @@ export const createCaddyProxyProvider = (
     const id = route["@id"];
     if (!id || !id.startsWith(ID_PREFIX)) return null;
     const host = route.match?.[0]?.host?.[0] ?? "";
+    const handle0 = route.handle?.[0];
+    const handler = handle0?.handler;
+
+    // file_server (static) route — handle[0] = subroute с file_server внутри.
+    if (handler === "subroute") {
+      const sub = handle0 as unknown as {
+        routes?: Array<{
+          handle?: Array<{
+            handler?: string;
+            root?: string;
+          }>;
+        }>;
+      };
+      let rootDir = "";
+      for (const r of sub.routes ?? []) {
+        for (const h of r.handle ?? []) {
+          if (h.handler === "file_server" && typeof h.root === "string") {
+            rootDir = h.root;
+            break;
+          }
+        }
+        if (rootDir) break;
+      }
+      if (rootDir) {
+        return {
+          id: id.slice(ID_PREFIX.length),
+          hostname: host,
+          target: { type: "static", rootDir },
+        };
+      }
+    }
+
+    // Default: reverse_proxy → upstream.
     const upstream =
-      (route.handle?.[0]?.upstreams as Array<{ dial?: string }> | undefined)?.[0]
-        ?.dial ?? "";
+      (handle0?.upstreams as Array<{ dial?: string }> | undefined)?.[0]?.dial ??
+      "";
     return {
       id: id.slice(ID_PREFIX.length),
       hostname: host,
@@ -321,3 +402,11 @@ export const createCaddyProxyProvider = (
     healthCheck,
   };
 };
+
+/** Test-only — used by tests/proxy-caddy-static.test.ts to verify
+ * the shape of the Caddy JSON config produced for static targets,
+ * without requiring a live Caddy admin API. */
+export const __buildRouteForTest = (
+  spec: ProxyRouteSpec,
+  target: ProxyRouteTarget,
+): CaddyRoute => buildRoute(spec, target);
