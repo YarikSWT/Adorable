@@ -41,3 +41,4 @@ Append-only лог. Каждый итер дописывает 1 строку в
 [2026-04-29 10:43] phase=1 task=preview-sandbox-wrapper status=done commit=9e839c2 note=SandboxPreviewProvider wraps adorable-vm + sandboxProvider, build()=stub-success (HMR), shell-backed ProjectFs adapter; 177/20
 [2026-04-29 10:45] phase=1 task=provider-singleton status=done commit=9df0209 note=lib/preview/provider-singleton.ts (HMR-safe getPreviewProvider + getBuildQueue stub) + 6 tests; 183/20. Phase 1 complete.
 [2026-04-29 10:47] phase=2 task=isWritablePath-whitelist status=done commit=62afcb9 note=lib/preview/project-fs.ts pure isWritablePath + explainNonWritable (CONTRACTS §9) + 48 tests; 231/20
+[2026-04-29 10:50] phase=2 task=node-fs-project-fs status=done commit=34227f8 note=createNodeFsProjectFs(rootDir) impl with safeJoin + whitelist + recursive list/search; 25 tests; 256/20
