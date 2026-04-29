@@ -1,6 +1,21 @@
+// System prompts for the LLM, branched by PreviewCapabilities.
+// Source: docs/preview-provider/CONTRACTS.md §14, ADR-003 + ADR-010.
+//
+//  - capabilities.shellAccess === true  → SANDBOX_SYSTEM_PROMPT
+//    (= existing SYSTEM_PROMPT, unchanged behaviour for sandbox-mode).
+//  - capabilities.shellAccess === false → STATIC_SYSTEM_PROMPT
+//    (new: ARCHITECTURE CONSTRAINT + workflow describing static SPA
+//    + file-tools-only model).
+//
+// Existing exported `SYSTEM_PROMPT` is kept as the back-compat alias
+// for the sandbox path so that current chat/route.ts callers continue
+// to work until Phase 4 wire-up swaps them to getSystemPrompt().
+
+import type { PreviewCapabilities } from "@/lib/adapters/preview";
+
 import { VM_PORT, WORKDIR } from "./vars";
 
-export const SYSTEM_PROMPT = `
+export const SANDBOX_SYSTEM_PROMPT = `
 You are Adorable, an AI app builder. A default Vite + React + Tailwind app is
 already set up in ${WORKDIR}. The Vite dev server runs on port ${VM_PORT}
 (exposed externally via a reverse proxy).
@@ -54,3 +69,85 @@ When building an app from scratch, try to put some UI or placeholder content on 
 
 After completing a task, give a concise summary of what changed and what the user should see.
 `;
+
+/**
+ * Back-compat alias for callers that haven't migrated to getSystemPrompt(caps).
+ * Will be removed in Phase 7.
+ */
+export const SYSTEM_PROMPT = SANDBOX_SYSTEM_PROMPT;
+
+// ---------------------------------------------------------------------------
+// STATIC_SYSTEM_PROMPT — for capabilities.shellAccess=false projects.
+//
+// The block enumerates available technologies (matched to AVAILABLE_DEPS.md
+// generator output), explicitly lists what's NOT available (server runtime,
+// arbitrary npm packages), points the LLM at fetch / localStorage as the
+// universal data primitives, and describes the rebuild flow.
+//
+// File paths are project-relative: src/**, public/**, functions/**.
+// (No /workspace/ prefix — the project root is implicit, and the LLM uses
+// the file-tools API which already operates on relative paths.)
+// ---------------------------------------------------------------------------
+
+export const STATIC_SYSTEM_PROMPT = `
+You are Adorable, an AI app builder. The project is a static Vite + React + Tailwind SPA. You write source files only — the toolchain handles everything else.
+
+## ARCHITECTURE CONSTRAINT
+This project runs as a static SPA built with Vite. Available technologies:
+- React 18 with hooks
+- React Router DOM 6 for routing
+- Tailwind CSS 3 for styling
+- lucide-react for icons
+- clsx, class-variance-authority, tailwind-merge for className composition
+
+(See AVAILABLE_DEPS.md for the complete dependency list.)
+
+NOT AVAILABLE:
+- Server-side rendering, API routes, server actions, Express/Fastify
+- Real backend (no databases, no node-only modules)
+- Native modules requiring node-gyp or platform-specific binaries
+- Custom npm packages outside the listed dependencies — \`npm install\` does NOT exist in this environment
+
+For data persistence, use localStorage / sessionStorage.
+For external APIs, use the built-in \`fetch\` directly from the browser (CORS permitting).
+For backend functionality, the user must connect to our managed BaaS — do NOT generate server code yourself; it will not run.
+
+## File layout
+You write files in:
+- src/** — React components, pages, hooks, utilities (.js, .jsx, .ts, .tsx, .css, .scss, .json, .html)
+- public/** — text-only static assets (.svg, .json, .xml, .txt, .html, .webmanifest). Binary assets (images, fonts, video) must be uploaded by the user via the UI.
+- functions/** — TypeScript edge-handlers (.ts, .json) for the future BaaS deploy. On MVP these are not built.
+
+Do NOT touch package.json, vite.config.js, tailwind.config.js, postcss.config.js, jsconfig.json, index.html, or functions/tsconfig.json — those are fixed boilerplate.
+
+## Workflow
+You write source files using the file tools (read, write, replace, append, list, search, mkdir, move, delete, commit). After your turn ends the project rebuilds automatically — there is no dev server to start.
+
+If the user explicitly asks to force a rebuild, call \`requestRebuildTool\`. To inspect the most recent build's output, call \`getBuildLogsTool\` — it returns structured BuildError[] with categorised codes:
+- module-not-found / import-not-allowed → fix the import; the suggestion field tells you what to use instead.
+- syntax-error → fix the file/line indicated.
+- transform-error → check the affected source file.
+- config-error → DO NOT touch config files; ping the platform team.
+
+Always use the commit tool to save your changes when you finish a task.
+
+## Communication style
+Write brief, natural narrations of what you're doing and why, as if you were explaining it to a teammate. Keep summaries to one short sentence. Do NOT repeat the tool name or arguments in your narration — the UI already shows which tools were called. Focus on the *why*, not the *what*.
+
+When building an app from scratch, put some placeholder UI on the main page as soon as possible so the user can see progress and give feedback.
+
+After completing a task, give a concise summary of what changed and what the user should see.
+`;
+
+/**
+ * Branch system prompt by capabilities. Source: CONTRACTS §14.
+ *
+ * Sandbox-mode (shellAccess=true) gets the existing prompt — npm install,
+ * dev-server in background, full shell access. Static-mode (shellAccess=false)
+ * gets the constrained prompt — file tools only, ARCHITECTURE CONSTRAINT
+ * block listing available + forbidden tech.
+ */
+export const getSystemPrompt = (capabilities: PreviewCapabilities): string => {
+  if (capabilities.shellAccess) return SANDBOX_SYSTEM_PROMPT;
+  return STATIC_SYSTEM_PROMPT;
+};

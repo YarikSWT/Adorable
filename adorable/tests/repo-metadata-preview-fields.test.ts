@@ -35,8 +35,8 @@ let srcRepoId: string;
 beforeEach(async () => {
   __resetGitSingleton();
   const provider = await getGitProvider();
-  const wrap = await provider.createRepo({ name: "wrap", isPrivate: true });
-  const src = await provider.createRepo({ name: "src", isPrivate: true });
+  const wrap = await provider.createRepo({ name: "wrap", private: true });
+  const src = await provider.createRepo({ name: "src", private: true });
   wrapRepoId = wrap.repoId;
   srcRepoId = src.repoId;
 });
