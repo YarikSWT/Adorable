@@ -52,6 +52,13 @@ interface DockerExecutorEnv {
   pidsLimit: number;
   timeoutMs: number;
   cancelGraceMs: number;
+  /**
+   * Buffer added on top of (timeoutMs + 2*cancelGraceMs) before we
+   * give up on container.wait() and force-remove the container. Daemon
+   * RPC roundtrip slack — 5s in production, can be lower in tests.
+   * Env: BUILD_WAIT_DEADLINE_BUFFER_MS.
+   */
+  waitDeadlineBufferMs: number;
   logMaxBytes: number;
   network: string;
   nodeModulesVolumePrefix: string;
@@ -64,6 +71,9 @@ const resolveEnv = (override?: Partial<DockerExecutorEnv>): DockerExecutorEnv =>
   pidsLimit: override?.pidsLimit ?? numEnv("BUILD_RUNNER_PIDS", 512),
   timeoutMs: override?.timeoutMs ?? numEnv("BUILD_RUNNER_TIMEOUT_MS", 120_000),
   cancelGraceMs: override?.cancelGraceMs ?? numEnv("BUILD_CANCEL_GRACE_MS", 2_000),
+  waitDeadlineBufferMs:
+    override?.waitDeadlineBufferMs ??
+    numEnv("BUILD_WAIT_DEADLINE_BUFFER_MS", 5_000),
   logMaxBytes: override?.logMaxBytes ?? numEnv("BUILD_LOG_MAX_BYTES", 16_384),
   network: override?.network ?? strEnv("BUILD_RUNNER_NETWORK", "adorable_build"),
   nodeModulesVolumePrefix:
@@ -241,19 +251,28 @@ export const createDockerBuildExecutor = (
       const config = buildContainerCreateOptions({ env, input });
       container = await docker.createContainer(config);
 
+      // Surface dockerode errors to stderr instead of swallowing — under
+      // load (parallel builds + sandbox containers) kill commands sometimes
+      // fail or take seconds to reach the daemon. Silent .catch(() =>
+      // undefined) hides that behind an apparent infinite hang.
+      const logKillErr = (label: string) => (err: unknown): void => {
+        const msg = (err as Error)?.message ?? String(err);
+        process.stderr.write(`build-runner-docker: ${label}: ${msg}\n`);
+      };
+
       const onAbort = (): void => {
         cancelled = true;
         if (!container) return;
-        container.kill({ signal: "SIGTERM" }).catch(() => undefined);
+        container.kill({ signal: "SIGTERM" }).catch(logKillErr("SIGTERM"));
         setTimeout(() => {
-          container?.kill({ signal: "SIGKILL" }).catch(() => undefined);
+          container?.kill({ signal: "SIGKILL" }).catch(logKillErr("SIGKILL"));
         }, env.cancelGraceMs);
       };
       input.signal?.addEventListener("abort", onAbort);
 
       const hardTimeout = setTimeout(() => {
         timedOut = true;
-        container?.kill({ signal: "SIGKILL" }).catch(() => undefined);
+        container?.kill({ signal: "SIGKILL" }).catch(logKillErr("hardTimeout-SIGKILL"));
       }, env.timeoutMs);
 
       let exitCode = -1;
@@ -279,8 +298,51 @@ export const createDockerBuildExecutor = (
         }).demuxStream(attachStream, stdoutPipe, stderrPipe);
 
         await container.start();
-        const exitInfo = (await container.wait()) as { StatusCode: number };
-        exitCode = exitInfo.StatusCode;
+
+        // dockerode's container.wait() can hang indefinitely if the daemon
+        // is overloaded — even after kill SIGKILL has been sent. Race
+        // wait() against a hard deadline so a stuck wait can't pin the
+        // build job past its expected duration. The deadline is
+        // generous: timeoutMs (the soft kill target) + 2× cancelGraceMs
+        // (TERM grace) + waitDeadlineBufferMs for daemon RPC roundtrip.
+        // After this, we force-remove the container and treat the build
+        // as exit=-1/timedOut=true.
+        const waitDeadlineMs =
+          env.timeoutMs + env.cancelGraceMs * 2 + env.waitDeadlineBufferMs;
+        let waitDeadlineTimer: ReturnType<typeof setTimeout> | null = null;
+        const waitPromise = container.wait().then(
+          (info) => ({ ok: true as const, info: info as { StatusCode: number } }),
+          (err) => ({ ok: false as const, err }),
+        );
+        const deadlinePromise = new Promise<{ ok: false; deadline: true }>(
+          (resolve) => {
+            waitDeadlineTimer = setTimeout(
+              () => resolve({ ok: false, deadline: true }),
+              waitDeadlineMs,
+            );
+          },
+        );
+        const result = await Promise.race([waitPromise, deadlinePromise]);
+        if (waitDeadlineTimer) clearTimeout(waitDeadlineTimer);
+
+        if ("info" in result && result.ok) {
+          exitCode = result.info.StatusCode;
+        } else if ("deadline" in result) {
+          // wait() never resolved within waitDeadlineMs after kill —
+          // most likely a stuck container or unresponsive daemon. Force
+          // remove so we don't leak a zombie + so subsequent jobs with
+          // the same name don't conflict.
+          timedOut = true;
+          process.stderr.write(
+            `build-runner-docker: container.wait() exceeded waitDeadlineMs=${waitDeadlineMs} — force-removing\n`,
+          );
+          await container
+            .remove({ force: true })
+            .catch(logKillErr("force-remove"));
+          exitCode = -1;
+        } else if ("err" in result) {
+          throw result.err;
+        }
 
         // Drain demux streams (close pipes so BoundedBuffer flushes).
         stdoutPipe.end();
