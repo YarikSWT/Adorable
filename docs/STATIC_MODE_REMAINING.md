@@ -354,7 +354,20 @@ The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troub
 
 ---
 
-## 🟢 8. `/wake` для sandbox-mode медленный (49s)
+## ❌ 8. `/wake` для sandbox-mode медленный (49s) — DEFERRED (won't-fix on MVP)
+
+Решение зафиксировано в **ADR-034** (`docs/preview-provider/DECISIONS.md`).
+
+Краткая суть: sandbox — сходящий путь (план — default-switch на
+static в #12). 49s wake amortise'ится (один раз за сессию). Если
+конкретному пользователю не подходит — миграция этого проекта на
+static полностью убирает wake. Тратить инженерные часы на
+оптимизацию того, что мы выводим из эксплуатации, — anti-leverage.
+
+Может быть переоткрыто после prod-метрик, если wake-время окажется
+real pain для существенной доли пользователей.
+
+
 
 ### Симптом
 ```

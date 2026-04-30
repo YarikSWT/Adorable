@@ -349,3 +349,86 @@ Phase 5 (Kamal) отложен в v2. В static-модели «деплой» п
 
 _Last updated: 2026-04-28. Спека сформирована полностью — см. `README.md` для навигации.
 Открытые вопросы перенесены в `OPEN_QUESTIONS.md` с приоритетами._
+
+---
+
+## Update 2026-04-30 — STATIC_MODE_REMAINING progress (ralph-loop)
+
+После 9 ralph-loop итераций состояние spec'а
+`STATIC_MODE_REMAINING.md`:
+
+| #   | Item                                              | Status                |
+|-----|---------------------------------------------------|-----------------------|
+| 1   | Build timeout под параллельной нагрузкой          | ✅ DONE (commit 67e8cf2)
+| 2   | React StrictMode double-create POST /api/repos    | ✅ DONE (commit 47ec2e6)
+| 3   | Upstream dup-toolCallId tapResources crash        | ✅ DONE workaround (commits 8046af4, 0fe8dfd)
+| 4   | init-volume.sh in build-runner image              | ✅ DONE (commit c86cea5)
+| 5   | init-volume.sh chown after copy                   | ✅ DONE (commit c86cea5)
+| 6   | Build артефакт парсится errorsCount:1 при успехе  | ✅ DONE (commit ea00293)
+| 7   | Vite v5.4 deprecation banner / vite 6 bump        | ⏳ PLANNED ADR-033 (commit d16188b)
+| 8   | /wake sandbox медленный                            | ❌ DEFERRED ADR-034 (won't-fix MVP)
+| 9   | VERIFICATION.md scenarios 1–8                     | 📋 needs staging
+| 10  | p50/p95 staging metrics                           | ⏳ TOOLING DONE (commit 9001cb9)
+| 11  | Прокатка первой недели — мониторинг                | ⏳ TOOLING DONE (commit c58c017)
+| 12  | Default switch sandbox → static                   | 📋 needs staging
+| 13  | Документация / ADR'ы                              | ✅ DONE (commit 019ed24)
+
+### Новый код / контракты
+
+- `lib/idempotency.ts` — generic IdempotencyCache с TTL (60s) для
+  POST /api/repos clientRequestId-дедупликации.
+- `lib/cross-message-tool-dedup.ts` — pure helper для cross-message
+  toolCallId-дедупа; вызывается из UI render path (`app/assistant.tsx`)
+  и save-time sanitiser (`lib/repo-storage.ts`) — defense in depth.
+- `lib/preview/build-error-parser.ts` — `BENIGN_STDERR_LINE_PATTERNS`
+  + `stripBenignStderr` для отсеивания vite v5.x CJS deprecation
+  banner, npm warn/notice/info, Browserslist nag.
+- `lib/preview/build-runner-docker.ts` — Promise.race wait-deadline +
+  force-remove на zombie контейнере + surface dockerode kill errors.
+- `lib/bench/percentiles.ts` + `scripts/bench-static-build.ts` —
+  load-test infra для staging acceptance.
+- `lib/bench/audit-summary.ts` + `scripts/audit-summary.ts` —
+  triage tool для incident response + первичный alerting (cron-friendly,
+  exit code 10 на PAGE).
+- `adorable/scripts/build-runner/init-volume.sh` — переехал в build
+  context, baked в образ + chown -R 1000:1000 после fill.
+- ADR-028..034 в `DECISIONS.md`:
+  - 028 hash-based subdomain
+  - 029 vite config /tmp relocation + NODE_PATH (ReadonlyRootfs)
+  - 030 .preview-state.json restart-resilience
+  - 031 CADDY_STATIC_ROOT path mapping
+  - 032 Gitea pagination contract
+  - 033 vite 6 bump plan (deferred to staging validation)
+  - 034 /wake warm-pool deferred (won't-fix MVP)
+
+### Тесты
+
+`547/22` → `605/22` (+58 за loop). Новые suites:
+- `idempotency-cache`, `repos-route-idempotency`
+- `cross-message-tool-dedup` (+ `sanitise-conversation-messages` extended)
+- `build-error-parser` (extended)
+- `build-runner-image` (extended), `build-runner-docker-wait-deadline`
+- `bench-percentiles`, `audit-summary`
+
+### Артефакты документации
+
+- `BENCHMARKS.md` (skeleton + acceptance gate)
+- `MONITORING.md` (runbook + alert thresholds)
+- `BUILD_PIPELINE.md` §4.2 + §10 — обновлены под новые env / Cmd
+- `CONTRACTS.md` §5.1 — `StaticPreviewProviderOptions`
+- `adorable/README.md` — "Local dev in static mode"
+
+### Что нужно от staging до final default-switch (#12)
+
+1. Build new image + populate volume (см. README §"Build the
+   build-runner image").
+2. Прогнать `scripts/bench-static-build.ts --iterations 100` против
+   running instance; p50/p95 в целях из VERIFICATION.md §3; заполнить
+   `BENCHMARKS.md`.
+3. Прогнать 8 продуктовых сценариев из VERIFICATION.md §1
+   (STATIC_MODE_REMAINING.md §9).
+4. 24-часовой soak; cron `audit-summary` каждые 5 минут; убедиться
+   что нет PAGE-уровень алертов.
+5. Если всё зелёно — менять `.env.example` `PREVIEW_PROVIDER`
+   `sandbox → static`, запускать batched migration
+   (`migrate-repo-to-static.ts <id>` по 10 за раз).

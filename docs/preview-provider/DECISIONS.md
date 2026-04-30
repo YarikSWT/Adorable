@@ -2188,4 +2188,70 @@ Migration script — отдельный коммит когда staging вали
 
 ---
 
+## ADR-034: `/wake` warm-pool для sandbox-режима — deferred (won't fix на MVP)
+
+**Status**: deferred
+**Date**: 2026-04-30
+**Tracks**: STATIC_MODE_REMAINING #8
+
+### Context
+
+`POST /api/repos/<id>/wake` для sandbox-режима занимает ~49s
+(`npm install --silent` + `npm run dev` + `sleep 4`). Это прозрачно
+зависит от того, что node_modules не персистится между sandbox-
+инстансами — sandbox tmpfs стирается на destroy.
+
+STATIC_MODE_REMAINING #8 предлагает три варианта решения:
+- **(a) Sticky storage**: persistent named volume для node_modules
+  per-project. FORK_CHANGES.md §"Deferred в v2" фиксирует, что
+  helper-контейнер для chown был непредсказуем на тестах → отложено
+  явно.
+- **(b) Pre-warm**: cleanup-worker оставляет snapshot node_modules,
+  новый wake mount'ит RO. Требует API в cleanup-worker'е.
+- **(c) Pre-built image**: ship `adorable-sandbox-react:1.0.0` с
+  pre-installed node_modules. Зеркало build-runner-react паттерна
+  (ADR-005). Лучший long-term по spec'у.
+
+### Decision
+
+**Не реализуем ни один из вариантов на MVP**.
+
+Обоснование:
+
+1. **Sandbox — сходящий путь**. `STATIC_MODE_REMAINING.md` §12
+   описывает default-switch `PREVIEW_PROVIDER=sandbox → static`. После
+   default switch новые проекты создаются в static-режиме; sandbox
+   остаётся только как fallback (см. `MIGRATION_PATH.md` §6) и для
+   проектов, явно не мигрировавших. Тратить инженерные часы на
+   оптимизацию того, что мы выводим из эксплуатации, — anti-leverage.
+
+2. **49s — терпимо**. `/wake` дёргается **один раз за сессию** при
+   первом интерактивном действии (UI subscription / first-prompt).
+   Сессии длятся минуты-часы, поэтому 49s amortise'ится. Не блокер.
+
+3. **Static-режим уже даёт быструю альтернативу**. Если 49s wake
+   не приемлем для конкретного user'а — миграция этого проекта на
+   static (`scripts/migrate-repo-to-static.ts <repoId>`) убирает wake
+   полностью (нет sandbox → нет wake → preview сразу из Caddy).
+
+### Что мы делаем НЕ-нулевое
+
+- **Никакого warm-pool / pre-built sandbox image** — не пишем код,
+  не строим инфру.
+- **Sandbox provider остаётся в коде** как fallback (`PREVIEW_PROVIDER_
+  FORCE_SANDBOX=1` rollback, эмерджентные кейсы). См. README §3.
+- **Если** post-deploy метрики покажут, что wake-время — реальный pain
+  для существенной доли пользователей (например, > 20% сессий не
+  мигрированы на static спустя месяц), — переоткрываем как ADR-XXX
+  с конкретным выбором (a/b/c) на основе свежих данных.
+
+### Consequences
+
+- STATIC_MODE_REMAINING.md §8 закрыт как deferred (won't-fix-on-MVP).
+- 49s wake остаётся документированным limitation в README.
+- Migration push (#12 default switch) по-прежнему критическая
+  зависимость — она и есть mitigation для #8.
+
+---
+
 _Last updated: 2026-04-30._
