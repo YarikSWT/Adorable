@@ -2073,4 +2073,119 @@ rewrite.
 
 ---
 
+## ADR-033: Vite 6 boilerplate bump — план без кода до staging-валидации
+
+**Status**: planned (не applied)
+**Date**: 2026-04-30
+**Tracks**: STATIC_MODE_REMAINING #7
+
+### Context
+
+`templates/vite-react/package.json` сейчас pin'ит `vite: ^5.4.8`. На
+каждом успешном билде Vite пишет в stderr `The CJS build of Vite's Node
+API is deprecated...`. ADR-029 объяснил почему workaround `cp ... /tmp +
+NODE_PATH` нужен (ReadonlyRootfs + sibling timestamp file). ADR-033
+адресует «когда уже бамп до vite 6».
+
+#### Что решает bump до vite 6
+
+- CJS Node API удалён в vite 6 → deprecation banner исчезает.
+  Текущий ad-hoc filter в build-error-parser (`BENIGN_STDERR_LINE_
+  PATTERNS`, ADR не имеет — добавлено в commit `ea00293`) можно
+  оставить как defensive cleanup.
+- `loadConfigFromBundledFile` (источник timestamp-файла, см. ADR-029)
+  в vite 6 переписан на ESM-only path. **Нужна validation**: всё ещё
+  ли пишется sibling timestamp-файл, или ADR-029 workaround можно
+  снять?
+
+#### Чего bump не решает
+
+- Размер node_modules — vite 6 не уменьшает существенно объём.
+  STATIC_MODE_REMAINING #8 (warm-pool) — отдельная история.
+- React 19 готовность — `@vitejs/plugin-react` 5.x работает
+  одинаково с React 18 / 19.
+
+### Decision
+
+**Реальный bump не применяем в этом коммите.** Без живого Docker
+build'а в loop env'е невозможно подтвердить что:
+1. `vite 6 build` отрабатывает на текущем boilerplate'е без изменений
+   `vite.config.js` (он минимальный — `defineConfig({ plugins: [react()] })`,
+   риск низкий, но не нулевой).
+2. Все existing зависимости боилерплейта (`@vitejs/plugin-react`,
+   `lucide-react`, `react-router-dom`, etc.) совместимы с vite 6
+   peer-dep'ом.
+3. Сам ADR-029 workaround можно снять (sibling timestamp ушёл) или
+   оставить (работает defensively — не вредит).
+
+#### Что нужно от staging для bump'а
+
+Staging environment должно прогнать (новый рантайм с docker):
+
+```bash
+# 1. Update package.json + VERSION в feature-branch'е
+sed -i 's/"vite": "\^5.4.8"/"vite": "^6.0.0"/' templates/vite-react/package.json
+sed -i 's/"@vitejs\/plugin-react": "\^4.3.2"/"@vitejs\/plugin-react": "^5.0.0"/' templates/vite-react/package.json
+echo '1.1.0' > templates/vite-react/VERSION
+
+# 2. Build new image + populate volume
+docker build -f docker/build-runner-react/Dockerfile -t build-runner-react:1.1.0 .
+docker volume create adorable_node_modules_react_1.1.0
+docker run --rm -u 0:0 \
+  -v adorable_node_modules_react_1.1.0:/mnt/dest \
+  --entrypoint sh build-runner-react:1.1.0 \
+  /workspace/init-volume.sh
+
+# 3. Smoke test: создать новый проект на 1.1.0, прогнать `npm run bench`
+PREVIEW_PROVIDER=static npm run dev
+# отдельный терминал:
+curl -X POST http://localhost:3000/api/repos -d '{}' -H content-type:application/json
+# забрать projectId из ответа, прогнать build
+npx tsx scripts/bench-static-build.ts \
+  --project <projectId> --audit-log /var/log/adorable/audit.log \
+  --iterations 10
+```
+
+Acceptance:
+- 10/10 builds succeeded.
+- p50 не выше чем у 1.0.0 (regression-detector).
+- В stderr нет deprecation banner'а из vite 5.x (это и был тригер #7).
+- Если `vite.config.js.timestamp-*.mjs` больше не пишется — снять
+  ADR-029 workaround в build-runner-docker.ts (отдельный коммит).
+
+### Migration story (existing проекты на 1.0.0)
+
+При выкладке 1.1.0 как нового default'а existing проекты пинят 1.0.0
+в `metadata.boilerplateVersion`. Они продолжают билдиться против
+старого образа (`build-runner-react:1.0.0` + старый named volume).
+Никакого обязательного апгрейда:
+
+- Ленивая миграция: при первом prompt'е к старому проекту LLM может
+  явно (или туллингом) обновить boilerplate version в metadata. Этого
+  пока нет — open question (`OPEN_QUESTIONS.md` E4 «Частота
+  автомиграций»).
+- Жёсткая миграция: расширить `scripts/migrate-repo-metadata.ts` в
+  режиме `--bump-boilerplate-version` который явно меняет
+  `metadata.boilerplateVersion = "1.1.0"` (one-shot). Скрипт уже умеет
+  backfill'ить missing fields — добавить branch для bump'а.
+
+Migration script — отдельный коммит когда staging валидация прошла.
+Спустя неделю эксплуатации 1.1.0 — подумать про deprecation
+`build-runner-react:1.0.0`.
+
+### Consequences
+
+- ADR-029 (vite config relocation) **остаётся valid** до staging-
+  валидации. После — может быть откатано в follow-up'е.
+- Текущий `BENIGN_STDERR_LINE_PATTERNS` в build-error-parser
+  продолжает работать defensively — после vite 6 банер не
+  пишется, но другая stderr-noise (npm warn / Browserslist) не
+  исчезает, поэтому фильтр всё равно нужен.
+- Image-versioning логика (image:`<version>` + volume
+  `adorable_node_modules_react_<version>`) уже готова из ADR-005 —
+  bump'ить кошерно: оба образа сосуществуют до миграции последнего
+  проекта.
+
+---
+
 _Last updated: 2026-04-30._

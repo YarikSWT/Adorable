@@ -309,7 +309,28 @@ Status succeeded, exit 0, артефакт целый — но errorsCount=1. Fa
 
 ---
 
-## 🟢 7. Vite v5.4 deprecation warning про CJS Node API
+## ⏳ 7. Vite v5.4 deprecation warning — PLANNED (ждёт staging для validation)
+
+С тех пор как #6 фильтрует banner из stderr (commit `ea00293`),
+визуальная проблема пропала. Сам bump до vite 6 — это **valid**
+дальнейший шаг (убирает CJS-shim в принципе и потенциально снимает
+ADR-029 workaround), но:
+
+- Без живого Docker build'а в loop env'е нельзя подтвердить что
+  - `vite 6 build` отрабатывает на текущем boilerplate'е без правок,
+  - все peer-dep'ы (`@vitejs/plugin-react` 5.x, `lucide-react`,
+    `react-router-dom`) совместимы с vite 6,
+  - timestamp-file write (которым обоснован ADR-029) ушёл.
+
+Полный план (acceptance steps + migration story для existing
+проектов на 1.0.0 → 1.1.0) задокументирован в **ADR-033** в
+`docs/preview-provider/DECISIONS.md`. Реальный код-bump не
+коммитится в этом loop'е — staging должен прогнать smoke-test и
+bench (10 builds, p50 не хуже 1.0.0, нет deprecation banner'а),
+после чего отдельный коммит `bump templates/vite-react to vite 6
++ VERSION 1.1.0` будет безопасно ландиться.
+
+
 
 ### Симптом
 В каждом build'е первая строка stderr:
