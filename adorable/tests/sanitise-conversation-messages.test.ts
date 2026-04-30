@@ -158,4 +158,34 @@ describe("sanitiseConversationMessages", () => {
     );
     expect(states).toEqual(["output-available", "output-available"]);
   });
+
+  it("is idempotent — sanitising twice equals sanitising once", () => {
+    // chat/route.ts now sanitises ONCE and reuses the result for both
+    // persistence and the LLM call. If sanitiseConversationMessages
+    // grew a non-idempotent step we'd silently corrupt persisted state
+    // on a future double-call. Lock that invariant down here.
+    const input = [
+      { role: "user", id: "u1", parts: [] }, // dropped (empty user)
+      { role: "user", id: "u2", parts: [{ type: "text", text: "hi" }] },
+      {
+        role: "assistant",
+        id: "a1",
+        parts: [
+          { type: "tool-X", toolCallId: "call_A", state: "input" },
+          { type: "tool-X", toolCallId: "call_A", state: "input-available" },
+          { type: "text", text: "thinking" },
+        ],
+      },
+      {
+        role: "assistant",
+        id: "a2",
+        parts: [
+          { type: "tool-X", toolCallId: "call_A", state: "output", output: "v" },
+        ],
+      },
+    ] as unknown as UIMessage[];
+    const once = sanitiseConversationMessages(input);
+    const twice = sanitiseConversationMessages(once);
+    expect(twice).toEqual(once);
+  });
 });
