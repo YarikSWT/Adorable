@@ -56,6 +56,7 @@ import type { BuildEvent } from "@/lib/adapters/preview";
 
 import * as reposRoute from "@/app/api/repos/route";
 import * as chatRoute from "@/app/api/chat/route";
+import * as conversationByIdRoute from "@/app/api/repos/[repoId]/conversations/[conversationId]/route";
 
 const pristineEnv = { ...process.env };
 let aclTmpDir = "";
@@ -179,6 +180,115 @@ describe("static preview-provider flow (e2e)", () => {
     expect(statuses).toContain("running");
     // Mock provider's build returns succeeded by default.
     expect(statuses).toContain("succeeded");
+  });
+
+  it("sanitises cross-message toolCallId duplicates before persisting", async () => {
+    // Real-world failure mode: assistant-ui v0.12 + ai v6 emit a
+    // transcript where the same toolCallId appears in two messages
+    // (typical post-step-boundary). chat/route.ts now sanitises
+    // ONCE up front and reuses for both save + LLM call. This test
+    // proves the persisted file is clean.
+    const createResp = await reposRoute.POST(
+      new Request("http://localhost/api/repos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Static Sanitise Project" }),
+      }),
+    );
+    expect(createResp.status).toBe(200);
+    const created = (await createResp.json()) as {
+      id: string;
+      conversationId: string;
+    };
+
+    // Hand-craft a transcript with a cross-message dup. The intra-
+    // message dedup is unrelated; what we're testing is the
+    // dedupeToolCallsAcrossMessages composition. The newer message
+    // (a2) carries an output-available variant and must win.
+    const dupedMessages = [
+      {
+        id: "user-1",
+        role: "user" as const,
+        parts: [{ type: "text" as const, text: "do thing" }],
+      },
+      {
+        id: "asst-1",
+        role: "assistant" as const,
+        parts: [
+          {
+            type: "tool-readFileTool",
+            toolCallId: "call_DUP",
+            state: "input-streaming",
+            input: {},
+          },
+        ],
+      },
+      {
+        id: "asst-2",
+        role: "assistant" as const,
+        parts: [
+          {
+            type: "tool-readFileTool",
+            toolCallId: "call_DUP",
+            state: "output-available",
+            input: { file: "x" },
+            output: "ok",
+          },
+        ],
+      },
+    ];
+
+    const chatResp = await chatRoute.POST(
+      new Request("http://localhost/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          repoId: created.id,
+          conversationId: created.conversationId,
+          messages: dupedMessages,
+        }),
+      }),
+    );
+    expect(chatResp.status).toBe(200);
+    await chatResp.text(); // drain → triggers onFinish → save
+
+    // Read the persisted conversation back.
+    const msgResp = await conversationByIdRoute.GET(
+      new Request(
+        `http://localhost/api/repos/${created.id}/conversations/${created.conversationId}`,
+      ),
+      {
+        params: Promise.resolve({
+          repoId: created.id,
+          conversationId: created.conversationId,
+        }),
+      },
+    );
+    expect(msgResp.status).toBe(200);
+    const body = (await msgResp.json()) as {
+      messages: Array<{
+        id: string;
+        role: string;
+        parts: Array<{ toolCallId?: string; state?: string }>;
+      }>;
+    };
+
+    // Walk every message's parts, count occurrences of call_DUP.
+    let dupCount = 0;
+    let kept: { state?: string } | undefined;
+    for (const m of body.messages) {
+      for (const p of m.parts ?? []) {
+        if (p.toolCallId === "call_DUP") {
+          dupCount++;
+          kept = p;
+        }
+      }
+    }
+    // Cross-message dedup: only one copy left thread-wide.
+    expect(dupCount).toBe(1);
+    // Last-occurrence wins: the surviving part is the output-available
+    // variant from asst-2, not the input-streaming variant from asst-1.
+    expect(kept?.state).toBe("output-available");
   });
 
   it("chat turn does NOT touch sandbox lifecycle in static mode", async () => {
