@@ -200,6 +200,34 @@ const printTable = (
         : "—",
     ) + "\n",
   );
+
+  // Top-N failing projects — operators want "is one project broken or
+  // is this systemic?" first. Skip the section when nothing failed.
+  if (summary.projectStats.some((p) => p.failed > 0)) {
+    process.stdout.write("\n--- top failing projects ---\n");
+    const TOP_N = 10;
+    const slice = summary.projectStats
+      .filter((p) => p.failed > 0)
+      .slice(0, TOP_N);
+    for (const p of slice) {
+      const pct = Number.isFinite(p.successRate)
+        ? `${(p.successRate * 100).toFixed(1)}%`
+        : "—";
+      process.stdout.write(
+        `  ${p.projectId.padEnd(36)}  failed: ${p.failed.toString().padStart(3)}` +
+          `  succeeded: ${p.succeeded.toString().padStart(3)}` +
+          `  cancelled: ${p.cancelled.toString().padStart(3)}` +
+          `  rate: ${pct}\n`,
+      );
+    }
+    const total = summary.projectStats.filter((p) => p.failed > 0).length;
+    if (total > TOP_N) {
+      process.stdout.write(
+        `  ...${total - TOP_N} more projects with failures\n`,
+      );
+    }
+  }
+
   process.stdout.write("\n--- security / rejections ---\n");
   process.stdout.write(fmt("path_rejected", summary.pathRejected) + "\n");
   process.stdout.write(fmt("upload_rejected", summary.uploadRejected) + "\n");

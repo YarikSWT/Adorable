@@ -164,6 +164,58 @@ describe("tailLines", () => {
   });
 });
 
+describe("summariseAudit — projectStats breakdown", () => {
+  it("aggregates finished builds per project", () => {
+    const text = log([
+      { event: "build_finished", jobId: "j1", projectId: "p-A", status: "succeeded", durationMs: 1000, ts: "2026-04-30T08:00:00Z" },
+      { event: "build_finished", jobId: "j2", projectId: "p-A", status: "failed",    durationMs: 2000, ts: "2026-04-30T08:01:00Z" },
+      { event: "build_finished", jobId: "j3", projectId: "p-A", status: "failed",    durationMs: 3000, ts: "2026-04-30T08:02:00Z" },
+      { event: "build_finished", jobId: "j4", projectId: "p-B", status: "succeeded", durationMs: 1000, ts: "2026-04-30T08:03:00Z" },
+      { event: "build_finished", jobId: "j5", projectId: "p-B", status: "cancelled", durationMs: 500,  ts: "2026-04-30T08:04:00Z" },
+    ]);
+    const s = summariseAudit(text);
+    expect(s.projectStats).toHaveLength(2);
+    const a = s.projectStats.find((p) => p.projectId === "p-A")!;
+    expect(a.succeeded).toBe(1);
+    expect(a.failed).toBe(2);
+    expect(a.cancelled).toBe(0);
+    expect(a.successRate).toBeCloseTo(1 / 3, 5);
+    const b = s.projectStats.find((p) => p.projectId === "p-B")!;
+    expect(b.succeeded).toBe(1);
+    expect(b.failed).toBe(0);
+    expect(b.cancelled).toBe(1);
+    expect(b.successRate).toBeCloseTo(0.5, 5);
+  });
+
+  it("sorts projectStats by failed-count desc, then by total finished", () => {
+    const text = log([
+      { event: "build_finished", jobId: "j1", projectId: "p-A", status: "succeeded", ts: "2026-04-30T08:00:00Z" },
+      { event: "build_finished", jobId: "j2", projectId: "p-B", status: "failed",    ts: "2026-04-30T08:01:00Z" },
+      { event: "build_finished", jobId: "j3", projectId: "p-B", status: "failed",    ts: "2026-04-30T08:02:00Z" },
+      { event: "build_finished", jobId: "j4", projectId: "p-C", status: "failed",    ts: "2026-04-30T08:03:00Z" },
+      { event: "build_finished", jobId: "j5", projectId: "p-C", status: "succeeded", ts: "2026-04-30T08:04:00Z" },
+      { event: "build_finished", jobId: "j6", projectId: "p-C", status: "succeeded", ts: "2026-04-30T08:05:00Z" },
+    ]);
+    const s = summariseAudit(text);
+    // p-B: failed=2; p-C: failed=1, total=3; p-A: failed=0, total=1
+    expect(s.projectStats.map((p) => p.projectId)).toEqual(["p-B", "p-C", "p-A"]);
+  });
+
+  it("uses '<unknown>' projectId placeholder when the field is missing", () => {
+    const text = log([
+      { event: "build_finished", jobId: "j", status: "failed", ts: "2026-04-30T08:00:00Z" },
+    ]);
+    const s = summariseAudit(text);
+    expect(s.projectStats).toHaveLength(1);
+    expect(s.projectStats[0]!.projectId).toBe("<unknown>");
+    expect(s.projectStats[0]!.failed).toBe(1);
+  });
+
+  it("returns [] when no builds finished", () => {
+    expect(summariseAudit("").projectStats).toEqual([]);
+  });
+});
+
 describe("evaluateAlerts", () => {
   const baseSummary = (): ReturnType<typeof summariseAudit> =>
     summariseAudit("");

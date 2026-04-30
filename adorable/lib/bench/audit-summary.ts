@@ -24,6 +24,15 @@ export interface AuditEntry {
   [k: string]: unknown;
 }
 
+export interface ProjectBuildStats {
+  projectId: string;
+  succeeded: number;
+  failed: number;
+  cancelled: number;
+  /** Fraction in [0,1]; NaN if 0 finished builds. */
+  successRate: number;
+}
+
 export interface AuditSummary {
   totalLines: number;
   parsedLines: number;
@@ -39,6 +48,13 @@ export interface AuditSummary {
   buildsKilledByTimeout: number;
   /** Fraction in [0,1]; NaN when no builds finished. */
   buildSuccessRate: number;
+
+  /**
+   * Per-project breakdown of finished builds. Sorted by failed-count
+   * desc, then by total finished desc. Every project that had at least
+   * one build_finished event in the window appears here.
+   */
+  projectStats: ProjectBuildStats[];
 
   // Rejections / security
   pathRejected: number;
@@ -140,6 +156,23 @@ export const summariseAudit = (
   }
 
   const eventTypeCounts: Record<string, number> = {};
+  // Per-project lifecycle counters. Map<projectId, {succeeded, failed, cancelled}>.
+  // Aggregated into projectStats[] at the end.
+  const perProject = new Map<
+    string,
+    { succeeded: number; failed: number; cancelled: number }
+  >();
+  const bumpProject = (
+    projectId: string,
+    field: "succeeded" | "failed" | "cancelled",
+  ): void => {
+    let entry = perProject.get(projectId);
+    if (!entry) {
+      entry = { succeeded: 0, failed: 0, cancelled: 0 };
+      perProject.set(projectId, entry);
+    }
+    entry[field]++;
+  };
   let buildsStarted = 0;
   let buildsFinished = 0;
   let buildsSucceeded = 0;
@@ -168,9 +201,20 @@ export const summariseAudit = (
       case "build_finished": {
         buildsFinished++;
         const status = (e as { status?: unknown }).status;
-        if (status === "succeeded") buildsSucceeded++;
-        else if (status === "cancelled") buildsCancelled++;
-        else buildsFailed++;
+        const projectId =
+          typeof (e as { projectId?: unknown }).projectId === "string"
+            ? ((e as { projectId: string }).projectId)
+            : "<unknown>";
+        if (status === "succeeded") {
+          buildsSucceeded++;
+          bumpProject(projectId, "succeeded");
+        } else if (status === "cancelled") {
+          buildsCancelled++;
+          bumpProject(projectId, "cancelled");
+        } else {
+          buildsFailed++;
+          bumpProject(projectId, "failed");
+        }
         break;
       }
       case "build_cancelled":
@@ -199,6 +243,27 @@ export const summariseAudit = (
   const buildSuccessRate =
     buildsFinished > 0 ? buildsSucceeded / buildsFinished : Number.NaN;
 
+  // Sort projects by failed-count desc, ties broken by total-finished
+  // desc — mirrors what an operator wants to see first ("which project
+  // is breaking the most?").
+  const projectStats: ProjectBuildStats[] = [];
+  for (const [projectId, c] of perProject) {
+    const finished = c.succeeded + c.failed + c.cancelled;
+    projectStats.push({
+      projectId,
+      succeeded: c.succeeded,
+      failed: c.failed,
+      cancelled: c.cancelled,
+      successRate: finished > 0 ? c.succeeded / finished : Number.NaN,
+    });
+  }
+  projectStats.sort((a, b) => {
+    if (b.failed !== a.failed) return b.failed - a.failed;
+    const aFin = a.succeeded + a.failed + a.cancelled;
+    const bFin = b.succeeded + b.failed + b.cancelled;
+    return bFin - aFin;
+  });
+
   return {
     totalLines,
     parsedLines: entries.length,
@@ -211,6 +276,7 @@ export const summariseAudit = (
     buildsCancelled,
     buildsKilledByTimeout,
     buildSuccessRate,
+    projectStats,
     pathRejected,
     uploadRejected,
     authDenied,
