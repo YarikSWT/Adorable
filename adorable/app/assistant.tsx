@@ -445,19 +445,19 @@ export const Assistant = ({
   // the same toolCallId leaks into two messages (typical after a
   // step-boundary mid-stream) `tapResources` throws "Duplicate key
   // toolCallId-… in tapResources" and freezes the UI. We strip the
-  // earlier copies before the converter sees them. This is purely a
-  // UI-render concern — the underlying `chat.setMessages` /
-  // `chat.sendMessage` operate on the original (undeduped) state, so
-  // outbound HTTP requests still send the full transcript.
+  // earlier copies before the converter sees them. UI-render concern
+  // only — chat.setMessages / sendMessage operate on the underlying
+  // state (which the save-time sanitiser handles separately), so
+  // outbound HTTP and persistence are unaffected.
+  //
+  // The useMemo on chat.messages is the only useful one — `chat`
+  // itself is a fresh object literal each render (see @ai-sdk/react),
+  // so the spread is cheap and worth doing inline.
   const dedupedMessages = useMemo(
     () => dedupeToolCallsAcrossMessages(chat.messages),
     [chat.messages],
   );
-  const dedupedChat = useMemo(
-    () => ({ ...chat, messages: dedupedMessages }),
-    [chat, dedupedMessages],
-  );
-  const runtime = useAISDKRuntime(dedupedChat);
+  const runtime = useAISDKRuntime({ ...chat, messages: dedupedMessages });
 
   return (
     <AssistantRuntimeProvider key={runtimeKey} runtime={runtime}>

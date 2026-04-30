@@ -10,7 +10,11 @@ import {
 } from "@/lib/sandbox/provider-singleton";
 import { getGitProvider } from "@/lib/git/provider-singleton";
 import { getOrCreateIdentitySession } from "@/lib/identity-session";
-import { readRepoMetadata, saveConversationMessages } from "@/lib/repo-storage";
+import {
+  readRepoMetadata,
+  sanitiseConversationMessages,
+  saveConversationMessages,
+} from "@/lib/repo-storage";
 import { getSystemPrompt } from "@/lib/system-prompt";
 import {
   getBuildQueue,
@@ -138,7 +142,20 @@ export async function POST(req: Request) {
     );
   }
 
-  await saveConversationMessages(repoId, metadata, conversationId, messages);
+  // Sanitise once and reuse: persistence + the LLM call should see the
+  // same cleaned transcript. Raw `messages` from the client may carry
+  // duplicate toolCallId parts (StrictMode dual-mount, mid-stream
+  // step-boundary); persisting raw is unsafe (loaded back triggers
+  // tapResources crash) and feeding raw to the LLM wastes tokens on
+  // information-superseded copies.
+  const sanitisedMessages = sanitiseConversationMessages(messages);
+
+  await saveConversationMessages(
+    repoId,
+    metadata,
+    conversationId,
+    sanitisedMessages,
+  );
 
   // Capabilities pinned per-project (CONTRACTS §12 / ADR-015) — fall
   // back to the live PreviewProvider's capabilities for old metadata
@@ -212,7 +229,7 @@ export async function POST(req: Request) {
 
   const llm = await streamLlmResponse({
     system: getSystemPrompt(capabilities),
-    messages,
+    messages: sanitisedMessages,
     tools,
     // Only pass user key if there's no global key
     ...(hasGlobalKey
@@ -222,7 +239,7 @@ export async function POST(req: Request) {
 
   return llm.result.toUIMessageStreamResponse({
     sendReasoning: true,
-    originalMessages: messages,
+    originalMessages: sanitisedMessages,
     generateMessageId: () => crypto.randomUUID(),
     onFinish: async ({ messages: finalMessages }) => {
       const latestMetadata = await readRepoMetadata(repoId);

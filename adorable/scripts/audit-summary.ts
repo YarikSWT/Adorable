@@ -165,8 +165,11 @@ const main = async (): Promise<void> => {
   if (args.emitJson) {
     process.stdout.write(`${JSON.stringify({ summary, alerts }, null, 2)}\n`);
   }
-  // Exit non-zero so this can wire into shell-based monitoring loops.
-  if (alerts.shouldPage) process.exit(10);
+  // Exit code 10 so this can wire into shell-based monitoring loops.
+  // process.exitCode (vs process.exit) lets buffered stdout flush
+  // before the process actually quits — important for the --json
+  // path where the payload can be a few KB.
+  if (alerts.shouldPage) process.exitCode = 10;
 };
 
 void main().catch((err: Error) => {
