@@ -18,6 +18,7 @@ import {
   DEFAULT_THRESHOLDS,
   evaluateAlerts,
   summariseAudit,
+  tailLines,
 } from "@/lib/bench/audit-summary";
 
 interface CliArgs {
@@ -26,6 +27,7 @@ interface CliArgs {
   since?: Date;
   until?: Date;
   emitJson: boolean;
+  tailLines: number | null;
 }
 
 const HELP = `audit-summary — counter table + alerts for an audit JSONL log.
@@ -37,6 +39,8 @@ Input (one of):
 Optional:
   --since <iso>        only include events at or after this ts
   --until <iso>        only include events at or before this ts
+  --tail-lines <n>     only consider the last N lines of input
+                       (combine with --since for cheap cron checks)
   --json               emit summary + alerts as JSON in addition to the table
   --help               show this message
 `;
@@ -61,6 +65,7 @@ const parseArgs = (argv: string[]): CliArgs => {
   let since: Date | undefined;
   let until: Date | undefined;
   let emitJson = false;
+  let tailLineCount: number | null = null;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--help" || a === "-h") printHelpAndExit(0);
@@ -69,6 +74,17 @@ const parseArgs = (argv: string[]): CliArgs => {
     else if (a === "--file") file = argv[++i] ?? null;
     else if (a === "--since") since = parseDate(argv[++i] ?? "", "--since");
     else if (a === "--until") until = parseDate(argv[++i] ?? "", "--until");
+    else if (a === "--tail-lines") {
+      const raw = argv[++i] ?? "";
+      const n = Number.parseInt(raw, 10);
+      if (!Number.isFinite(n) || n <= 0) {
+        process.stderr.write(
+          `audit-summary: --tail-lines must be a positive integer, got ${raw}\n`,
+        );
+        printHelpAndExit(2);
+      }
+      tailLineCount = n;
+    }
     else {
       process.stderr.write(`audit-summary: unknown arg ${a}\n`);
       printHelpAndExit(1);
@@ -82,7 +98,7 @@ const parseArgs = (argv: string[]): CliArgs => {
     process.stderr.write("audit-summary: pass either --file or --stdin, not both\n");
     printHelpAndExit(2);
   }
-  return { file, fromStdin, since, until, emitJson };
+  return { file, fromStdin, since, until, emitJson, tailLines: tailLineCount };
 };
 
 const readStdin = async (): Promise<string> => {
@@ -155,7 +171,16 @@ const printTable = (
 
 const main = async (): Promise<void> => {
   const args = parseArgs(process.argv.slice(2));
-  const text = args.file ? await readFile(args.file, "utf8") : await readStdin();
+  const fullText = args.file
+    ? await readFile(args.file, "utf8")
+    : await readStdin();
+  // --tail-lines applies BEFORE time-range filtering inside summariseAudit:
+  // it's a cheap input-size cap, not a semantic filter. The combination
+  // {--tail-lines 5000, --since 5min-ago} is what a 5-minute cron tick
+  // wants — read at most ~5k lines, then narrow to the actual window.
+  const text = args.tailLines !== null
+    ? tailLines(fullText, args.tailLines)
+    : fullText;
   const summary = summariseAudit(text, {
     ...(args.since ? { since: args.since } : {}),
     ...(args.until ? { until: args.until } : {}),

@@ -10,6 +10,7 @@ import {
   evaluateAlerts,
   parseAuditLog,
   summariseAudit,
+  tailLines,
 } from "@/lib/bench/audit-summary";
 
 const log = (entries: ReadonlyArray<Record<string, unknown>>): string =>
@@ -116,6 +117,50 @@ describe("summariseAudit — counters", () => {
     expect(s.buildsFinished).toBe(1);
     expect(s.buildsSucceeded).toBe(1);
     expect(s.buildsFailed).toBe(0);
+  });
+});
+
+describe("tailLines", () => {
+  it("returns empty for n<=0 or empty input", () => {
+    expect(tailLines("", 5)).toBe("");
+    expect(tailLines("a\nb\n", 0)).toBe("");
+    expect(tailLines("a\nb\n", -1)).toBe("");
+  });
+
+  it("returns whole input when n exceeds line count", () => {
+    expect(tailLines("a\nb\nc\n", 100)).toBe("a\nb\nc\n");
+  });
+
+  it("returns last N lines, preserving the trailing newline if present", () => {
+    expect(tailLines("a\nb\nc\nd\n", 2)).toBe("c\nd\n");
+    expect(tailLines("a\nb\nc\nd", 2)).toBe("c\nd");
+  });
+
+  it("handles a single line with no trailing newline", () => {
+    expect(tailLines("only one", 1)).toBe("only one");
+    expect(tailLines("only one", 5)).toBe("only one");
+  });
+
+  it("handles a single line with trailing newline", () => {
+    expect(tailLines("only\n", 1)).toBe("only\n");
+  });
+
+  it("composes correctly with summariseAudit", () => {
+    const all = Array.from({ length: 50 }, (_, i) =>
+      JSON.stringify({
+        event: "build_finished",
+        jobId: `j-${i}`,
+        projectId: "p",
+        status: i < 45 ? "succeeded" : "failed",
+        durationMs: 1000,
+        ts: `2026-04-30T08:${String(i).padStart(2, "0")}:00.000Z`,
+      }),
+    ).join("\n");
+    // Summary on the full log: 5 failures.
+    expect(summariseAudit(all).buildsFailed).toBe(5);
+    // Tail of last 3 lines: only those last 3 events are seen, all failures.
+    expect(summariseAudit(tailLines(all, 3)).buildsFinished).toBe(3);
+    expect(summariseAudit(tailLines(all, 3)).buildsFailed).toBe(3);
   });
 });
 

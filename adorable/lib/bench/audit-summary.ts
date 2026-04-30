@@ -53,6 +53,38 @@ export interface AuditSummary {
 const isObject = (v: unknown): v is Record<string, unknown> =>
   v !== null && typeof v === "object" && !Array.isArray(v);
 
+// Trailing-N-lines slice. Useful when the audit log isn't rotated and
+// a cron tick only cares about recent activity — feeding the whole
+// file to summariseAudit gets slower as the log grows. Caller passes
+// the file as a single string; we walk backwards, count newline
+// boundaries, and slice. O(file.length) but a single pass without
+// allocation churn.
+//
+// Note: behavior with embedded newlines inside JSON values is wrong by
+// construction (we treat every \n as a record separator), but the
+// audit logger never writes such lines — appendFile() puts a trailing
+// \n after JSON.stringify(), and stringify can't emit unescaped
+// newlines. So this matches the shape we actually produce on disk.
+export const tailLines = (text: string, n: number): string => {
+  if (n <= 0 || text.length === 0) return "";
+  let kept = 0;
+  // Skip a single trailing newline so the last record isn't counted twice.
+  let end = text.length;
+  if (text.charCodeAt(end - 1) === 10) end -= 1;
+  let i = end;
+  while (i > 0) {
+    const nlIdx = text.lastIndexOf("\n", i - 1);
+    kept++;
+    if (kept >= n) {
+      // Slice from the char AFTER the last newline we found, up to end.
+      return text.slice(nlIdx + 1, end) + (end === text.length ? "" : "\n");
+    }
+    i = nlIdx;
+    if (nlIdx < 0) break; // walked off the start
+  }
+  return text.slice(0, end) + (end === text.length ? "" : "\n");
+};
+
 export const parseAuditLog = (text: string): AuditEntry[] => {
   const out: AuditEntry[] = [];
   for (const rawLine of text.split("\n")) {

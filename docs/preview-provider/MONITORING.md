@@ -162,6 +162,7 @@ infra-задача после prod-deploy. Минимальный starter без
 */5 * * * * cd /opt/adorable && \
   npx tsx scripts/audit-summary.ts \
     --file /var/log/adorable/audit.log \
+    --tail-lines 10000 \
     --since "$(date -u -d '5 minutes ago' +%FT%TZ)" \
     --json > /tmp/audit-5min.json && \
   if [ $? -eq 10 ]; then \
@@ -169,8 +170,63 @@ infra-задача после prod-deploy. Минимальный starter без
   fi
 ```
 
+`--tail-lines 10000` гарантирует ограниченный input даже на logах
+без rotation'а — типичная нагрузка adorable < 100 events/мин, так
+что 10к строк покрывают > 100 минут активности. Стрипа полей нет:
+последние N строк → `summariseAudit` → time-window-фильтр.
+
 Это даёт первичный сигнал в pager без Loki/Grafana. Production-grade
 — через log shipper + Grafana panels поверх loki dataset'а.
+
+## Log rotation (production)
+
+`audit-log.ts` пишет append-only в `SANDBOX_AUDIT_LOG` (по умолчанию
+не задан, в проде — `/var/log/adorable/audit.log`). Сам appender
+не знает про rotation — это задача системного `logrotate(8)`.
+
+Минимальная рабочая конфигурация — `/etc/logrotate.d/adorable`:
+
+```
+/var/log/adorable/audit.log {
+    daily
+    rotate 30                # 30 дней истории
+    compress
+    delaycompress            # вчерашний — plain текст для grep'а
+    missingok
+    notifempty
+    sharedscripts
+    copytruncate             # appender держит fd; copytruncate
+                             # = безопасный rotate без SIGHUP
+}
+```
+
+Почему `copytruncate`: adorable Node-процесс держит файл открытым
+через `fsp.appendFile` (новый fd на каждый write, но файл-position
+follow — без `O_APPEND`). После `mv`/`create` запись пошла бы в
+старый inode (gone). `copytruncate` — Linux-специфичный path: `cp` +
+`truncate(0)` атомарно, fd процесса остаётся валидным, дальнейший
+appendFile пишет с offset=0 в новый "пустой" файл.
+
+Альтернатива — `copy` без truncate (двойной диск-cost, но быстрее
+recovery если процесс падает посреди ротации). На MVP объёмы низкие
+(< 100 events/мин) — `copytruncate` достаточно.
+
+### Если logrotate недоступен
+
+Cron-based rotation:
+
+```bash
+# /etc/cron.d/adorable-audit-rotate, каждый день в 00:05
+5 0 * * *  root  cd /var/log/adorable && \
+  cp audit.log audit-$(date -u +\%Y-\%m-\%d).log && \
+  : > audit.log && \
+  find . -name 'audit-*.log' -mtime +30 -delete
+```
+
+`: > audit.log` — POSIX way to truncate без race с adorable
+appendFile (тот же inode, но позиция файла в kernel-table следует
+EOF после truncate из-за fcntl O_APPEND-семантики). Тестируйте на
+своём setup'е перед прод-выкаткой.
 
 ---
 
