@@ -19,6 +19,7 @@ import {
   evaluateAlerts,
   summariseAudit,
   tailLines,
+  type AlertThresholds,
 } from "@/lib/bench/audit-summary";
 
 interface CliArgs {
@@ -28,6 +29,7 @@ interface CliArgs {
   until?: Date;
   emitJson: boolean;
   tailLines: number | null;
+  thresholds: AlertThresholds;
 }
 
 const HELP = `audit-summary — counter table + alerts for an audit JSONL log.
@@ -42,6 +44,14 @@ Optional:
   --tail-lines <n>     only consider the last N lines of input
                        (combine with --since for cheap cron checks)
   --json               emit summary + alerts as JSON in addition to the table
+
+Threshold tuning (defaults match DEFAULT_THRESHOLDS):
+  --success-rate-min <0..1>   PAGE if buildSuccessRate < this (default 0.95)
+  --min-samples <n>            don't fire success-rate alert below this many
+                               finished builds (default 20)
+  --killed-timeout-max <n>     PAGE if buildsKilledByTimeout >= this (default 5)
+  --auth-denied-max <n>        PAGE if authDenied >= this (default 50)
+
   --help               show this message
 `;
 
@@ -59,6 +69,37 @@ const parseDate = (raw: string, name: string): Date => {
   return d;
 };
 
+const parseFiniteFloat = (raw: string, name: string): number => {
+  const n = Number.parseFloat(raw);
+  if (!Number.isFinite(n)) {
+    process.stderr.write(`audit-summary: ${name} must be a finite number, got ${raw}\n`);
+    process.exit(2);
+  }
+  return n;
+};
+
+const parsePositiveInt = (raw: string, name: string): number => {
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n <= 0) {
+    process.stderr.write(
+      `audit-summary: ${name} must be a positive integer, got ${raw}\n`,
+    );
+    process.exit(2);
+  }
+  return n;
+};
+
+const parseFraction = (raw: string, name: string): number => {
+  const n = parseFiniteFloat(raw, name);
+  if (n < 0 || n > 1) {
+    process.stderr.write(
+      `audit-summary: ${name} must be between 0 and 1, got ${raw}\n`,
+    );
+    process.exit(2);
+  }
+  return n;
+};
+
 const parseArgs = (argv: string[]): CliArgs => {
   let file: string | null = null;
   let fromStdin = false;
@@ -66,6 +107,7 @@ const parseArgs = (argv: string[]): CliArgs => {
   let until: Date | undefined;
   let emitJson = false;
   let tailLineCount: number | null = null;
+  const thresholds: AlertThresholds = { ...DEFAULT_THRESHOLDS };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--help" || a === "-h") printHelpAndExit(0);
@@ -74,17 +116,25 @@ const parseArgs = (argv: string[]): CliArgs => {
     else if (a === "--file") file = argv[++i] ?? null;
     else if (a === "--since") since = parseDate(argv[++i] ?? "", "--since");
     else if (a === "--until") until = parseDate(argv[++i] ?? "", "--until");
-    else if (a === "--tail-lines") {
-      const raw = argv[++i] ?? "";
-      const n = Number.parseInt(raw, 10);
-      if (!Number.isFinite(n) || n <= 0) {
-        process.stderr.write(
-          `audit-summary: --tail-lines must be a positive integer, got ${raw}\n`,
-        );
-        printHelpAndExit(2);
-      }
-      tailLineCount = n;
-    }
+    else if (a === "--tail-lines")
+      tailLineCount = parsePositiveInt(argv[++i] ?? "", "--tail-lines");
+    else if (a === "--success-rate-min")
+      thresholds.buildSuccessRateMin = parseFraction(
+        argv[++i] ?? "",
+        "--success-rate-min",
+      );
+    else if (a === "--min-samples")
+      thresholds.minSamples = parsePositiveInt(argv[++i] ?? "", "--min-samples");
+    else if (a === "--killed-timeout-max")
+      thresholds.killedByTimeoutMax = parsePositiveInt(
+        argv[++i] ?? "",
+        "--killed-timeout-max",
+      );
+    else if (a === "--auth-denied-max")
+      thresholds.authDeniedMax = parsePositiveInt(
+        argv[++i] ?? "",
+        "--auth-denied-max",
+      );
     else {
       process.stderr.write(`audit-summary: unknown arg ${a}\n`);
       printHelpAndExit(1);
@@ -98,7 +148,15 @@ const parseArgs = (argv: string[]): CliArgs => {
     process.stderr.write("audit-summary: pass either --file or --stdin, not both\n");
     printHelpAndExit(2);
   }
-  return { file, fromStdin, since, until, emitJson, tailLines: tailLineCount };
+  return {
+    file,
+    fromStdin,
+    since,
+    until,
+    emitJson,
+    tailLines: tailLineCount,
+    thresholds,
+  };
 };
 
 const readStdin = async (): Promise<string> => {
@@ -185,7 +243,7 @@ const main = async (): Promise<void> => {
     ...(args.since ? { since: args.since } : {}),
     ...(args.until ? { until: args.until } : {}),
   });
-  const alerts = evaluateAlerts(summary, DEFAULT_THRESHOLDS);
+  const alerts = evaluateAlerts(summary, args.thresholds);
   printTable(summary, alerts);
   if (args.emitJson) {
     process.stdout.write(`${JSON.stringify({ summary, alerts }, null, 2)}\n`);

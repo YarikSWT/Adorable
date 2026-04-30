@@ -21,6 +21,20 @@ Threshold-defaults захардкожены в
 `killedByTimeoutMax: 5`, `authDeniedMax: 50`. Все три — стартовые
 значения; tuning после первой недели на staging'е.
 
+CLI поддерживает override без recompile:
+
+```bash
+npx tsx scripts/audit-summary.ts --file audit.log \
+  --success-rate-min 0.9 \
+  --killed-timeout-max 10 \
+  --min-samples 50 \
+  --auth-denied-max 100
+```
+
+Это позволяет операторам тюнить пороги live (например, после
+peak-нагрузки в первый день — поднять `--auth-denied-max` чтобы не
+получать пейджер на bot-сканеры) без редеплоя адорабла.
+
 ## Как проверить вручную
 
 `scripts/audit-summary.ts` — pure-helper'ы инсайде унит-тестированы,
