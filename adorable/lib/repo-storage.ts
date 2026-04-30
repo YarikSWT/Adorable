@@ -1,5 +1,6 @@
 import { type UIMessage } from "ai";
 import { getGitProvider } from "@/lib/git/provider-singleton";
+import { dedupeToolCallsAcrossMessages } from "@/lib/cross-message-tool-dedup";
 
 export const ADORABLE_METADATA_PATH = "metadata.json";
 export const ADORABLE_CONVERSATIONS_DIR = "conversations";
@@ -292,11 +293,15 @@ export const readConversationMessages = async (
  *    that never gets filled; persisting it loads back as a phantom row
  *    and the iteration in `tapResources` can then duplicate-key on the
  *    surrounding tool-call parts.
- *  - Within each message, dedupes parts by `toolCallId`. Two parts
- *    with the same id is a known crash trigger
- *    (`Duplicate key toolCallId-… in tapResources`). Keeps the LAST
- *    occurrence, since later events (output-available) supersede
+ *  - Within each message, dedupes parts by `toolCallId`. Keeps the
+ *    LAST occurrence, since later events (output-available) supersede
  *    earlier ones (input-streaming).
+ *  - ACROSS messages, dedupes parts by `toolCallId` (delegated to
+ *    `dedupeToolCallsAcrossMessages`). After a step-boundary the same
+ *    callId can appear in two messages; the older copy carries strictly
+ *    less information than the newer (lifecycle is monotonically
+ *    informational), so keeping the last occurrence is safe and
+ *    cleaner for both persisted state and LLM context on next turn.
  *
  * Pure / side-effect-free so it's covered by a unit test.
  */
@@ -323,7 +328,10 @@ export const sanitiseConversationMessages = (
     });
     cleaned.push({ ...msg, parts: dedupedParts });
   }
-  return cleaned;
+  // Final pass: cross-message dedup. Identical toolCallId across two
+  // assistant messages (typical post step-boundary) would still crash
+  // tapResources on reload; this drops earlier copies thread-wide.
+  return dedupeToolCallsAcrossMessages(cleaned);
 };
 
 export const saveConversationMessages = async (

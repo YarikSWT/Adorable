@@ -100,4 +100,62 @@ describe("sanitiseConversationMessages", () => {
     expect(input).toHaveLength(originalLength);
     expect(input[1].parts).toBe(originalParts);
   });
+
+  it("dedupes toolCallId ACROSS messages, keeping last occurrence", () => {
+    // After a step-boundary the same call_id can land in two messages —
+    // both intra-message dedup (existing) and cross-message dedup
+    // (added 2026-04-30) need to fire.
+    const input = [
+      {
+        role: "assistant",
+        id: "a1",
+        parts: [
+          { type: "tool-readFileTool", toolCallId: "call_X", state: "input-streaming", input: {} },
+        ],
+      },
+      {
+        role: "assistant",
+        id: "a2",
+        parts: [
+          { type: "tool-readFileTool", toolCallId: "call_X", state: "output-available", input: { f: 1 }, output: "v" },
+        ],
+      },
+    ] as unknown as UIMessage[];
+    const out = sanitiseConversationMessages(input);
+    expect(out).toHaveLength(2);
+    expect(out[0].parts).toHaveLength(0);
+    expect(out[1].parts).toHaveLength(1);
+    const last = (out[1].parts as Array<Record<string, unknown>>)[0];
+    expect(last.state).toBe("output-available");
+  });
+
+  it("combines intra-message + cross-message dedup correctly", () => {
+    const input = [
+      {
+        role: "assistant",
+        id: "a1",
+        parts: [
+          { type: "tool-X", toolCallId: "call_A", state: "input-streaming" },
+          { type: "tool-X", toolCallId: "call_A", state: "input-available" },
+        ],
+      },
+      {
+        role: "assistant",
+        id: "a2",
+        parts: [
+          { type: "tool-X", toolCallId: "call_A", state: "output-available", output: "ok" },
+          { type: "tool-X", toolCallId: "call_B", state: "output-available", output: "other" },
+        ],
+      },
+    ] as unknown as UIMessage[];
+    const out = sanitiseConversationMessages(input);
+    // a1 lost its call_A part (newer in a2).
+    expect(out[0].parts).toHaveLength(0);
+    // a2 keeps the last call_A and call_B.
+    expect(out[1].parts).toHaveLength(2);
+    const states = (out[1].parts as Array<Record<string, unknown>>).map(
+      (p) => p.state,
+    );
+    expect(states).toEqual(["output-available", "output-available"]);
+  });
 });
