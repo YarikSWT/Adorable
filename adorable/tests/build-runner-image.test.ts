@@ -18,16 +18,21 @@ import { describe, expect, it } from "vitest";
 
 // adorable/ → repo root
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
+const ADORABLE_ROOT = path.resolve(__dirname, "..");
 const DOCKERFILE = path.join(
   REPO_ROOT,
   "docker",
   "build-runner-react",
   "Dockerfile",
 );
+// init-volume.sh теперь живёт ВНУТРИ build-context (adorable/scripts/
+// build-runner/), чтобы Dockerfile мог положить его в образ через COPY.
+// Раньше скрипт лежал в docker/build-runner-react/ — вне context — и
+// в образ не попадал, что заставляло pipeline монтировать его bind-mount'ом.
 const INIT_VOLUME = path.join(
-  REPO_ROOT,
-  "docker",
-  "build-runner-react",
+  ADORABLE_ROOT,
+  "scripts",
+  "build-runner",
   "init-volume.sh",
 );
 
@@ -80,6 +85,15 @@ describe("docker/build-runner-react/Dockerfile", () => {
     // время `vite build` (мы запускаем с NetworkMode: internal).
     expect(text).not.toMatch(/npm\s+install\s+-g/);
   });
+
+  it("COPY's init-volume.sh into /workspace (image self-contained)", async () => {
+    const text = await readFile(DOCKERFILE, "utf8");
+    expect(text).toMatch(
+      /COPY\s+scripts\/build-runner\/init-volume\.sh\s+\/workspace\/init-volume\.sh/,
+    );
+    // chmod +x stamping so the script is executable from any user.
+    expect(text).toMatch(/chmod\s+0755\s+\/workspace\/init-volume\.sh/);
+  });
 });
 
 describe("docker/build-runner-react/init-volume.sh", () => {
@@ -105,5 +119,18 @@ describe("docker/build-runner-react/init-volume.sh", () => {
   it("exits non-zero if SRC is missing (broken image)", async () => {
     const text = await readFile(INIT_VOLUME, "utf8");
     expect(text).toMatch(/exit 2/);
+  });
+
+  it("hard-requires uid 0 (fresh volumes are root-owned)", async () => {
+    const text = await readFile(INIT_VOLUME, "utf8");
+    expect(text).toMatch(/id -u/);
+    expect(text).toMatch(/-ne 0/);
+    expect(text).toMatch(/exit 4/);
+  });
+
+  it("chown's destination to 1000:1000 after copy", async () => {
+    const text = await readFile(INIT_VOLUME, "utf8");
+    expect(text).toMatch(/chown -R/);
+    expect(text).toMatch(/1000:1000/);
   });
 });

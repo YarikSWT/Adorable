@@ -62,6 +62,13 @@ COPY templates/vite-react/functions/tsconfig.json functions/tsconfig.json
 # версию boilerplate'а он выполняет. Используется в audit-log.
 COPY templates/vite-react/VERSION ./VERSION
 
+# init-volume.sh — фиксирует node_modules в named volume при первом
+# запуске. Лежит в scripts/build-runner/ (внутри build-context = adorable/),
+# в образ кладётся в /workspace/init-volume.sh — то место, на которое
+# ссылается контракт запуска (-u 0:0 entrypoint sh /workspace/init-volume.sh).
+COPY scripts/build-runner/init-volume.sh /workspace/init-volume.sh
+RUN chmod 0755 /workspace/init-volume.sh
+
 # ---------------------------------------------------------------------------
 # Runtime stage.
 #

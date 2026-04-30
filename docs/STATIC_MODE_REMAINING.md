@@ -145,7 +145,23 @@ Sanitiser (`3d24417`) гарантирует что persisted state на дис�
 
 ---
 
-## 🟡 4. `init-volume.sh` отсутствует в build-runner image
+## ✅ 4. `init-volume.sh` отсутствует в build-runner image — DONE
+
+Решение (a): скрипт переехал в `adorable/scripts/build-runner/init-volume.sh`
+(внутри build-context = `adorable/`). Dockerfile добавил
+`COPY scripts/build-runner/init-volume.sh /workspace/init-volume.sh` +
+`chmod 0755`. Старый файл из `docker/build-runner-react/` удалён.
+Контракт запуска теперь канонический:
+```
+docker run --rm -u 0:0 \
+  -v adorable_node_modules_react_<v>:/mnt/dest \
+  --entrypoint sh build-runner-react:<v> \
+  /workspace/init-volume.sh
+```
+Bind-mount workaround больше не нужен. Тесты в
+`tests/build-runner-image.test.ts` покрывают наличие COPY-директивы +
+chmod, и факт того, что ссылка на скрипт ведёт в новое место.
+
 
 ### Симптом
 ```
@@ -180,7 +196,15 @@ docker run --rm -u 0:0 \
 
 ---
 
-## 🟡 5. Named volume init требует `-u 0:0` (chown проблема)
+## ✅ 5. Named volume init требует `-u 0:0` (chown проблема) — DONE
+
+Реализовано вместе с #4: новый `init-volume.sh`:
+1. Hard-require `id -u == 0` (exit 4 с пояснительным сообщением).
+2. После `cp -a "$SRC"/. "$DEST"/` — `chown -R 1000:1000 "$DEST"`,
+   так что main build-runner (USER 1000:1000) читает RO-volume без EACCES.
+Контракт `docker run -u 0:0 ... /workspace/init-volume.sh` зашит в
+комментарий-шапку скрипта. Тесты покрывают обе проверки (uid=0 + chown).
+
 
 ### Симптом
 ```
