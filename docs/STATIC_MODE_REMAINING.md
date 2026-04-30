@@ -382,7 +382,26 @@ POST /api/repos/<id>/wake 200 in 49s
 
 ---
 
-## 📋 10. p50/p95 staging metrics
+## ⏳ 10. p50/p95 staging metrics — TOOLING DONE (запуск ждёт staging)
+
+Реализовано из доступного без staging-окружения:
+- Pure-helper `lib/bench/percentiles.ts` — `percentile()` (R-7 / linear),
+  `summarise()`, `parseBuildFinishedFromAuditLog()`,
+  `filterByTimeRange()`. 15 unit-тестов покрывают edge-cases (empty,
+  single, even/odd count, malformed JSON в audit-log, fields-missing,
+  boundary inclusivity по времени).
+- CLI-script `scripts/bench-static-build.ts` — N rebuild requests
+  (sequential или с `--concurrency`), waitForJobFinish через первый
+  SSE-chunk, итоговый pull audit-log + filter по window. Help-output,
+  --json для machine-parsing.
+- `docs/preview-provider/BENCHMARKS.md` — skeleton с целями, how-to-run,
+  acceptance-gate checkbox-list для #12 default-switch'а. Все ячейки
+  результатов помечены `_pending_` пока staging не появится.
+
+Что осталось — собственно запуск на staging (за пределами этого loop'а):
+прогнать `npx tsx scripts/bench-static-build.ts --iterations 100`,
+вписать числа в BENCHMARKS.md, провалидировать что p50/p95 в целях.
+
 
 `VERIFICATION.md §3` требует замеров:
 
