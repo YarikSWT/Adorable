@@ -403,32 +403,51 @@ _Last updated: 2026-04-28. Спека сформирована полность�
 
 ### Тесты
 
-`547/22` → `605/22` (+58 за loop). Новые suites:
+`547/22` → `648/22` (+101 за полный loop, 20 итераций). Новые suites:
 - `idempotency-cache`, `repos-route-idempotency`
 - `cross-message-tool-dedup` (+ `sanitise-conversation-messages` extended)
 - `build-error-parser` (extended)
 - `build-runner-image` (extended), `build-runner-docker-wait-deadline`
 - `bench-percentiles`, `audit-summary`
+- `preflight-checks`
+
+Плюс integration-тесты: `static-flow-e2e` дополнен sanitise-сценарием
+(call_DUP across two messages → один survivor с output-available state).
 
 ### Артефакты документации
 
 - `BENCHMARKS.md` (skeleton + acceptance gate)
-- `MONITORING.md` (runbook + alert thresholds)
+- `MONITORING.md` (runbook + alert thresholds + log rotation guide)
 - `BUILD_PIPELINE.md` §4.2 + §10 — обновлены под новые env / Cmd
 - `CONTRACTS.md` §5.1 — `StaticPreviewProviderOptions`
 - `adorable/README.md` — "Local dev in static mode"
+- `MIGRATION_PATH.md` Phase 6 — explicit checklist с упоминанием
+  `preflight-static --network`, `bench-static-build`, `audit-summary`
+- `.env.example` — добавлены 5 ранее-undocumented env vars
+
+### Operator tooling (готово до staging)
+
+- `scripts/preflight-static.ts` — pre-flip readiness check, env+fs
+  по умолчанию, `--network` добавляет Caddy admin + Gitea API probes.
+- `scripts/bench-static-build.ts` — load test для p50/p95.
+- `scripts/audit-summary.ts` — incident-response triage, поддерживает
+  `--tail-lines` для cron, тюнинг порогов через `--success-rate-min`,
+  `--killed-timeout-max`, `--auth-denied-max`, etc.
+- `scripts/migrate-repo-to-static.ts` (старее, существовал) —
+  per-project sandbox→static migration.
 
 ### Что нужно от staging до final default-switch (#12)
 
 1. Build new image + populate volume (см. README §"Build the
    build-runner image").
-2. Прогнать `scripts/bench-static-build.ts --iterations 100` против
-   running instance; p50/p95 в целях из VERIFICATION.md §3; заполнить
-   `BENCHMARKS.md`.
-3. Прогнать 8 продуктовых сценариев из VERIFICATION.md §1
+2. `npx tsx scripts/preflight-static.ts --network` — exit 0 значит
+   green-light на flip.
+3. `scripts/bench-static-build.ts --iterations 100` — p50/p95 в целях
+   из VERIFICATION.md §3; заполнить `BENCHMARKS.md`.
+4. Прогнать 8 продуктовых сценариев из VERIFICATION.md §1
    (STATIC_MODE_REMAINING.md §9).
-4. 24-часовой soak; cron `audit-summary` каждые 5 минут; убедиться
-   что нет PAGE-уровень алертов.
-5. Если всё зелёно — менять `.env.example` `PREVIEW_PROVIDER`
+5. 24-часовой soak; cron `audit-summary --tail-lines 10000 --since '5min ago'`
+   каждые 5 минут (см. MONITORING.md cron sample); exit code 10 → pager.
+6. Если всё зелёно — менять `.env.example` `PREVIEW_PROVIDER`
    `sandbox → static`, запускать batched migration
    (`migrate-repo-to-static.ts <id>` по 10 за раз).
