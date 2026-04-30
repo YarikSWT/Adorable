@@ -322,6 +322,50 @@ export interface BuildOptions {
 }
 ```
 
+### 5.1. StaticPreviewProviderOptions
+
+Опции, которые принимает `createStaticPreviewProvider()` (фабрика
+static-режима). Все опциональные — по умолчанию читаются из env.
+
+```ts
+export interface StaticPreviewProviderOptions {
+  /** Корень scratch dir. Default — env PROJECTS_ROOT или /data/projects. */
+  projectsRoot?: string;
+
+  /** Корень готовых артефактов на хосте. Default — env STATIC_ROOT или /data/static. */
+  staticRoot?: string;
+
+  /**
+   * Container-internal путь к тому же контенту, что и staticRoot.
+   * Default — env CADDY_STATIC_ROOT или "/data/static".
+   *
+   * См. ADR-031: Caddy живёт в отдельном контейнере, и `staticRoot`
+   * (host path) обычно ему не виден. STATIC_ROOT bind-маунтится в
+   * adorable-caddy на путь `caddyStaticRoot`. Когда static-провайдер
+   * регистрирует Caddy file_server route, он использует именно
+   * `caddyStaticRoot`, не `staticRoot`. Если dev-окружение запускает
+   * Caddy и Node на одной FS на одном пути — установите
+   * `caddyStaticRoot === staticRoot` (no-op rewrite).
+   */
+  caddyStaticRoot?: string;
+
+  /** Domain-suffix для preview URL'ов. Default — env PREVIEW_DOMAIN_SUFFIX или "preview.localhost". */
+  previewDomainSuffix?: string;
+
+  /** Suffix для published-host'ов. Default — env PUBLISHED_DOMAIN_SUFFIX или PREVIEW_DOMAIN_SUFFIX. */
+  publishedDomainSuffix?: string;
+
+  /** "http" / "https". Default — env PREVIEW_PROTOCOL или "http". */
+  previewProtocol?: string;
+
+  /** Port-segment в URL (":8080"). Default — derived from CADDY_HTTP_PORT. */
+  previewPortSegment?: string;
+
+  /** Override factory для proxy-провайдера. Default — getProxyProvider() singleton. */
+  proxyProviderFactory?: () => Promise<ProxyProvider>;
+}
+```
+
 ---
 
 ## 6. BuildJob и статусы

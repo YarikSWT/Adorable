@@ -1868,4 +1868,209 @@ backend-кода и т.д.) — **post-MVP**, когда будет реальн
 
 ---
 
-_Last updated: 2026-04-29._
+## ADR-028: Hash-based subdomain для static-mode preview hostname
+
+**Status**: accepted
+**Date**: 2026-04-30
+**Discovered in**: phase-6 e2e (commits `b5619fd`, `ce606f8`)
+
+### Context
+
+Static-провайдер изначально использовал raw `repoId` как subdomain в
+preview URL: `<repoId>.preview.localhost`. wrapper-репозитории, однако,
+живут в Gitea как `<owner>/<name>` — со слешем. Слеш в `Host`-заголовке
+делает HTTP-запрос невалидным; Caddy возвращает `400 malformed Host
+header` ещё до матчинга route'а. Тот же слеш ломал и Caddy admin REST
+URL `/id/<routeId>` для `PUT`-апдейтов route.
+
+### Decision
+
+Subdomain (и routeId) = `sha256(repoId).slice(0, 8)` — первые 8
+hex-символов. Тот же helper используется в:
+
+- `create()` — генерирует `previewUrl` через `https://<hash>.preview.<domain>`.
+- регистрации Caddy route — host matcher и routeId оба используют hash.
+
+Hash чистый, детерминированный: один и тот же `repoId` всегда даёт
+один и тот же subdomain → URL стабилен между рестартами.
+
+### Consequences
+
+- Subdomain короткий (8 chars) и DNS-safe — wildcard-сертификату
+  `*.preview.localhost` не нужно ничего особенного.
+- Вероятность коллизии 8 hex chars: 2^32 ≈ 4 миллиарда уникальных
+  hash'ей. Для MVP-объёма (десятки-сотни проектов) коллизия в практике
+  не наступит.
+- Sandbox-режим использовал такой же паттерн — мы выровнялись.
+
+---
+
+## ADR-029: Vite config relocation в /tmp + NODE_PATH (workaround ReadonlyRootfs)
+
+**Status**: accepted (workaround, не permanent fix)
+**Date**: 2026-04-30
+**Discovered in**: phase-6 e2e (commit `0d19853`)
+
+### Context
+
+`HostConfig.ReadonlyRootfs = true` (BUILD_PIPELINE §4.2) защищает
+build-runner от writes куда угодно кроме явно RW-mounts. Vite на
+каждом config-load пишет sibling-файл `vite.config.js.timestamp-*.mjs`
+рядом с конфигом — для invalidation бандлера. На read-only
+`/workspace/` write падает с `EACCES`, и билд умирает до вывода
+артефактов.
+
+### Decision
+
+Build-runner Cmd — `sh -c "cp /workspace/vite.config.js
+/tmp/vite.config.js && exec npx vite build --config /tmp/vite.config.js"`.
+
+`/tmp` — writable tmpfs (200MB), Vite спокойно пишет туда timestamp-файл.
+Конфиг в `/tmp` теряет относительные пути к node_modules; чинится через
+`Env: ["NODE_PATH=/workspace/node_modules"]` — Node fallback search
+root для импортов в самом конфиге.
+
+Конфиг по-прежнему контролируется образом — сам факт `cp` идёт
+ДО передачи controll'а пользовательскому коду; project source mount'ится
+RO и подменить конфиг operator не может.
+
+### Consequences
+
+- ReadonlyRootfs остаётся включён → защита от runtime exfil сохраняется.
+- Vite 6+ убрал CJS API → возможно уберёт и timestamp-write. Если так —
+  workaround можно снять при bump'е (см. STATIC_MODE_REMAINING #7).
+- NODE_PATH — глобальный, не scoped per-config. Если в конфиге появятся
+  импорты из проектных node_modules — сломается, потому что project
+  source mount'ится RO без node_modules. На MVP это not-an-issue: все
+  build-time deps живут в shared image volume.
+
+---
+
+## ADR-030: `.preview-state.json` для restart-resilience static-провайдера
+
+**Status**: accepted
+**Date**: 2026-04-29
+**Discovered in**: phase-6 e2e (commit `064a5ad`)
+**Closes**: OPEN_QUESTIONS §L3
+
+### Context
+
+`createStaticPreviewProvider()` хранит per-project состояние
+(`boilerplateVersion`, `createdAt`, scratch/static directory paths) в
+in-memory `Map<projectId, ProjectEntry>`. При рестарте dev-server'а
+(или прода) Map очищается; следующий вызов `build()`/`getProjectFs()`
+получает `entry === undefined` → `"project not found"` → 500. UI в
+этот момент показывает loader навсегда.
+
+### Decision
+
+`create()` ПЕРСИСТИТ minimal state в `${scratchDir}/.preview-state.json`:
+
+```json
+{
+  "boilerplateVersion": "1.0.0",
+  "createdAt": "2026-04-30T08:13:00Z"
+}
+```
+
+Все методы (`build`, `getProjectFs`, `destroy`, `touch`) проходят
+через `getOrRehydrate(projectId)`, который:
+
+1. Возвращает entry из in-memory Map'а если есть.
+2. Иначе читает `.preview-state.json` с диска и реконструирует entry.
+3. Если файла нет, но scratch dir существует — fallback на
+   `boilerplateVersion="1.0.0"` (legacy проекты до этой ADR).
+4. Если scratch dir отсутствует — null (project deleted).
+
+### Consequences
+
+- Builder может рестартануть — пользователь видит preview как до
+  рестарта, без необходимости re-create проекта.
+- `.preview-state.json` пишется один раз при `create()`, не обновляется
+  на каждом билде → I/O cost негативный.
+- Migration: legacy проекты без файла продолжают работать через
+  fallback. После первого `create()`-style touch файл появится.
+
+---
+
+## ADR-031: Container-internal path mapping через `CADDY_STATIC_ROOT`
+
+**Status**: accepted
+**Date**: 2026-04-30
+**Discovered in**: phase-6 e2e (commit `8ace7d8`)
+
+### Context
+
+В docker-compose dev-окружении adorable-caddy запускается в отдельном
+контейнере с своими volume-mount'ами. Static-провайдер живёт в
+adorable (Node) — host paths он считает напрямую через `STATIC_ROOT`
+env (`/data/static` или override). Когда провайдер регистрирует Caddy
+file_server route с `root = "${staticRoot}/${projectId}/published/"`,
+Caddy получает host path, **которого в его контейнере нет** → каждый
+preview request возвращает 404.
+
+### Decision
+
+Опция `caddyStaticRoot` в `StaticPreviewProviderOptions` (env
+`CADDY_STATIC_ROOT`, default `"/data/static"`) — путь, который видит
+Caddy. STATIC_ROOT bind-маунтится в adorable-caddy на этот путь.
+file_server route собирается с использованием `caddyStaticRoot`, а не
+`staticRoot`:
+
+```ts
+const root = path.join(caddyStaticRoot, projectId, "published");
+```
+
+На single-node dev (Caddy + Node на одной FS на одном пути) можно
+поставить `caddyStaticRoot === staticRoot` — операция станет no-op
+rewrite.
+
+### Consequences
+
+- Контейнерный путь decoupled от host пути → можно менять каждый
+  независимо.
+- В docker-compose нужен новый bind: `${STATIC_ROOT}:${CADDY_STATIC_ROOT}`
+  внутри adorable-caddy. Defaults совпадают, в стандартной развёртке
+  ничего настраивать не нужно.
+
+---
+
+## ADR-032: Gitea pagination contract для `listRepos`
+
+**Status**: accepted
+**Date**: 2026-04-30
+**Discovered in**: phase-6 e2e (commit `678f0f3`)
+
+### Context
+
+`identity.permissions.git.list({ limit: 200 })` под капотом вызывает
+`GET /api/v1/users/<u>/repos?limit=200`. Gitea **силой capается на 50**
+(server-side `MAX_RESPONSE_ITEMS`); параметр `limit=200` принимается, но
+ответ всё равно содержит максимум 50 элементов. На инстансах с >50
+проектами этот лимит скрывает свежесозданные wrapper'ы → API-запросы
+к ним 403'aт ("Forbidden" — не в allowlist'е).
+
+### Decision
+
+`createGiteaGitProvider().listRepos()` теперь paginated: цикл
+`page=1,2,...` пока (a) не достигнут запрошенный limit или (b) текущая
+страница вернула меньше элементов чем `per_page=50` (signal — последняя
+страница).
+
+Контракт публичного API `GitProvider.listRepos({ limit })` остался
+без изменений — limit интерпретируется как клиент-сайд cap, провайдер
+сам разруливает страницы.
+
+### Consequences
+
+- Cost: до `ceil(limit / 50)` round-trip'ов вместо одного. Для дефолтного
+  `limit: 200` — максимум 4 запроса. Для типичного юзера на старте —
+  один (репов меньше 50).
+- Семантика "last seen first" сохраняется, потому что Gitea возвращает
+  репы по умолчанию newest-first.
+- 5 unit-тестов (`tests/git-gitea-pagination.test.ts`) фиксируют
+  behavior: empty, single page, multi-page, partial-final-page, limit cap.
+
+---
+
+_Last updated: 2026-04-30._

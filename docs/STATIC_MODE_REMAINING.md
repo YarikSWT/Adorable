@@ -413,7 +413,28 @@ c) **Phase 7 cleanup** (опционально):
 
 ---
 
-## 13. Документация / спека
+## ✅ 13. Документация / спека — DONE
+
+Реализовано:
+- `docs/preview-provider/BUILD_PIPELINE.md` §4.2 — добавлен
+  `Cmd: cp /workspace/vite.config.js → /tmp` + `NODE_PATH` в Env block,
+  ссылка на ADR-029. §10 — env table расширен полем `BUILD_WAIT_DEADLINE_
+  BUFFER_MS` + `CADDY_STATIC_ROOT` (ссылка на ADR-031).
+- `docs/preview-provider/CONTRACTS.md` §5.1 — новый блок
+  `StaticPreviewProviderOptions` со всеми текущими полями (включая
+  `caddyStaticRoot`, ссылка на ADR-031).
+- `docs/preview-provider/DECISIONS.md` — добавлены **ADR-028..032**
+  (ADR-022..026 в спеке этой задачи; номера 022..027 уже заняты ранее):
+  - ADR-028: Hash-based subdomain (sha256 first 8) для static-mode hostname
+  - ADR-029: Vite config relocation в /tmp + NODE_PATH (ReadonlyRootfs workaround)
+  - ADR-030: `.preview-state.json` для restart-resilience
+  - ADR-031: Container-internal path mapping через `CADDY_STATIC_ROOT`
+  - ADR-032: Gitea pagination contract для `listRepos`
+- `adorable/README.md` — раздел "Local dev in static mode": какие env,
+  как build image (`docker build -f ../docker/build-runner-react/Dockerfile .`),
+  как seed named volume (`-u 0:0`), как bind `STATIC_ROOT` в caddy,
+  как verify через curl.
+
 
 ### Обновить
 - `docs/preview-provider/BUILD_PIPELINE.md` §4 — упомянуть:

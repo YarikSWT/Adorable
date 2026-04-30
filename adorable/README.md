@@ -130,3 +130,96 @@ restart builder, all NEW projects route to sandbox while you debug.
 Per-project recovery (after fix) is via `migrate-repo-to-static.ts`.
 
 Spec: `docs/preview-provider/MIGRATION_PATH.md` §6.
+
+## Local dev in static mode
+
+Static mode runs `vite build` inside an ephemeral `build-runner-react`
+container, then serves the resulting `dist/` from `adorable-caddy`'s
+`file_server`. The first time you stand up the stack you need to seed
+two pieces of infra: the build-runner image and its node_modules
+named volume.
+
+### Required env
+
+```bash
+PREVIEW_PROVIDER=static                       # default for new repos
+PROJECTS_ROOT=/data/projects                  # writable scratch dirs
+STATIC_ROOT=/data/static                      # built artifacts (host path)
+CADDY_STATIC_ROOT=/data/static                # path Caddy sees (ADR-031)
+BUILD_RUNNER_NETWORK=adorable_build           # isolated docker network
+BUILD_WAIT_DEADLINE_BUFFER_MS=5000            # extra grace on container.wait
+```
+
+`PROJECTS_ROOT` and `STATIC_ROOT` must be writable by the Node process
+running adorable. `CADDY_STATIC_ROOT` is the *container-internal* path
+the `adorable-caddy` service sees for the same content; in
+single-node dev where Caddy and Node share an FS, leave both equal.
+
+### Build the build-runner image
+
+The image is `build-runner-react:<boilerplateVersion>`. Version is
+read from `templates/vite-react/VERSION` (currently `1.0.0`).
+
+```bash
+# From the adorable/ working dir:
+docker build \
+  -t build-runner-react:1.0.0 \
+  -f ../docker/build-runner-react/Dockerfile \
+  .
+```
+
+Build-context = `adorable/` (the Dockerfile copies from
+`templates/vite-react/...` and `scripts/build-runner/init-volume.sh`).
+
+### Seed the node_modules named volume
+
+Build-runner mounts `adorable_node_modules_react_<version>` RO at
+`/workspace/node_modules`. The volume must be filled once per version:
+
+```bash
+docker volume create adorable_node_modules_react_1.0.0
+
+docker run --rm -u 0:0 \
+  -v adorable_node_modules_react_1.0.0:/mnt/dest \
+  --entrypoint sh \
+  build-runner-react:1.0.0 \
+  /workspace/init-volume.sh
+```
+
+`-u 0:0` is required: docker creates `/mnt/dest` root-owned, so the
+copy needs root. `init-volume.sh` chowns the destination to
+`1000:1000` after the copy so the runtime container (which runs as
+non-root) can read it (ADR-005).
+
+### Bind STATIC_ROOT into adorable-caddy
+
+For `file_server` routes to resolve, `adorable-caddy` must be able to
+see the same files under `CADDY_STATIC_ROOT`. In docker-compose:
+
+```yaml
+services:
+  adorable-caddy:
+    volumes:
+      - ${STATIC_ROOT}:${CADDY_STATIC_ROOT}:ro
+```
+
+### Verify
+
+After the stack is up:
+
+```bash
+# Create a project + first build
+curl -X POST http://localhost:3000/api/repos -d '{"name":"test"}' \
+  -H content-type:application/json
+
+# Trigger a rebuild
+curl -X POST http://localhost:3000/api/projects/<projectId>/rebuild
+
+# Open the preview (subdomain is sha256(repoId).slice(0,8) — ADR-028)
+open "http://<hash>.preview.localhost:8080"
+```
+
+If `init-volume.sh` errors with "must run as root" — you forgot
+`-u 0:0`. If preview returns 404 — `STATIC_ROOT` isn't bound into
+adorable-caddy. If build hangs at "container.wait()" — bump
+`BUILD_WAIT_DEADLINE_BUFFER_MS`.

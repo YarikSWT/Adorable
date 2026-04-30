@@ -168,12 +168,27 @@ cancel(job):
 
 ### 4.2. Docker run (через dockerode)
 
-Полная схема (соответствует ADR-005, дополнено ADR-016):
+Полная схема (соответствует ADR-005, дополнено ADR-016 / ADR-029):
 
 ```ts
 docker.createContainer({
   Image: `build-runner-react:${boilerplateVersion}`,
-  Cmd: ["vite", "build"],
+  // ADR-029: vite.config.js relocation в /tmp + NODE_PATH workaround.
+  // Vite на каждом билде пишет sibling-файл `vite.config.js.timestamp-*.mjs`
+  // в директорию конфига; ReadonlyRootfs=true блокирует этот write
+  // (EACCES), и билд падает до вывода артефактов. Решение:
+  //   1) копируем доверенный /workspace/vite.config.js в writable tmpfs
+  //      /tmp/vite.config.js,
+  //   2) запускаем `npx vite build --config /tmp/vite.config.js`,
+  //   3) NODE_PATH=/workspace/node_modules даёт Node fallback search
+  //      root, чтобы относительный конфиг в /tmp всё ещё находил
+  //      `vite`/`@vitejs/plugin-react` в named volume.
+  // Конфиг по-прежнему контролируется образом — operator не может
+  // подменить (read-only mount of project source).
+  Cmd: [
+    "sh", "-c",
+    "cp /workspace/vite.config.js /tmp/vite.config.js && exec npx vite build --config /tmp/vite.config.js",
+  ],
   WorkingDir: "/workspace",
   Tty: false,
   AttachStdout: true,
@@ -205,15 +220,19 @@ docker.createContainer({
   Env: [
     "NODE_ENV=production",
     `VITE_PROJECT_ID=${projectId}`,                 // прокидываем в env билда
+    `VITE_BUILD_ID=${buildId}`,                     // для трассировки
+    "NODE_PATH=/workspace/node_modules",            // см. ADR-029
   ],
 });
 ```
 
 > Все boilerplate-fixed файлы (`package.json`, `vite.config.js`,
 > `tailwind.config.js`, `postcss.config.js`, `index.html`,
-> `jsconfig.json`) уже лежат **в образе** на `/workspace/` (см.
-> Dockerfile build-runner'а). Bind-mounts перекрывают только
-> `src/`, `public/`, `node_modules/`, `.vite/`, `dist/`.
+> `jsconfig.json`, `init-volume.sh`) уже лежат **в образе** на
+> `/workspace/` (см. Dockerfile build-runner'а). Bind-mounts
+> перекрывают только `src/`, `public/`, `node_modules/`, `.vite/`,
+> `dist/`. `init-volume.sh` (внутри образа) запускается отдельно с
+> `-u 0:0` для первичного заполнения named volume — ADR-005.
 
 ### 4.3. Запуск и ожидание
 
@@ -511,6 +530,7 @@ artifact, потом emit.
 | `BUILD_RUNNER_CPUS`          | `2`            | NanoCPUs / 1e9                              |
 | `BUILD_RUNNER_PIDS`          | `512`          | --pids-limit                                |
 | `BUILD_RUNNER_TIMEOUT_MS`    | `120000`       | Hard timeout на билд (2 мин)                |
+| `BUILD_WAIT_DEADLINE_BUFFER_MS` | `5000`      | Запас на `container.wait()` сверх timeoutMs+2*cancelGraceMs. Если deadline миновал — force-remove контейнера. |
 | `BUILD_RUNNER_NETWORK`       | `adorable_build`| Имя isolated docker сети                   |
 | `BUILD_CANCEL_GRACE_MS`      | `2000`         | SIGTERM grace до SIGKILL                    |
 | `BUILD_LOG_MAX_BYTES`        | `16384`        | Cap на stdout/stderr (16 KB)                |
@@ -519,7 +539,8 @@ artifact, потом emit.
 | `SCRATCH_DIR_TTL_DAYS`       | `30`           | TTL по inactivity (см. OPEN_QUESTIONS)      |
 | `STATIC_DIR_TTL_DAYS`        | `90`           | TTL для готовых артефактов (см. OPEN_Q)     |
 | `PROJECTS_ROOT`              | `/data/projects` | Override корня scratch dir                |
-| `STATIC_ROOT`                | `/data/static` | Override корня артефактов                   |
+| `STATIC_ROOT`                | `/data/static` | Override корня артефактов на хосте          |
+| `CADDY_STATIC_ROOT`          | `/data/static` | Container-internal путь, который видит adorable-caddy. См. ADR-031: STATIC_ROOT bind-маунтится в этот путь, и `file_server` route использует именно его. |
 
 ---
 
