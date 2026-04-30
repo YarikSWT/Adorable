@@ -28,6 +28,39 @@ export interface ParseInput {
   boilerplateVersion?: string;
 }
 
+// Vite/npm/Node emit these to stderr on every successful build. The
+// fallback "unknown error" branch was firing on them, producing
+// errorsCount=1 with status=succeeded. Strip them before deciding
+// whether stderr contains anything actionable.
+//
+// Each pattern is matched against a single stderr line. Order doesn't
+// matter — we check `some(line)` per line. Keep the patterns NARROW:
+// a too-loose pattern hides real errors. If a real failure ever has a
+// stderr that consists *entirely* of these benign lines, that's a
+// pathological case the executor's exitCode != 0 still flags.
+const BENIGN_STDERR_LINE_PATTERNS: readonly RegExp[] = [
+  // Vite v5.x CJS API deprecation banner.
+  /^\s*The CJS build of Vite's Node API is deprecated\b/,
+  /^\s*See https:\/\/vite\.dev\/guide\/troubleshooting\.html#vite-cjs-node-api-deprecated\b/,
+  // npm informational lines that occasionally leak to stderr.
+  /^\s*npm\s+(?:warn|notice|info)\b/i,
+  // Browserslist nag (vite/postcss runs it).
+  /^\s*Browserslist:\s+caniuse-lite is outdated\b/,
+  /^\s*Please run:\s*npx update-browserslist-db@latest\b/,
+  // Empty / blank lines.
+  /^\s*$/,
+];
+
+const isBenignStderrLine = (line: string): boolean =>
+  BENIGN_STDERR_LINE_PATTERNS.some((re) => re.test(line));
+
+// Exposed so callers can audit the stripper independently.
+export const stripBenignStderr = (stderr: string): string =>
+  stderr
+    .split("\n")
+    .filter((line) => !isBenignStderrLine(line))
+    .join("\n");
+
 // ---------------------------------------------------------------------------
 // parseBuildErrors
 // ---------------------------------------------------------------------------
@@ -141,14 +174,20 @@ export const parseBuildErrors = (input: ParseInput): BuildError[] => {
     });
   }
 
-  // 5. Если вообще ничего не распарсили, но stderr непустой — эмитим
-  // generic {code:"unknown", message: head(stderr)}.
-  if (errors.length === 0 && (input.stderr ?? "").trim()) {
-    push({
-      code: "unknown",
-      message: input.stderr.slice(0, UNKNOWN_HEAD_BYTES).trim(),
-      raw: input.stderr.slice(0, UNKNOWN_HEAD_BYTES),
-    });
+  // 5. Если вообще ничего не распарсили, но stderr содержит actionable
+  // строки — эмитим generic {code:"unknown", message: head(stderr)}.
+  // Vite/npm/Node постоянно выводят deprecation banner'ы и подобный
+  // noise в stderr на УСПЕШНОМ билде; их фильтруем (BENIGN_STDERR_LINE_
+  // PATTERNS), чтобы не получить errorsCount=1 при exitCode=0.
+  if (errors.length === 0) {
+    const meaningful = stripBenignStderr(input.stderr ?? "").trim();
+    if (meaningful) {
+      push({
+        code: "unknown",
+        message: meaningful.slice(0, UNKNOWN_HEAD_BYTES),
+        raw: meaningful.slice(0, UNKNOWN_HEAD_BYTES),
+      });
+    }
   }
 
   return errors;

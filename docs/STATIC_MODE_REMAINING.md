@@ -239,7 +239,27 @@ chown -R 1000:1000 "$DEST"
 
 ---
 
-## 🟡 6. Build артефакт парсится как `errorsCount: 1` при успехе
+## ✅ 6. Build артефакт парсится как `errorsCount: 1` при успехе — DONE
+
+Корень: vite v5.x пишет `The CJS build of Vite's Node API is deprecated...`
+в stderr на каждом успешном билде. Fallback в `parseBuildErrors`
+(`stderr.trim() ≠ "" → emit unknown`) ловил это как ошибку.
+
+Реализовано:
+- `lib/preview/build-error-parser.ts` — добавлен набор узких regex'ов
+  `BENIGN_STDERR_LINE_PATTERNS` для известного шума (Vite CJS deprecation
+  banner, `npm warn/notice/info`, Browserslist outdated nag).
+- Helper `stripBenignStderr(stderr)` экспортирован.
+- Fallback теперь работает поверх `stripBenignStderr(input.stderr).trim()`,
+  а не на raw stderr.
+- 5 новых тестов в `build-error-parser.test.ts` фиксируют:
+  (a) banner-only stderr → 0 errors,
+  (b) full Vite v5.4.21 success run → 0 errors,
+  (c) npm warn/notice/info → 0 errors,
+  (d) Browserslist nag → строка не появляется в `errors[].message`,
+  (e) реальная ошибка над banner'ом всё ещё ловится.
+
+
 
 ### Симптом
 ```json

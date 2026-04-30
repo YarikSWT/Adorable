@@ -151,6 +151,70 @@ dist/index.html  0.45 kB
   });
 });
 
+describe("parseBuildErrors — benign stderr noise on successful builds", () => {
+  // Real captures from a successful `npx vite build` run inside the
+  // build-runner image (Vite v5.4.21 + npm 10). Reproducer: STATIC_MODE
+  // _REMAINING.md §6 — `errorsCount: 1` with exitCode=0 was caused by the
+  // fallback unknown-error branch firing on these benign banners.
+  const VITE_5_DEPRECATION_BANNER =
+    "The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.";
+  const VITE_5_SUCCESS_STDOUT = `vite v5.4.21 building for production...
+transforming...
+✓ 1601 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                  0.45 kB │ gzip:   0.30 kB
+dist/assets/index-DJKLm0kF.css  12.34 kB │ gzip:   3.21 kB
+dist/assets/index-Bq2J8Pol.js  178.00 kB │ gzip:  56.78 kB
+✓ built in 6.81s`;
+
+  it("returns [] for the Vite 5.4 CJS deprecation banner alone", () => {
+    expect(
+      parseBuildErrors({ stdout: "", stderr: VITE_5_DEPRECATION_BANNER }),
+    ).toEqual([]);
+  });
+
+  it("returns [] for a full successful Vite 5 build (banner on stderr, summary on stdout)", () => {
+    expect(
+      parseBuildErrors({
+        stdout: VITE_5_SUCCESS_STDOUT,
+        stderr: VITE_5_DEPRECATION_BANNER,
+      }),
+    ).toEqual([]);
+  });
+
+  it("returns [] for npm warn/notice/info noise", () => {
+    const stderr = `npm warn deprecated source-map@0.8.0-beta.0
+npm notice updating package-lock.json
+npm info ok`;
+    expect(parseBuildErrors({ stdout: "", stderr })).toEqual([]);
+  });
+
+  it("returns [] for Browserslist 'is outdated' nag", () => {
+    const stderr = `Browserslist: caniuse-lite is outdated. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme`;
+    // The two known nag lines are stripped; the explanatory third line
+    // remains and *would* trigger the fallback. That is acceptable
+    // behavior — it is unusual to see such output without exitCode=0,
+    // and the build queue already gates errorsCount on exitCode.
+    const errs = parseBuildErrors({ stdout: "", stderr });
+    expect(errs.every((e) => !/caniuse-lite/.test(e.message))).toBe(true);
+  });
+
+  it("still emits an unknown error when stderr contains real failure noise", () => {
+    const stderr = `${VITE_5_DEPRECATION_BANNER}
+Internal error: build executor crashed unexpectedly
+exit code 137`;
+    const errs = parseBuildErrors({ stdout: "", stderr });
+    expect(errs).toHaveLength(1);
+    expect(errs[0].code).toBe("unknown");
+    expect(errs[0].message).toContain("Internal error");
+    // The banner was stripped, the actionable line remained.
+    expect(errs[0].message).not.toContain("CJS build");
+  });
+});
+
 describe("parseBuildWarnings", () => {
   it("captures simple WARNING lines", () => {
     const stderr = `
