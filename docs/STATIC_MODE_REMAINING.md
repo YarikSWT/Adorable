@@ -428,7 +428,32 @@ POST /api/repos/<id>/wake 200 in 49s
 
 ---
 
-## 📋 11. Прокатка первой недели — мониторинг
+## ⏳ 11. Прокатка первой недели — мониторинг — TOOLING DONE (запуск ждёт staging)
+
+Реализовано из доступного без staging-инфры:
+- Pure-helper `lib/bench/audit-summary.ts` — `parseAuditLog`,
+  `summariseAudit(text, {since, until})`, `evaluateAlerts(summary)`
+  с захардкоженными `DEFAULT_THRESHOLDS` (success-rate < 95% n≥20,
+  build-runner-killed-timeout ≥ 5/hr, auth_denied ≥ 50/hr — PAGE;
+  upload_rejected/path_rejected/malformed_lines — WARN).
+- CLI `scripts/audit-summary.ts` — `--file`/`--stdin`,
+  `--since`/`--until` ISO bounds, `--json` для machine output. Exit
+  code 10 если есть PAGE-уровень алерт (cron-friendly).
+- 14 unit-тестов (`tests/audit-summary.test.ts`): event-type counts,
+  status breakdown, NaN-rate без samples, time-window inclusivity,
+  malformed parse, paging vs warn'инг по каждому threshold'у, sub-
+  minSamples не page'ит.
+- `docs/preview-provider/MONITORING.md` — runbook с таблицей метрик +
+  пороги, triage по каждому алерту (`build_success_rate`,
+  `build_runner_killed_timeout`, `auth_denied`,
+  `path_rejected`/`upload_rejected`, `malformed_lines`), starter cron
+  recipe для bootstrap'а без log-shipper'а.
+
+Что осталось — собственно log-shipper (Vector/Fluent Bit) +
+Loki/Grafana + дашборды/algrt-rules (production-grade автоматизация
+после prod-deploy).
+
+
 
 `MIGRATION_PATH.md §6` требует после default switch:
 - Мониторить audit-log на `build-failed`, `path-rejected`, `upload-rejected`, `auth_denied`, `build_runner_killed_timeout`
