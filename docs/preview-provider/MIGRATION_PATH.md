@@ -190,19 +190,27 @@ docker-runner. Очередь и SSE — следующая фаза.
 
 Цель: новые проекты создаются как static.
 
+- [ ] **Preflight** на staging-инстансе:
+      `npx tsx scripts/preflight-static.ts` — проверяет env vars +
+      writable directories. Exit code 1 значит fix remediations
+      перед flip'ом. Расширяемое — checks для docker/caddy/gitea
+      добавляются по мере доступа к staging-инфре.
 - [ ] **Полный VERIFICATION run** (см. VERIFICATION.md). Все
       acceptance-tests должны быть зелёными при
       `PREVIEW_PROVIDER=static`.
-- [ ] **Замер метрик** на staging:
-      - p50/p95 build time
+- [ ] **Замер метрик** на staging через
+      `scripts/bench-static-build.ts`:
+      - p50/p95 build time → заполнить BENCHMARKS.md
       - p50/p95 turn end-to-end (chat → preview update)
       - Success rate билдов
       - Size of `node_modules` named volume
 - [ ] Поменять `.env.example` default → `PREVIEW_PROVIDER=static`.
       Production deploy (через Kamal) подхватит на следующем
       releas'е.
-- [ ] **Прокатка**: первая неделя — мониторинг audit-log на
-      `build-failed`, `path-rejected`, `upload-rejected` → корректировки.
+- [ ] **Прокатка**: первая неделя — `scripts/audit-summary.ts` через
+      cron'у каждые 5 минут (см. MONITORING.md cron sample), exit
+      code 10 → pager. Тюнинг порогов через `--success-rate-min`
+      etc. без редеплоя.
 
 **Откат**: вернуть `PREVIEW_PROVIDER=sandbox` в env, retag image,
 redeploy. Существующие проекты с `provider: "static"` в metadata
