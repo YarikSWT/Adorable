@@ -18,8 +18,15 @@ node_modules
 
 # fork workspace artifacts
 /.claude
+/adorable/.claude
 PROMPT.md
 .stop-hook.*.log
+
+# Stray Playwright screenshots accidentally dropped at the repo root
+# during loop iterations. Real verification artifacts go under
+# /verification/screenshots/ (already gitignored above).
+/landing-*.png
+/screen-shot.png
 
 # verification artifacts — скриншоты с Playwright MCP не кладём в git (крупные бинарники).
 # Вместо них коммитим VERIFICATION_LOG.md с описанием прохождения.
