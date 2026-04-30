@@ -8,8 +8,9 @@ import {
 import { useChat } from "@ai-sdk/react";
 import { type UIMessage } from "ai";
 import { Thread } from "@/components/assistant-ui/thread";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { dedupeToolCallsAcrossMessages } from "@/lib/cross-message-tool-dedup";
 
 type ThreadState = {
   isEmpty: boolean;
@@ -439,7 +440,24 @@ export const Assistant = ({
     onFinish: handleChatFinish,
   });
 
-  const runtime = useAISDKRuntime(chat);
+  // Cross-message toolCallId dedup. The message converter inside
+  // @assistant-ui/react-ai-sdk only dedups WITHIN one message, so when
+  // the same toolCallId leaks into two messages (typical after a
+  // step-boundary mid-stream) `tapResources` throws "Duplicate key
+  // toolCallId-… in tapResources" and freezes the UI. We strip the
+  // earlier copies before the converter sees them. This is purely a
+  // UI-render concern — the underlying `chat.setMessages` /
+  // `chat.sendMessage` operate on the original (undeduped) state, so
+  // outbound HTTP requests still send the full transcript.
+  const dedupedMessages = useMemo(
+    () => dedupeToolCallsAcrossMessages(chat.messages),
+    [chat.messages],
+  );
+  const dedupedChat = useMemo(
+    () => ({ ...chat, messages: dedupedMessages }),
+    [chat, dedupedMessages],
+  );
+  const runtime = useAISDKRuntime(dedupedChat);
 
   return (
     <AssistantRuntimeProvider key={runtimeKey} runtime={runtime}>

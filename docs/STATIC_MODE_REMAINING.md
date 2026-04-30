@@ -105,7 +105,34 @@ b) Server-side idempotency:
 
 ---
 
-## 🔴 3. Upstream `@assistant-ui/react-ai-sdk` dup-toolCallId crash
+## ✅ 3. Upstream `@assistant-ui/react-ai-sdk` dup-toolCallId crash — DONE (workaround)
+
+Реализовано (option 2 из спеки — kustom-converter wrapper):
+- Новый pure-helper `lib/cross-message-tool-dedup.ts` —
+  `dedupeToolCallsAcrossMessages(messages)`. Walk через все сообщения
+  thread'a, для каждого `toolCallId` запоминает последнее
+  (messageIdx, partIdx); во втором проходе всё, что не "last", —
+  фильтруется. Тяжёлый общий путь оптимизирован: если все callId
+  уникальны, возвращается `messages.slice()` без перестройки.
+- В `app/assistant.tsx` — wrapper над chat helpers через
+  `useMemo`-cache: `dedupedMessages`, потом
+  `dedupedChat = { ...chat, messages: dedupedMessages }`,
+  передаётся в `useAISDKRuntime`. Outbound HTTP (sendMessage,
+  setMessages) и server-side state не затрагиваются — wrapper
+  только для UI-render path'а.
+- 9 unit-тестов (`tests/cross-message-tool-dedup.test.ts`):
+  empty, no-dups (early-return через size==count), dup across two
+  messages, multi-occurrence within one message, non-tool parts
+  untouched, missing parts field, message-level metadata
+  preserved, three-way dup → last wins, empty toolCallId treated
+  as absent.
+
+Этот fix — UI-side workaround, который покрывает 100% наблюдаемых
+кейсов (и StrictMode dual-mount, и step-boundary). Upstream-issue +
+PR в `@assistant-ui/react-ai-sdk` пока не открывал — workaround
+стабилен, не требует ожидания библиотеки.
+
+
 
 ### Симптом
 Mid-stream (около 30-60s в чат) консоль выдаёт:
