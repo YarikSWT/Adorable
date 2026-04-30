@@ -54,7 +54,24 @@ const hardTimeout = setTimeout(() => {
 
 ---
 
-## 🔴 2. React StrictMode double-create на одном клике "Send"
+## ✅ 2. React StrictMode double-create на одном клике "Send" — DONE
+
+Реализовано:
+- Module-level inflight dedup в `app/assistant.tsx`
+  (`inflightEnsure` Map, ключ — `chatSessionIdRef.current` для
+  no-repo-case либо `conv:<repoId>` для no-conversation-case).
+  Concurrent callers (StrictMode dual-mount, double-click) шарят один
+  inflight Promise.
+- Server-side `IdempotencyCache` (TTL 60s, in-memory) в
+  `app/api/repos/route.ts`. Клиент посылает `clientRequestId` (UUID) в
+  body; повторный POST с тем же id возвращает ранее созданный wrapper
+  без re-execution.
+- Тесты: `tests/idempotency-cache.test.ts` (6 unit-тестов на TTL-кэш) +
+  `tests/repos-route-idempotency.test.ts` (4 интеграционных теста на
+  POST /api/repos: sequential dup, concurrent dup, разные cri'ды дают
+  разные wrapper'ы, opt-out при отсутствии cri'да).
+
+
 
 ### Симптом
 В audit-log на одно нажатие Send:

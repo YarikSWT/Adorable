@@ -20,7 +20,28 @@ type CreateFromGithubDetail = {
   githubRepoName: string;
 };
 
+type EnsureResult = {
+  repoId: string;
+  conversationId: string;
+};
+
 const EMPTY_MESSAGES: UIMessage[] = [];
+
+// Module-level inflight dedup: React StrictMode in dev double-invokes
+// effects, which can cause `prepareSendMessagesRequest` to fire twice for
+// one Send and produce two POST /api/repos. Keyed by chatSessionIdRef so
+// concurrent callers (including across re-mounts that share the same
+// session key) reuse the same in-flight promise instead of racing.
+const inflightEnsure = new Map<string, Promise<EnsureResult>>();
+const inflightClientRequestIds = new Map<string, string>();
+
+const newClientRequestId = (): string => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  // jsdom in some test envs lacks randomUUID — fall back to a non-crypto id.
+  return `crid-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+};
 
 const extractUserPrompt = (messages: UIMessage[]): string | null => {
   const firstUserMessage = messages.find((message) => message.role === "user");
@@ -204,7 +225,10 @@ export const Assistant = ({
   }, []);
 
   const ensureActiveConversation = useCallback(
-    async (requestedRepoName?: string, requestedConversationTitle?: string) => {
+    async (
+      requestedRepoName?: string,
+      requestedConversationTitle?: string,
+    ): Promise<EnsureResult> => {
       const activeRepoId = activeRepoIdRef.current;
       const activeConversationId = activeConversationIdRef.current;
 
@@ -215,99 +239,126 @@ export const Assistant = ({
         };
       }
 
-      if (activeRepoId) {
-        // repoId из Gitea имеет формат "owner/repo" — slash обязан быть
-        // encoded, иначе Next.js dynamic route [repoId] его не матчит.
-        const response = await fetch(
-          `/api/repos/${encodeURIComponent(activeRepoId)}/conversations`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(
-              requestedConversationTitle
-                ? { title: requestedConversationTitle }
-                : {},
-            ),
-          },
-        );
+      // Dedup key: collapse concurrent callers into one network request.
+      // For the no-repo case the key is the session id (StrictMode dev
+      // double-mount + double-Send share "home:draft"). For the
+      // repo-but-no-conversation case the key is the repo id.
+      const dedupKey = activeRepoId
+        ? `conv:${activeRepoId}`
+        : `repo:${chatSessionIdRef.current}`;
 
-        if (!response.ok) {
-          throw new Error(
-            "Failed to create a conversation for the selected repo.",
+      const existing = inflightEnsure.get(dedupKey);
+      if (existing) return existing;
+
+      let clientRequestId = inflightClientRequestIds.get(dedupKey);
+      if (!clientRequestId) {
+        clientRequestId = newClientRequestId();
+        inflightClientRequestIds.set(dedupKey, clientRequestId);
+      }
+
+      const run = async (): Promise<EnsureResult> => {
+        if (activeRepoId) {
+          // repoId из Gitea имеет формат "owner/repo" — slash обязан быть
+          // encoded, иначе Next.js dynamic route [repoId] его не матчит.
+          const response = await fetch(
+            `/api/repos/${encodeURIComponent(activeRepoId)}/conversations`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                clientRequestId,
+                ...(requestedConversationTitle
+                  ? { title: requestedConversationTitle }
+                  : {}),
+              }),
+            },
           );
+
+          if (!response.ok) {
+            throw new Error(
+              "Failed to create a conversation for the selected repo.",
+            );
+          }
+
+          const data = await response.json();
+          const conversationId = data.conversationId as string | undefined;
+
+          if (!conversationId) {
+            throw new Error("Conversation creation did not return an id.");
+          }
+
+          const nextPath = `/${encodeURIComponent(activeRepoId)}/${encodeURIComponent(conversationId)}`;
+          window.history.replaceState(window.history.state, "", nextPath);
+          setLocalConversationId(conversationId);
+          activeConversationIdRef.current = conversationId;
+          onActiveConversationChangeRef.current?.(
+            activeRepoId,
+            conversationId,
+          );
+          window.dispatchEvent(
+            new CustomEvent("adorable:active-conversation", {
+              detail: { repoId: activeRepoId, conversationId },
+            }),
+          );
+
+          return {
+            repoId: activeRepoId,
+            conversationId,
+          };
+        }
+
+        const response = await fetch("/api/repos", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            clientRequestId,
+            ...(requestedRepoName ? { name: requestedRepoName } : {}),
+            ...(requestedConversationTitle
+              ? { conversationTitle: requestedConversationTitle }
+              : {}),
+          }),
+        });
+        if (!response.ok) {
+          throw new Error("Failed to create a repository for this chat.");
         }
 
         const data = await response.json();
+        const repoId = data.id as string | undefined;
         const conversationId = data.conversationId as string | undefined;
 
-        if (!conversationId) {
-          throw new Error("Conversation creation did not return an id.");
+        if (!repoId || !conversationId) {
+          throw new Error("Repository creation did not return ids.");
         }
 
-        const nextPath = `/${encodeURIComponent(activeRepoId)}/${encodeURIComponent(conversationId)}`;
+        const nextPath = `/${encodeURIComponent(repoId)}/${encodeURIComponent(conversationId)}`;
         window.history.replaceState(window.history.state, "", nextPath);
+        setLocalRepoId(repoId);
         setLocalConversationId(conversationId);
+        activeRepoIdRef.current = repoId;
         activeConversationIdRef.current = conversationId;
-        onActiveConversationChangeRef.current?.(activeRepoId, conversationId);
+        onActiveConversationChangeRef.current?.(repoId, conversationId);
         window.dispatchEvent(
           new CustomEvent("adorable:active-conversation", {
-            detail: { repoId: activeRepoId, conversationId },
+            detail: { repoId, conversationId },
           }),
         );
 
         return {
-          repoId: activeRepoId,
+          repoId,
           conversationId,
         };
-      }
-
-      const response = await fetch("/api/repos", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(
-          requestedRepoName || requestedConversationTitle
-            ? {
-                ...(requestedRepoName ? { name: requestedRepoName } : {}),
-                ...(requestedConversationTitle
-                  ? { conversationTitle: requestedConversationTitle }
-                  : {}),
-              }
-            : {},
-        ),
-      });
-      if (!response.ok) {
-        throw new Error("Failed to create a repository for this chat.");
-      }
-
-      const data = await response.json();
-      const repoId = data.id as string | undefined;
-      const conversationId = data.conversationId as string | undefined;
-
-      if (!repoId || !conversationId) {
-        throw new Error("Repository creation did not return ids.");
-      }
-
-      const nextPath = `/${encodeURIComponent(repoId)}/${encodeURIComponent(conversationId)}`;
-      window.history.replaceState(window.history.state, "", nextPath);
-      setLocalRepoId(repoId);
-      setLocalConversationId(conversationId);
-      activeRepoIdRef.current = repoId;
-      activeConversationIdRef.current = conversationId;
-      onActiveConversationChangeRef.current?.(repoId, conversationId);
-      window.dispatchEvent(
-        new CustomEvent("adorable:active-conversation", {
-          detail: { repoId, conversationId },
-        }),
-      );
-
-      return {
-        repoId,
-        conversationId,
       };
+
+      const promise = run().finally(() => {
+        inflightEnsure.delete(dedupKey);
+        inflightClientRequestIds.delete(dedupKey);
+      });
+      inflightEnsure.set(dedupKey, promise);
+      return promise;
     },
     [],
   );

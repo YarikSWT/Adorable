@@ -9,6 +9,7 @@ import { getGitProvider } from "@/lib/git/provider-singleton";
 import { seedTemplateRepo } from "@/lib/template-seeder";
 import { readBoilerplateVersion } from "@/lib/preview/boilerplate-version";
 import { getPreviewProvider } from "@/lib/preview/provider-singleton";
+import { IdempotencyCache } from "@/lib/idempotency";
 import {
   ADORABLE_WRAPPER_REPO_PREFIX,
   isWrapperRepoName,
@@ -20,6 +21,24 @@ import {
   readRepoMetadata,
   writeRepoMetadata,
 } from "@/lib/repo-storage";
+
+type CreateRepoResponse = {
+  id: string;
+  metadata: RepoMetadata;
+  conversationId: string;
+};
+
+// 60s TTL: long enough that a slow round-trip from a duplicate POST still
+// dedups, short enough that a stale id doesn't haunt later legitimate
+// requests. Module-level so all requests share the cache within a process.
+const createRepoIdempotency = new IdempotencyCache<CreateRepoResponse>(
+  60_000,
+);
+
+// Exposed for tests so they can reset between cases.
+export const __resetCreateRepoIdempotencyForTests = () => {
+  createRepoIdempotency.clear();
+};
 
 const toDisplayRepoName = (name?: string | null) => stripWrapperPrefix(name);
 
@@ -194,25 +213,51 @@ export async function POST(req: Request) {
   let requestedName: string | undefined;
   let requestedConversationTitle: string | undefined;
   let githubRepoName: string | undefined;
+  let clientRequestId: string | undefined;
   try {
     const payload = (await req.json()) as {
       name?: string;
       conversationTitle?: string;
       githubRepoName?: string;
+      clientRequestId?: string;
     };
     const nextName = payload?.name?.trim();
     const nextConversationTitle = payload?.conversationTitle?.trim();
     const nextGithubRepoName = payload?.githubRepoName?.trim();
+    const nextClientRequestId = payload?.clientRequestId?.trim();
     requestedName = nextName ? nextName : undefined;
     requestedConversationTitle = nextConversationTitle
       ? nextConversationTitle
       : undefined;
     githubRepoName = nextGithubRepoName ? nextGithubRepoName : undefined;
+    clientRequestId = nextClientRequestId ? nextClientRequestId : undefined;
   } catch {
     requestedName = undefined;
     requestedConversationTitle = undefined;
     githubRepoName = undefined;
+    clientRequestId = undefined;
   }
+
+  const result = await createRepoIdempotency.run(clientRequestId, () =>
+    createRepoForRequest({
+      identity,
+      requestedName,
+      requestedConversationTitle,
+      githubRepoName,
+    }),
+  );
+
+  return NextResponse.json(result);
+}
+
+async function createRepoForRequest(args: {
+  identity: Awaited<ReturnType<typeof getOrCreateIdentitySession>>["identity"];
+  requestedName: string | undefined;
+  requestedConversationTitle: string | undefined;
+  githubRepoName: string | undefined;
+}): Promise<CreateRepoResponse> {
+  const { identity, requestedName, requestedConversationTitle, githubRepoName } =
+    args;
 
   const gitProvider = await getGitProvider();
 
@@ -343,9 +388,9 @@ export async function POST(req: Request) {
     requestedConversationTitle,
   );
 
-  return NextResponse.json({
+  return {
     id: wrapperRepoId,
     metadata,
     conversationId,
-  });
+  };
 }
