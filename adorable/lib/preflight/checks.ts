@@ -185,6 +185,129 @@ export const checkDirectoryWritable = async (
 };
 
 // ---------------------------------------------------------------------------
+// HTTP reachability checks
+// ---------------------------------------------------------------------------
+
+// Both checks use this minimal fetch surface — easier to stub in tests
+// than mocking the global Response object.
+type FetchLike = (
+  url: string,
+  init?: { signal?: AbortSignal },
+) => Promise<{ ok: boolean; status: number; text: () => Promise<string> }>;
+
+interface HttpCheckOpts {
+  /** Override fetch for tests. */
+  fetch?: FetchLike;
+  /** Override timeout (ms). Default 5000. */
+  timeoutMs?: number;
+}
+
+const fetchWithTimeout = async (
+  fetchImpl: FetchLike,
+  url: string,
+  timeoutMs: number,
+): Promise<
+  | { kind: "ok"; status: number; bodyExcerpt: string }
+  | { kind: "error"; message: string }
+> => {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), timeoutMs);
+  try {
+    const res = await fetchImpl(url, { signal: ac.signal });
+    if (!res.ok) {
+      return {
+        kind: "error",
+        message: `HTTP ${res.status}`,
+      };
+    }
+    let bodyExcerpt = "";
+    try {
+      bodyExcerpt = (await res.text()).slice(0, 200);
+    } catch {
+      // ignore body read errors — status is what matters
+    }
+    return { kind: "ok", status: res.status, bodyExcerpt };
+  } catch (err) {
+    return { kind: "error", message: (err as Error).message };
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+// Caddy admin endpoint reachable. Uses CADDY_ADMIN_URL (default
+// "http://localhost:2019" — matches docker-compose).
+export const checkCaddyAdmin = async (
+  env: Readonly<Record<string, string | undefined>>,
+  opts: HttpCheckOpts = {},
+): Promise<CheckResult> => {
+  const baseUrl = env["CADDY_ADMIN_URL"] ?? "http://localhost:2019";
+  const url = `${baseUrl.replace(/\/$/, "")}/config/`;
+  const fetchImpl = opts.fetch ?? (globalThis.fetch as FetchLike);
+  const timeoutMs = opts.timeoutMs ?? 5000;
+  const res = await fetchWithTimeout(fetchImpl, url, timeoutMs);
+  if (res.kind === "error") {
+    return {
+      name: "http.caddy",
+      severity: "fail",
+      message: `Caddy admin (${url}) unreachable: ${res.message}`,
+      remediation:
+        "verify adorable-caddy is up + the admin port is bound + CADDY_ADMIN_URL points at it",
+    };
+  }
+  return {
+    name: "http.caddy",
+    severity: "ok",
+    message: `Caddy admin (${url}) → ${res.status}`,
+  };
+};
+
+// Gitea API version endpoint reachable. Uses GITEA_BASE_URL.
+export const checkGiteaApi = async (
+  env: Readonly<Record<string, string | undefined>>,
+  opts: HttpCheckOpts = {},
+): Promise<CheckResult> => {
+  const baseUrl = env["GITEA_BASE_URL"];
+  if (!baseUrl) {
+    return {
+      name: "http.gitea",
+      severity: "fail",
+      message: "GITEA_BASE_URL is unset — can't probe Gitea",
+      remediation: "set GITEA_BASE_URL in .env (default http://localhost:3001)",
+    };
+  }
+  const url = `${baseUrl.replace(/\/$/, "")}/api/v1/version`;
+  const fetchImpl = opts.fetch ?? (globalThis.fetch as FetchLike);
+  const timeoutMs = opts.timeoutMs ?? 5000;
+  const res = await fetchWithTimeout(fetchImpl, url, timeoutMs);
+  if (res.kind === "error") {
+    return {
+      name: "http.gitea",
+      severity: "fail",
+      message: `Gitea API (${url}) unreachable: ${res.message}`,
+      remediation:
+        "verify adorable-gitea is up + bind port matches GITEA_BASE_URL",
+    };
+  }
+  // Gitea version endpoint returns JSON like {"version":"1.21.0"}.
+  // We don't enforce a specific version — any 200 with a version
+  // string is enough; just surface what we got.
+  let versionHint = "";
+  try {
+    const parsed = JSON.parse(res.bodyExcerpt) as { version?: unknown };
+    if (typeof parsed.version === "string") {
+      versionHint = ` (version ${parsed.version})`;
+    }
+  } catch {
+    // body wasn't JSON — still ok if status was 200
+  }
+  return {
+    name: "http.gitea",
+    severity: "ok",
+    message: `Gitea API (${url}) → ${res.status}${versionHint}`,
+  };
+};
+
+// ---------------------------------------------------------------------------
 // Aggregated runner
 // ---------------------------------------------------------------------------
 
@@ -193,6 +316,14 @@ export interface RunChecksOptions {
   env: Readonly<Record<string, string | undefined>>;
   /** Override fs for tests. Forwarded to checkDirectoryWritable. */
   dirCheckOpts?: DirCheckOpts;
+  /**
+   * When true, also probe Caddy admin + Gitea API. Off by default
+   * because those checks need live infra; the static-mode CLI
+   * enables this when invoked with --network.
+   */
+  includeNetworkChecks?: boolean;
+  /** Forwarded to network checks. Override fetch for tests. */
+  httpCheckOpts?: HttpCheckOpts;
 }
 
 export interface PreflightReport {
@@ -205,7 +336,7 @@ export interface PreflightReport {
 export const runStaticPreflight = async (
   opts: RunChecksOptions,
 ): Promise<PreflightReport> => {
-  const { env, dirCheckOpts } = opts;
+  const { env, dirCheckOpts, includeNetworkChecks, httpCheckOpts } = opts;
   const results: CheckResult[] = [];
 
   results.push(checkPreviewProviderValue(env));
@@ -231,6 +362,11 @@ export const runStaticPreflight = async (
     results.push(
       await checkDirectoryWritable("STATIC_ROOT", staticRoot, dirCheckOpts),
     );
+  }
+
+  if (includeNetworkChecks) {
+    results.push(await checkCaddyAdmin(env, httpCheckOpts));
+    results.push(await checkGiteaApi(env, httpCheckOpts));
   }
 
   return {

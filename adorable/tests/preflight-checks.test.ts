@@ -6,12 +6,30 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  checkCaddyAdmin,
   checkDirectoryWritable,
+  checkGiteaApi,
   checkPreviewProviderValue,
   checkRecommendedEnvVar,
   checkRequiredEnvVar,
   runStaticPreflight,
 } from "@/lib/preflight/checks";
+
+// Minimal fetch-shape stub matching the FetchLike type the helpers use.
+type FetchStub = (
+  url: string,
+  init?: { signal?: AbortSignal },
+) => Promise<{ ok: boolean; status: number; text: () => Promise<string> }>;
+
+const okFetch =
+  (status: number, body = "{}"): FetchStub =>
+  async () => ({ ok: status >= 200 && status < 300, status, text: async () => body });
+
+const throwingFetch =
+  (msg: string): FetchStub =>
+  async () => {
+    throw new Error(msg);
+  };
 
 describe("checkPreviewProviderValue", () => {
   it("fails on unset", () => {
@@ -117,6 +135,86 @@ describe("checkDirectoryWritable", () => {
   });
 });
 
+describe("checkCaddyAdmin", () => {
+  it("ok on 200 from /config/", async () => {
+    const r = await checkCaddyAdmin(
+      { CADDY_ADMIN_URL: "http://caddy:2019" },
+      { fetch: okFetch(200, '{"apps": {}}') },
+    );
+    expect(r.severity).toBe("ok");
+    expect(r.message).toContain("/config/");
+    expect(r.message).toContain("200");
+  });
+
+  it("uses default URL when env is unset", async () => {
+    const r = await checkCaddyAdmin({}, { fetch: okFetch(200) });
+    expect(r.message).toContain("http://localhost:2019/config/");
+  });
+
+  it("fails on connection error", async () => {
+    const r = await checkCaddyAdmin(
+      { CADDY_ADMIN_URL: "http://caddy:2019" },
+      { fetch: throwingFetch("ECONNREFUSED") },
+    );
+    expect(r.severity).toBe("fail");
+    expect(r.message).toContain("ECONNREFUSED");
+  });
+
+  it("fails on non-2xx HTTP status", async () => {
+    const r = await checkCaddyAdmin(
+      { CADDY_ADMIN_URL: "http://caddy:2019" },
+      { fetch: okFetch(500, "Internal Server Error") },
+    );
+    expect(r.severity).toBe("fail");
+    expect(r.message).toContain("HTTP 500");
+  });
+});
+
+describe("checkGiteaApi", () => {
+  it("ok on 200, surfaces version when JSON parses", async () => {
+    const r = await checkGiteaApi(
+      { GITEA_BASE_URL: "http://gitea:3000" },
+      { fetch: okFetch(200, '{"version":"1.21.4"}') },
+    );
+    expect(r.severity).toBe("ok");
+    expect(r.message).toContain("1.21.4");
+  });
+
+  it("ok on 200 even when body isn't valid JSON", async () => {
+    const r = await checkGiteaApi(
+      { GITEA_BASE_URL: "http://gitea:3000" },
+      { fetch: okFetch(200, "not json") },
+    );
+    expect(r.severity).toBe("ok");
+    // The URL itself contains "/api/v1/version"; assert specifically
+    // that the parenthesised "(version X.Y.Z)" hint is absent.
+    expect(r.message).not.toMatch(/\(version\s+[^)]+\)/);
+  });
+
+  it("fails when GITEA_BASE_URL is unset", async () => {
+    const r = await checkGiteaApi({}, { fetch: okFetch(200) });
+    expect(r.severity).toBe("fail");
+    expect(r.message).toContain("GITEA_BASE_URL is unset");
+  });
+
+  it("fails on connection error", async () => {
+    const r = await checkGiteaApi(
+      { GITEA_BASE_URL: "http://gitea:3000" },
+      { fetch: throwingFetch("ETIMEDOUT") },
+    );
+    expect(r.severity).toBe("fail");
+    expect(r.message).toContain("ETIMEDOUT");
+  });
+
+  it("strips trailing slash from base URL", async () => {
+    const r = await checkGiteaApi(
+      { GITEA_BASE_URL: "http://gitea:3000/" },
+      { fetch: okFetch(200) },
+    );
+    expect(r.message).toContain("http://gitea:3000/api/v1/version");
+  });
+});
+
 describe("runStaticPreflight", () => {
   const passingDirOpts = {
     stat: async () => ({ isDir: true }),
@@ -189,5 +287,41 @@ describe("runStaticPreflight", () => {
       (r) => r.name === "dir.PROJECTS_ROOT",
     );
     expect(dirCheck).toBeUndefined();
+  });
+
+  it("skips HTTP checks by default", async () => {
+    const env: Record<string, string | undefined> = {
+      PREVIEW_PROVIDER: "static",
+      PROJECTS_ROOT: "/data/projects",
+      STATIC_ROOT: "/data/static",
+    };
+    const report = await runStaticPreflight({
+      env,
+      dirCheckOpts: passingDirOpts,
+    });
+    expect(report.results.find((r) => r.name === "http.caddy")).toBeUndefined();
+    expect(report.results.find((r) => r.name === "http.gitea")).toBeUndefined();
+  });
+
+  it("runs HTTP checks when includeNetworkChecks=true", async () => {
+    const env: Record<string, string | undefined> = {
+      PREVIEW_PROVIDER: "static",
+      PROJECTS_ROOT: "/data/projects",
+      STATIC_ROOT: "/data/static",
+      CADDY_ADMIN_URL: "http://caddy:2019",
+      GITEA_BASE_URL: "http://gitea:3000",
+    };
+    const report = await runStaticPreflight({
+      env,
+      dirCheckOpts: passingDirOpts,
+      includeNetworkChecks: true,
+      httpCheckOpts: { fetch: okFetch(200, '{"version":"1.21.4"}') },
+    });
+    expect(report.results.find((r) => r.name === "http.caddy")?.severity).toBe(
+      "ok",
+    );
+    expect(report.results.find((r) => r.name === "http.gitea")?.severity).toBe(
+      "ok",
+    );
   });
 });

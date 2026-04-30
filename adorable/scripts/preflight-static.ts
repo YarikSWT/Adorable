@@ -27,13 +27,16 @@ import { runStaticPreflight, type CheckResult } from "@/lib/preflight/checks";
 
 interface CliArgs {
   emitJson: boolean;
+  includeNetworkChecks: boolean;
 }
 
 const HELP = `preflight-static — pre-flip readiness check for static-mode preview.
 
 Optional:
-  --json    emit the report as JSON in addition to the table
-  --help    show this message
+  --network    also probe Caddy admin + Gitea API endpoints
+               (off by default — needs the rest of the stack up)
+  --json       emit the report as JSON in addition to the table
+  --help       show this message
 
 Exit codes:
   0  all green or only warnings — safe to flip PREVIEW_PROVIDER=static
@@ -47,15 +50,17 @@ const printHelpAndExit = (code: number): never => {
 
 const parseArgs = (argv: string[]): CliArgs => {
   let emitJson = false;
+  let includeNetworkChecks = false;
   for (const a of argv) {
     if (a === "--help" || a === "-h") printHelpAndExit(0);
     else if (a === "--json") emitJson = true;
+    else if (a === "--network") includeNetworkChecks = true;
     else {
       process.stderr.write(`preflight-static: unknown arg ${a}\n`);
       printHelpAndExit(1);
     }
   }
-  return { emitJson };
+  return { emitJson, includeNetworkChecks };
 };
 
 const TAG: Record<CheckResult["severity"], string> = {
@@ -76,7 +81,10 @@ const printTable = (results: readonly CheckResult[]): void => {
 
 const main = async (): Promise<void> => {
   const args = parseArgs(process.argv.slice(2));
-  const report = await runStaticPreflight({ env: process.env });
+  const report = await runStaticPreflight({
+    env: process.env,
+    includeNetworkChecks: args.includeNetworkChecks,
+  });
   printTable(report.results);
   process.stdout.write(
     `\nresult: passed=${report.passed} warned=${report.warned} failed=${report.failed}\n`,

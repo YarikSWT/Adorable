@@ -191,10 +191,10 @@ docker-runner. Очередь и SSE — следующая фаза.
 Цель: новые проекты создаются как static.
 
 - [ ] **Preflight** на staging-инстансе:
-      `npx tsx scripts/preflight-static.ts` — проверяет env vars +
-      writable directories. Exit code 1 значит fix remediations
-      перед flip'ом. Расширяемое — checks для docker/caddy/gitea
-      добавляются по мере доступа к staging-инфре.
+      `npx tsx scripts/preflight-static.ts --network` — проверяет
+      env vars + writable directories + Caddy admin + Gitea API
+      reachability. Exit code 1 значит fix remediations перед flip'ом.
+      Без `--network` — только env+fs (быстрее для dev-loop'а).
 - [ ] **Полный VERIFICATION run** (см. VERIFICATION.md). Все
       acceptance-tests должны быть зелёными при
       `PREVIEW_PROVIDER=static`.
