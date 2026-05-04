@@ -489,6 +489,7 @@ export function RepoWorkspaceShell({
                   <AppPreview
                     metadata={selectedRepo.vm}
                     iframeRef={iframeRef}
+                    threadIsRunning={threadIsRunning}
                   />
                 ) : (
                   <PreviewPlaceholder />
@@ -579,12 +580,14 @@ function PreviewPlaceholder() {
 function AppPreview({
   metadata,
   iframeRef,
+  threadIsRunning,
 }: {
   metadata: RepoVmInfo;
   iframeRef: React.RefObject<HTMLIFrameElement | null>;
+  threadIsRunning: boolean;
 }) {
   const [extraTerminals, setExtraTerminals] = useState<TerminalTab[]>([]);
-  const [activeTab, setActiveTab] = useState("dev-server");
+  const [activeTab, setActiveTab] = useState<string | null>(null);
   const [counter, setCounter] = useState(1);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   // Bump'аем reloadKey на iframe, чтобы пере-mount'ить его и заставить
@@ -614,6 +617,25 @@ function AppPreview({
     };
   }, [metadata.previewUrl]);
 
+  // Авто-reload iframe при завершении LLM-турна. HMR Vite иногда не
+  // подхватывает изменения (новые файлы, ошибка билда), плюс на холодном
+  // sandbox'е dev-сервер мог ещё не отвечать в момент первого load'а —
+  // тогда iframe «застывает» на белом экране, пока пользователь не
+  // нажмёт reload. Серия retry'ев перекрывает обычное окно сборки Vite.
+  const wasRunningRef = useRef(false);
+  useEffect(() => {
+    const wasRunning = wasRunningRef.current;
+    wasRunningRef.current = threadIsRunning;
+    if (!wasRunning || threadIsRunning) return;
+    const delays = [800, 2_500, 6_000, 12_000];
+    const handles = delays.map((delay) =>
+      window.setTimeout(() => setReloadKey((k) => k + 1), delay),
+    );
+    return () => {
+      handles.forEach((h) => window.clearTimeout(h));
+    };
+  }, [threadIsRunning]);
+
   const addTerminal = useCallback(() => {
     if (!metadata.additionalTerminalsUrl) return;
     const id = `terminal-${counter}`;
@@ -632,29 +654,28 @@ function AppPreview({
 
   const closeTerminal = useCallback(
     (id: string) => {
-      setExtraTerminals((prev) => prev.filter((t) => t.id !== id));
-      if (activeTab === id) setActiveTab("dev-server");
+      setExtraTerminals((prev) => {
+        const next = prev.filter((t) => t.id !== id);
+        if (activeTab === id) {
+          setActiveTab(next.length > 0 ? next[next.length - 1].id : null);
+        }
+        return next;
+      });
     },
     [activeTab],
   );
 
-  const allTabs: TerminalTab[] = [
-    ...(metadata.devCommandTerminalUrl
-      ? [
-          {
-            id: "dev-server",
-            label: "Dev Server",
-            url: metadata.devCommandTerminalUrl,
-            closable: false,
-          },
-        ]
-      : []),
-    ...extraTerminals,
-  ];
+  const allTabs: TerminalTab[] = extraTerminals;
+  const hasTabs = allTabs.length > 0;
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="relative flex h-[70%] min-h-0 flex-col">
+      <div
+        className={cn(
+          "relative flex min-h-0 flex-col",
+          hasTabs ? "h-[70%]" : "h-full",
+        )}
+      >
         <div className="relative min-h-0 flex-1 bg-muted/30">
           {!iframeLoaded && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-background">
@@ -679,77 +700,85 @@ function AppPreview({
             )}
             onLoad={() => setIframeLoaded(true)}
           />
-        </div>
-      </div>
-
-      <div className="flex h-[30%] min-h-0 flex-col">
-        <div className="flex shrink-0 items-center gap-0 border-y bg-[rgb(43,43,43)] px-1">
-          {allTabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`group flex items-center gap-1 px-2 py-1.5 text-xs transition-colors ${
-                activeTab === tab.id
-                  ? "border-b-2 border-foreground bg-[rgb(43,43,43)] text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <span>{tab.label}</span>
-              {tab.closable && (
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closeTerminal(tab.id);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.stopPropagation();
-                      closeTerminal(tab.id);
-                    }
-                  }}
-                  className="ml-0.5 rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted"
-                >
-                  <XIcon className="size-3" />
-                </span>
-              )}
-            </button>
-          ))}
-
-          {metadata.additionalTerminalsUrl && (
+          {!hasTabs && metadata.additionalTerminalsUrl && (
             <button
               type="button"
               onClick={addTerminal}
-              className="ml-1 rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              title="New terminal"
+              className="absolute right-3 bottom-3 z-20 flex items-center gap-1 rounded-md border bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow-sm backdrop-blur transition-colors hover:bg-background hover:text-foreground"
+              title="Open terminal"
             >
               <PlusIcon className="size-3.5" />
+              <span>Terminal</span>
             </button>
           )}
         </div>
-
-        <div className="relative min-h-0 flex-1 bg-[rgb(30,30,30)]">
-          {allTabs.map((tab) => (
-            <iframe
-              key={tab.id}
-              src={tab.url}
-              className={cn(
-                "absolute inset-0 h-full w-full transition-opacity duration-500",
-                loadedTerminals.has(tab.id) ? "opacity-100" : "opacity-0",
-              )}
-              style={{ display: activeTab === tab.id ? "block" : "none" }}
-              onLoad={() => markTerminalLoaded(tab.id)}
-            />
-          ))}
-          {allTabs.length === 0 && (
-            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              No terminal selected
-            </div>
-          )}
-        </div>
       </div>
+
+      {hasTabs && (
+        <div className="flex h-[30%] min-h-0 flex-col">
+          <div className="flex shrink-0 items-center gap-0 border-y bg-[rgb(43,43,43)] px-1">
+            {allTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`group flex items-center gap-1 px-2 py-1.5 text-xs transition-colors ${
+                  activeTab === tab.id
+                    ? "border-b-2 border-foreground bg-[rgb(43,43,43)] text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span>{tab.label}</span>
+                {tab.closable && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      closeTerminal(tab.id);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.stopPropagation();
+                        closeTerminal(tab.id);
+                      }
+                    }}
+                    className="ml-0.5 rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted"
+                  >
+                    <XIcon className="size-3" />
+                  </span>
+                )}
+              </button>
+            ))}
+
+            {metadata.additionalTerminalsUrl && (
+              <button
+                type="button"
+                onClick={addTerminal}
+                className="ml-1 rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="New terminal"
+              >
+                <PlusIcon className="size-3.5" />
+              </button>
+            )}
+          </div>
+
+          <div className="relative min-h-0 flex-1 bg-[rgb(30,30,30)]">
+            {allTabs.map((tab) => (
+              <iframe
+                key={tab.id}
+                src={tab.url}
+                className={cn(
+                  "absolute inset-0 h-full w-full transition-opacity duration-500",
+                  loadedTerminals.has(tab.id) ? "opacity-100" : "opacity-0",
+                )}
+                style={{ display: activeTab === tab.id ? "block" : "none" }}
+                onLoad={() => markTerminalLoaded(tab.id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

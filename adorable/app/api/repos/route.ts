@@ -103,7 +103,17 @@ const rewritePreviewPort = (url: string | undefined): string | undefined => {
   if (parsed.port) return url; // уже есть явный порт
   const envPort =
     process.env["PREVIEW_PUBLIC_PORT"] ?? process.env["CADDY_HTTP_PORT"];
-  const port = envPort ? Number.parseInt(envPort, 10) : NaN;
+  let port = envPort ? Number.parseInt(envPort, 10) : NaN;
+  // Dev-fallback: docker-compose маппит Caddy на 8080 по умолчанию, и
+  // если в .env CADDY_HTTP_PORT не задан, без этого фолбэка iframe
+  // тычется на :80 → connection refused → "Loading preview..." вечно.
+  // Применяем только для localhost-хостов, чтобы не ломать prod.
+  if (
+    !Number.isFinite(port) &&
+    parsed.hostname.endsWith(".preview.localhost")
+  ) {
+    port = 8080;
+  }
   if (!Number.isFinite(port) || port <= 0) return url;
   const defaultPort = parsed.protocol === "https:" ? 443 : 80;
   if (port === defaultPort) return url;

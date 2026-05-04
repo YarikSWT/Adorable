@@ -56,7 +56,12 @@ const previewProtocol = (): string =>
 const previewPortSegment = (proto: string): string => {
   const explicit =
     process.env["PREVIEW_PUBLIC_PORT"] ?? process.env["CADDY_HTTP_PORT"];
-  const port = explicit ? Number.parseInt(explicit, 10) : NaN;
+  let port = explicit ? Number.parseInt(explicit, 10) : NaN;
+  // Dev-fallback: docker-compose маппит Caddy на 8080. Если env не
+  // задан, а suffix — localhost, считаем что мы в dev и используем 8080.
+  if (!Number.isFinite(port) && previewSuffix().endsWith("localhost")) {
+    port = 8080;
+  }
   if (!Number.isFinite(port) || port <= 0) return "";
   const defaultPort = proto === "https" ? 443 : 80;
   return port === defaultPort ? "" : `:${port}`;
