@@ -85,10 +85,10 @@
 
 **Файлы**: `adorable/lib/db/schema/*.ts`, `adorable/lib/db/client.ts`, `adorable/lib/db/schema/index.ts`.
 
-- [ ] Создать все файлы схемы — `users.ts`, `accounts.ts`, `sessions.ts`, `verification-tokens.ts`, `roles.ts` (содержит roles + permissions + role_permissions), `organizations.ts` (organizations + organization_members + admin_role_assignments), `projects.ts` (projects + project_members), `billing.ts` (plans + subscriptions + plan_overrides + usage_events + usage_counters), `tokens.ts` (project_tokens), `publication.ts` (snapshots), `invitations.ts`, `audit.ts`. Содержание — точно по Документу 2, раздел 2.
-- [ ] Создать `index.ts` с реэкспортом всех таблиц.
-- [ ] Создать `lib/db/client.ts` — drizzle client с HMR-safe singleton-обёрткой через `globalThis.__db`.
-- [ ] Прогнать `npm run db:generate` — должны появиться файлы миграций под `adorable/lib/db/migrations/`. Закоммитить их.
+- [x] Создать все файлы схемы — `users.ts`, `accounts.ts`, `sessions.ts`, `verification-tokens.ts`, `roles.ts` (содержит roles + permissions + role_permissions), `organizations.ts` (organizations + organization_members + admin_role_assignments), `projects.ts` (projects + project_members), `billing.ts` (plans + subscriptions + plan_overrides + usage_events + usage_counters), `tokens.ts` (project_tokens), `publication.ts` (snapshots), `invitations.ts`, `audit.ts`. Содержание — точно по Документу 2, раздел 2.
+- [x] Создать `index.ts` с реэкспортом всех таблиц.
+- [x] Создать `lib/db/client.ts` — drizzle client с HMR-safe singleton-обёрткой через `globalThis.__db`.
+- [x] Прогнать `npm run db:generate` — должны появиться файлы миграций под `adorable/lib/db/migrations/`. Закоммитить их.
 
 **Верификация:**
 
