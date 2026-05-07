@@ -104,11 +104,11 @@
 
 **Файлы**: `adorable/lib/db/seed/roles-permissions.ts`, `plans.ts`, `admin.ts`, `run.ts`, `reset.ts`.
 
-- [ ] `roles-permissions.ts` — экспортирует `SYSTEM_PERMISSIONS` и `SYSTEM_ROLES` (см. Документ 2, раздел 4.1, **с учётом** `admin.users.update` из Правки 5). Делает `INSERT ... ON CONFLICT DO NOTHING` для permissions, roles, role_permissions. Раскрывает wildcard'ы в момент сидинга.
-- [ ] `plans.ts` — сидит план `free` с лимитами из Документа 2, раздел 4.2.
-- [ ] `admin.ts` — если `INITIAL_ADMIN_EMAIL` и `_PASSWORD` заданы и юзер ещё не создан — создаёт через **внутренний API Better Auth** (`auth.api.signUpEmail` или эквивалент), затем `is_admin=true`, `admin_role_assignments` с ролью `superadmin`. Идемпотентен.
-- [ ] `run.ts` — entrypoint: вызывает три функции выше в правильном порядке, использует общий `db`-клиент.
-- [ ] `reset.ts` — wipe схемы + migrate + seed. Используется для интеграционных тестов и при первой накатке.
+- [x] `roles-permissions.ts` — экспортирует `SYSTEM_PERMISSIONS` и `SYSTEM_ROLES` (см. Документ 2, раздел 4.1, **с учётом** `admin.users.update` из Правки 5). Делает `INSERT ... ON CONFLICT DO NOTHING` для permissions, roles, role_permissions. Раскрывает wildcard'ы в момент сидинга.
+- [x] `plans.ts` — сидит план `free` с лимитами из Документа 2, раздел 4.2.
+- [x] `admin.ts` — если `INITIAL_ADMIN_EMAIL` и `_PASSWORD` заданы и юзер ещё не создан — создаёт через **внутренний API Better Auth** (`auth.api.signUpEmail` или эквивалент), затем `is_admin=true`, `admin_role_assignments` с ролью `superadmin`. Идемпотентен.
+- [x] `run.ts` — entrypoint: вызывает три функции выше в правильном порядке, использует общий `db`-клиент.
+- [x] `reset.ts` — wipe схемы + migrate + seed. Используется для интеграционных тестов и при первой накатке.
 
 **Верификация:**
 

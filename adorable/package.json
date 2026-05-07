@@ -14,8 +14,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:seed": "tsx lib/db/seed/run.ts",
-    "db:reset": "tsx lib/db/seed/reset.ts"
+    "db:seed": "tsx --env-file-if-exists=.env lib/db/seed/run.ts",
+    "db:reset": "tsx --env-file-if-exists=.env lib/db/seed/reset.ts"
   },
   "prettier": {
     "plugins": [
