@@ -86,4 +86,4 @@
   - signup через `/api/auth/sign-up/email` (phase9-ui@example.com) → 200 + cookie; psql JOIN показывает persona-org `phase9-ui` + active free sub (bootstrap из Phase 4 сработал автоматически)
   - `curl -b cookie /login` → 307 redirect (server-side getRequestSession)
 - Замечания: Auth-paths bypass-ятся в WorkspaceFrame и ApiKeyGate (общий список AUTH_PREFIXES). Это менее инвазивно, чем restructuring всех роутов в (workspace) group. Hooks API-ключа теперь имеет skip-condition в useEffect и в early-return.
-- Коммит: <pending>
+- Коммит: 5803f4d
