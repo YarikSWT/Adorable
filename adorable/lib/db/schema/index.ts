@@ -2,6 +2,7 @@ export * from "./users";
 export * from "./accounts";
 export * from "./sessions";
 export * from "./verification-tokens";
+export * from "./rate-limit";
 export * from "./roles";
 export * from "./organizations";
 export * from "./projects";

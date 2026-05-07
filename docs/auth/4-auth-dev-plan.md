@@ -122,10 +122,10 @@
 
 **Файлы**: `adorable/lib/auth/email-normalize.ts`, `adorable/lib/auth/better-auth.ts`, `adorable/app/api/auth/[...all]/route.ts`, `adorable/tests/auth/email-normalize.test.ts`.
 
-- [ ] `email-normalize.ts` — функция `normaliseEmail` точно по Документу 2, 3.2 (gmail dots + plus-aliases + googlemail.com).
-- [ ] `email-normalize.test.ts` — 8+ кейсов (gmail dots, plus, googlemail, обычный домен, регистр, trim, не-email строка).
-- [ ] `better-auth.ts` — инстанс `auth = betterAuth({...})` со всеми блоками из Документа 2, 3.1: `drizzleAdapter`, `emailAndPassword`, `socialProviders.google`, `account.accountLinking.enabled = false`, `user.additionalFields`, `session`, `rateLimit` (см. Правка 6), `hooks.before` для нормализации email. **Без** `after.signUpEmail` — будет в Фазе 4.
-- [ ] `app/api/auth/[...all]/route.ts` — catch-all хендлер, экспортирует `GET, POST` через `toNextJsHandler(auth.handler)`.
+- [x] `email-normalize.ts` — функция `normaliseEmail` точно по Документу 2, 3.2 (gmail dots + plus-aliases + googlemail.com).
+- [x] `email-normalize.test.ts` — 8+ кейсов (gmail dots, plus, googlemail, обычный домен, регистр, trim, не-email строка).
+- [x] `better-auth.ts` — инстанс `auth = betterAuth({...})` со всеми блоками из Документа 2, 3.1: `drizzleAdapter`, `emailAndPassword`, `socialProviders.google`, `account.accountLinking.enabled = false`, `user.additionalFields`, `session`, `rateLimit` (см. Правка 6), `hooks.before` для нормализации email. **Без** `after.signUpEmail` — будет в Фазе 4.
+- [x] `app/api/auth/[...all]/route.ts` — catch-all хендлер, экспортирует `GET, POST` через `toNextJsHandler(auth.handler)`.
 
 **Верификация:**
 

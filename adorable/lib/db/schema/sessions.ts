@@ -8,11 +8,17 @@ export const sessions = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    tokenHash: text("token_hash").notNull().unique(),
+    // Better Auth stores its session token here directly (signed cookie
+    // value). Spec §2.2 sketched a sha256(token) variant, but Better Auth's
+    // adapter expects a single `token` field — keeping it as-is.
+    token: text("token").notNull().unique(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     userAgent: text("user_agent"),
     ipAddress: text("ip_address"),
     createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
   },

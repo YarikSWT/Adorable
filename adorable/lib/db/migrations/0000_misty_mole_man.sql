@@ -24,31 +24,45 @@ CREATE TABLE "accounts" (
 	"access_token" text,
 	"refresh_token" text,
 	"id_token" text,
-	"expires_at" timestamp with time zone,
+	"access_token_expires_at" timestamp with time zone,
+	"refresh_token_expires_at" timestamp with time zone,
 	"scope" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+	"password" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "sessions" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
-	"token_hash" text NOT NULL,
+	"token" text NOT NULL,
 	"expires_at" timestamp with time zone NOT NULL,
 	"user_agent" text,
 	"ip_address" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "sessions_token_hash_unique" UNIQUE("token_hash")
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "sessions_token_unique" UNIQUE("token")
 );
 --> statement-breakpoint
 CREATE TABLE "verification_tokens" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"identifier" text NOT NULL,
+	"value" text NOT NULL,
 	"user_id" uuid,
-	"type" text NOT NULL,
-	"token_hash" text NOT NULL,
-	"expires_at" timestamp with time zone NOT NULL,
+	"type" text,
+	"token_hash" text,
 	"used_at" timestamp with time zone,
+	"expires_at" timestamp with time zone NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "verification_tokens_token_hash_unique" UNIQUE("token_hash")
+);
+--> statement-breakpoint
+CREATE TABLE "rate_limit" (
+	"id" text PRIMARY KEY NOT NULL,
+	"key" text NOT NULL,
+	"count" bigint NOT NULL,
+	"last_request" bigint NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "permissions" (
