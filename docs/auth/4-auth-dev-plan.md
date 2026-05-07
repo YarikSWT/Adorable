@@ -208,9 +208,9 @@
 
 **Файлы**: `adorable/lib/auth/api-wrap.ts`, `adorable/lib/auth/errors.ts`.
 
-- [ ] `errors.ts` — `HttpError` класс c полями `status, code, message, extra?`. `errorToResponse(err)` — формирует JSON-ответ по формату Документа 2, 6.3 (включая 429 `rate.limited`).
-- [ ] `api-wrap.ts` — `protectedRoute<P>(handler)` — обёртка, которая проверяет сессию и ловит `HttpError`. Логирует длительность (можно через `console.log` пока, мониторинг — отдельная тема).
-- [ ] Краткий unit-тест `tests/auth/errors.test.ts`: `errorToResponse(new HttpError(402, "quota.exceeded", "...", { quota: {...} }))` → правильный JSON и статус.
+- [x] `errors.ts` — `HttpError` класс c полями `status, code, message, extra?`. `errorToResponse(err)` — формирует JSON-ответ по формату Документа 2, 6.3 (включая 429 `rate.limited`).
+- [x] `api-wrap.ts` — `protectedRoute<P>(handler)` — обёртка, которая проверяет сессию и ловит `HttpError`. Логирует длительность (можно через `console.log` пока, мониторинг — отдельная тема).
+- [x] Краткий unit-тест `tests/auth/errors.test.ts`: `errorToResponse(new HttpError(402, "quota.exceeded", "...", { quota: {...} }))` → правильный JSON и статус.
 
 **Верификация:**
 

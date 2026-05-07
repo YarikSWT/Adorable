@@ -66,3 +66,11 @@
 - Верификация: free-план llm.tokens.monthly limit=100k, recordUsage накапливает counter; override 1M пропускает 500k; expired override игнорится (resolveLimit возвращает план); ABSOLUTE_KINDS=projects.max считается через `count(* where status=active)` не по counters; currentPeriodStartUTC возвращает UTC-первое число месяца.
 - Замечание: members_per_project.max декларирован как absolute, но без projectId-параметра (нужен будущий requireQuotaInProject helper) — сейчас это no-op (возвращает 0 — лимит не enforced).
 - Коммит: 4248eeb
+
+## auth-iter 8 — API wrapper и формат ошибок
+- Дата: 2026-05-07
+- Что закрыто: фаза 8 («api-wrap + errors»)
+- Тесты: 31/31 (10 unit email-normalize + 4 unit errors + 17 integration); typecheck baseline (14); build green
+- Файлы: lib/auth/errors.ts (errorToResponse добавлен), lib/auth/api-wrap.ts (protectedRoute / optionalSessionRoute / publicRoute), tests/auth/errors.test.ts
+- Верификация: errorToResponse(HttpError(402,"quota.exceeded",..., {quota:{...}})) → JSON `{error:{code,message,quota:{...}}}` со статусом 402 ✓; HttpError(429,"rate.limited",..., {retryAfter:12.4}) → `Retry-After: 13` header ✓; unknown thrown → 500 internal_error + console.error ✓.
+- Коммит: <pending>
