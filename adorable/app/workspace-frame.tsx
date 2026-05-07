@@ -10,8 +10,26 @@ type ActiveConversationDetail = {
   conversationId: string;
 };
 
+// Auth pages get their own minimal layout (login/signup/verify-email/etc.) and
+// must NOT inherit the workspace shell. Path is the only signal we have here
+// because layouts in route groups still wrap their parent.
+const AUTH_PREFIXES = [
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/auth/account-conflict",
+  "/auth/oauth-error",
+];
+const isAuthPath = (path: string): boolean =>
+  AUTH_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`));
+
 export function WorkspaceFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  if (isAuthPath(pathname)) {
+    return <>{children}</>;
+  }
   // usePathname() в Next 13+ возвращает path с сохранёнными percent-encoded
   // сегментами ("%2F" не декодится). Когда мы кладём repoId с slash через
   // encodeURIComponent в URL, split('/') оставляет сегмент с "%2F"; чтобы

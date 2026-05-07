@@ -74,3 +74,16 @@
 - Файлы: lib/auth/errors.ts (errorToResponse добавлен), lib/auth/api-wrap.ts (protectedRoute / optionalSessionRoute / publicRoute), tests/auth/errors.test.ts
 - Верификация: errorToResponse(HttpError(402,"quota.exceeded",..., {quota:{...}})) → JSON `{error:{code,message,quota:{...}}}` со статусом 402 ✓; HttpError(429,"rate.limited",..., {retryAfter:12.4}) → `Retry-After: 13` header ✓; unknown thrown → 500 internal_error + console.error ✓.
 - Коммит: bb2de6c
+
+## auth-iter 9 — Auth UI: login + signup
+- Дата: 2026-05-07
+- Что закрыто: фаза 9 («Auth UI: login + signup»)
+- Тесты: 31/31 vitest (без новых — UI без unit-coverage); typecheck baseline (14); build green
+- Файлы: app/(auth)/{layout,login/page,login/login-form,signup/page,signup/signup-form}.tsx; components/auth/{auth-card,oauth-buttons}.tsx; правки в WorkspaceFrame и ApiKeyGate (bypass для auth-paths)
+- Верификация:
+  - `curl /login` 200 содержит «Войти в Adorable / Войти через Google / Yandex / VK / Забыли пароль / Зарегистрироваться»
+  - `curl /signup` 200 содержит «Создать аккаунт / Войти через Google / Yandex / VK / условиями использования / политикой / Уже есть аккаунт»
+  - signup через `/api/auth/sign-up/email` (phase9-ui@example.com) → 200 + cookie; psql JOIN показывает persona-org `phase9-ui` + active free sub (bootstrap из Phase 4 сработал автоматически)
+  - `curl -b cookie /login` → 307 redirect (server-side getRequestSession)
+- Замечания: Auth-paths bypass-ятся в WorkspaceFrame и ApiKeyGate (общий список AUTH_PREFIXES). Это менее инвазивно, чем restructuring всех роутов в (workspace) group. Hooks API-ключа теперь имеет skip-condition в useEffect и в early-return.
+- Коммит: <pending>

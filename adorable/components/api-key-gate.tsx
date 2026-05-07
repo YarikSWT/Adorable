@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,9 +35,25 @@ type ApiKeyStatus = {
 /*  Gate – shown when no API key is configured anywhere                */
 /* ------------------------------------------------------------------ */
 
+// Auth-flow paths render before any LLM is needed. Bypass the gate so login /
+// signup / verify-email don't get hijacked into the API-key setup screen.
+const AUTH_PREFIXES = [
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/auth/account-conflict",
+  "/auth/oauth-error",
+];
+
 export function ApiKeyGate({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const skip = AUTH_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
   const [status, setStatus] = React.useState<ApiKeyStatus | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(!skip);
 
   const checkStatus = React.useCallback(async () => {
     try {
@@ -54,8 +71,12 @@ export function ApiKeyGate({ children }: { children: React.ReactNode }) {
   }, []);
 
   React.useEffect(() => {
+    if (skip) return;
     void checkStatus();
-  }, [checkStatus]);
+  }, [checkStatus, skip]);
+
+  // Auth pages render their own minimal layout — never hit the gate UI.
+  if (skip) return <>{children}</>;
 
   if (loading) {
     return (

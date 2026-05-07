@@ -223,10 +223,10 @@
 
 **Файлы**: `adorable/app/(auth)/layout.tsx`, `adorable/app/(auth)/login/page.tsx`, `adorable/app/(auth)/signup/page.tsx`, общие компоненты под `adorable/components/auth/`.
 
-- [ ] Auth layout — центрированная карточка ~400px, лого, переключатель темы. Без header/footer основного шелла (см. Документ 3, 3.1).
-- [ ] `/login` — три кнопки OAuth (Google, Yandex, VK), разделитель, поля email+password, чекбокс remember (опц.), линк «Забыли?», кнопка «Войти», ссылка на signup. Submit через server action или client-side fetch на `/api/auth/sign-in/email`. Обработка ошибок — Документ 3, 3.2.
-- [ ] `/signup` — те же кнопки OAuth, поля name+email+password, чекбокс ToS (плейсхолдер для ссылок), кнопка submit. **Без** реферального кода (Правка 4 Документа 2, Документ 3, 3.3). Обработка 409 — общая ошибка без раскрытия.
-- [ ] Если юзер уже залогинен и заходит на `/login` или `/signup` — редирект на `/`.
+- [x] Auth layout — центрированная карточка ~400px, лого, переключатель темы. Без header/footer основного шелла (см. Документ 3, 3.1).
+- [x] `/login` — три кнопки OAuth (Google, Yandex, VK), разделитель, поля email+password, чекбокс remember (опц.), линк «Забыли?», кнопка «Войти», ссылка на signup. Submit через server action или client-side fetch на `/api/auth/sign-in/email`. Обработка ошибок — Документ 3, 3.2.
+- [x] `/signup` — те же кнопки OAuth, поля name+email+password, чекбокс ToS (плейсхолдер для ссылок), кнопка submit. **Без** реферального кода (Правка 4 Документа 2, Документ 3, 3.3). Обработка 409 — общая ошибка без раскрытия.
+- [x] Если юзер уже залогинен и заходит на `/login` или `/signup` — редирект на `/`.
 
 **Верификация:**
 
