@@ -19,4 +19,4 @@
 - Что закрыто: фаза 2 («Сидинг»)
 - Тесты: build green; typecheck unchanged from baseline (14 pre-existing errors); db:reset завершается без ошибок
 - Верификация (psql после `tsx lib/db/seed/reset.ts`): `permissions=28` (≥27 ✓), `roles=11` (3 org + 4 project + 4 admin ✓), `role_permissions=61`, `plans` содержит `free` ✓. Initial admin user — **deferred to next db:reset after Phase 3**: admin.ts gracefully скипает (с warning'ом), потому что lib/auth/better-auth.ts ещё не создан. INITIAL_ADMIN_EMAIL/PASSWORD выставлены в .env заранее, так что после Фазы 3 первый же db:reset поднимет admin.
-- Коммит: <pending>
+- Коммит: 1674a7e
