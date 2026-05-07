@@ -65,4 +65,4 @@
 - Файлы: lib/auth/quotas.ts + tests/auth/quotas.test.ts
 - Верификация: free-план llm.tokens.monthly limit=100k, recordUsage накапливает counter; override 1M пропускает 500k; expired override игнорится (resolveLimit возвращает план); ABSOLUTE_KINDS=projects.max считается через `count(* where status=active)` не по counters; currentPeriodStartUTC возвращает UTC-первое число месяца.
 - Замечание: members_per_project.max декларирован как absolute, но без projectId-параметра (нужен будущий requireQuotaInProject helper) — сейчас это no-op (возвращает 0 — лимит не enforced).
-- Коммит: <pending>
+- Коммит: 4248eeb
