@@ -68,10 +68,10 @@
 
 **Файлы**: `adorable/package.json`, `adorable/drizzle.config.ts`, `package.json` (root, при необходимости).
 
-- [ ] Установить новые npm-пакеты в workspace `adorable`: `better-auth`, `drizzle-orm`, `postgres`, `@better-auth/drizzle-adapter`, `argon2`, `uuidv7`, `zod`, devDep `drizzle-kit`. Версии — последние стабильные мажоры на момент установки.
-- [ ] Создать `adorable/drizzle.config.ts` — точное содержимое см. Документ 2, раздел 1.3.
-- [ ] Добавить в `adorable/package.json` скрипты `db:generate`, `db:migrate`, `db:push`, `db:seed`, `db:reset` (см. Документ 2, раздел 1.4).
-- [ ] Создать пустые директории `adorable/lib/db/schema/`, `adorable/lib/db/seed/`, `adorable/lib/auth/`. Положить `.gitkeep` где это нужно — иначе Drizzle/линт могут жаловаться.
+- [x] Установить новые npm-пакеты в workspace `adorable`: `better-auth`, `drizzle-orm`, `postgres`, `@better-auth/drizzle-adapter`, `argon2`, `uuidv7`, `zod`, devDep `drizzle-kit`. Версии — последние стабильные мажоры на момент установки.
+- [x] Создать `adorable/drizzle.config.ts` — точное содержимое см. Документ 2, раздел 1.3.
+- [x] Добавить в `adorable/package.json` скрипты `db:generate`, `db:migrate`, `db:push`, `db:seed`, `db:reset` (см. Документ 2, раздел 1.4).
+- [x] Создать пустые директории `adorable/lib/db/schema/`, `adorable/lib/db/seed/`, `adorable/lib/auth/`. Положить `.gitkeep` где это нужно — иначе Drizzle/линт могут жаловаться.
 
 **Верификация:**
 
