@@ -103,3 +103,12 @@
   - GET /auth/oauth-error?reason=access_denied 200 → "Не удалось войти через провайдера / Вернуться ко входу"
 - Замечания: forgot-password шлёт POST на Better Auth `/api/auth/forget-password` (точное название endpoint у BA); UI всегда показывает нейтральное сообщение (за исключением 429). Verify-email с токеном делает GET на `/api/auth/verify-email?token=...` (link click handler).
 - Коммит: e93dd0e
+
+## auth-iter 11 — Email-доставка
+- Дата: 2026-05-07
+- Что закрыто: фаза 11 («Email delivery»)
+- Тесты: 31/31 vitest; typecheck baseline (14); build green
+- Файлы: lib/auth/email-send.ts, lib/auth/better-auth.ts (хуки sendVerificationEmail / sendResetPassword); .env.example (SMTP блок)
+- Верификация: signup phase11-mail@example.com → 200; в dev-логе строка `[mail:console] (no SMTP configured) ... TEXT: ... http://localhost:3000/api/auth/verify-email?token=...`; GET по этой ссылке → 302 на /; psql `SELECT email_verified` для phase11-mail@example.com = t.
+- Замечания: nodemailer добавлен как dep; transport кешируется в globalThis (HMR-safe). emailVerification.sendOnSignUp:true — Better Auth автоматически отправляет письмо на регистрацию. Console-mode активируется отсутствием SMTP_HOST.
+- Коммит: <pending>

@@ -264,9 +264,9 @@
 
 **Файлы**: `adorable/lib/auth/email-send.ts`, `adorable/lib/auth/better-auth.ts` (дополнение), `.env.example`.
 
-- [ ] `email-send.ts` — обёртка над Nodemailer (или эквивалент). Читает `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` из env. Если переменные не заданы — режим `console`: пишет письма в stderr вместо отправки (для dev).
-- [ ] Подключить `sendVerificationEmail` и `sendResetPassword` callbacks в Better Auth конфиг.
-- [ ] В `.env.example` добавить SMTP-переменные с комментариями.
+- [x] `email-send.ts` — обёртка над Nodemailer (или эквивалент). Читает `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` из env. Если переменные не заданы — режим `console`: пишет письма в stderr вместо отправки (для dev).
+- [x] Подключить `sendVerificationEmail` и `sendResetPassword` callbacks в Better Auth конфиг.
+- [x] В `.env.example` добавить SMTP-переменные с комментариями.
 
 **Верификация:**
 

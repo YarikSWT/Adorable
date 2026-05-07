@@ -18,6 +18,10 @@ import * as schema from "@/lib/db/schema";
 import { normaliseEmail } from "./email-normalize";
 import { bootstrapNewUserIfMissing } from "./bootstrap";
 import { enabledGenericOAuthProviders } from "./providers";
+import {
+  sendResetPasswordEmail,
+  sendVerificationEmail,
+} from "./email-send";
 
 // Endpoints where we rewrite body.email to its canonical form so the lookup
 // finds the existing user. Sign-up is intentionally absent — the database hook
@@ -55,6 +59,16 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: false,
     minPasswordLength: 8,
+    sendResetPassword: async ({ user, url }) => {
+      await sendResetPasswordEmail({ user: { email: user.email }, url });
+    },
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: false,
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendVerificationEmail({ user: { email: user.email }, url });
+    },
   },
   socialProviders: googleProvider ? { google: googleProvider } : {},
   plugins: [genericOAuth({ config: enabledGenericOAuthProviders() })],
