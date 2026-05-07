@@ -47,4 +47,4 @@
   - `POST /api/auth/sign-in/oauth2 {providerId:"vk"}` → 200 + `url=https://id.vk.com/authorize?...&scope=email&code_challenge=...` (PKCE работает)
   - Note: spec говорил "302 на provider"; Better Auth возвращает 200 + URL в `Location` header / response body — клиент сам делает redirect. Поведение функционально эквивалентно.
 - providers.ts: enabledGenericOAuthProviders() пропускает провайдеры без env-credentials, чтобы не регистрировать роуты, которые упадут на использовании.
-- Коммит: <pending>
+- Коммит: e82386e
