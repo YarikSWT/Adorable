@@ -102,4 +102,4 @@
   - GET /auth/account-conflict?provider=google&existingProvider=email&email=… 200 → "Аккаунт уже существует / Войти существующим способом"
   - GET /auth/oauth-error?reason=access_denied 200 → "Не удалось войти через провайдера / Вернуться ко входу"
 - Замечания: forgot-password шлёт POST на Better Auth `/api/auth/forget-password` (точное название endpoint у BA); UI всегда показывает нейтральное сообщение (за исключением 429). Verify-email с токеном делает GET на `/api/auth/verify-email?token=...` (link click handler).
-- Коммит: <pending>
+- Коммит: e93dd0e
