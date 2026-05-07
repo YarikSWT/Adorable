@@ -73,4 +73,4 @@
 - Тесты: 31/31 (10 unit email-normalize + 4 unit errors + 17 integration); typecheck baseline (14); build green
 - Файлы: lib/auth/errors.ts (errorToResponse добавлен), lib/auth/api-wrap.ts (protectedRoute / optionalSessionRoute / publicRoute), tests/auth/errors.test.ts
 - Верификация: errorToResponse(HttpError(402,"quota.exceeded",..., {quota:{...}})) → JSON `{error:{code,message,quota:{...}}}` со статусом 402 ✓; HttpError(429,"rate.limited",..., {retryAfter:12.4}) → `Retry-After: 13` header ✓; unknown thrown → 500 internal_error + console.error ✓.
-- Коммит: <pending>
+- Коммит: bb2de6c
