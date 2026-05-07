@@ -27,4 +27,4 @@
 - Тесты: 10/10 unit (email-normalize); typecheck baseline (14 pre-existing); build green; vitest auth/ green
 - Верификация: `curl GET /api/auth/get-session` → 200 `null`; `curl POST /api/auth/sign-up/email` (на адрес `O.t.h.e.r+y@gmail.com`) → 200, юзер создан с `email=other@gmail.com`, `email_raw=o.t.h.e.r+y@gmail.com` (нормализация работает); таблица `rate_limit` создана.
 - Schema deviations from spec §2.2 (документировано тут, чтобы Doc 2 поправить позже): добавлены Better Auth-required колонки — `accounts.password|accessTokenExpiresAt|refreshTokenExpiresAt|updatedAt`, `sessions.token|updatedAt` (с заменой `tokenHash`), `verification_tokens.value|identifier|updatedAt` (наши `tokenHash|userId|type|usedAt` сделаны nullable). Добавлена таблица `rate_limit`. `advanced.database.generateId="uuid"` — иначе Better Auth пишет cuid в uuid-колонки и crash.
-- Коммит: <pending>
+- Коммит: 8a97f77
