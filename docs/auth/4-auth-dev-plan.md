@@ -194,8 +194,8 @@
 
 **Файлы**: `adorable/lib/auth/quotas.ts`, `adorable/tests/auth/quotas.test.ts`.
 
-- [ ] `quotas.ts` — `requireQuota`, `recordUsage`, `resolveLimit`, `currentPeriodStartUTC`. Поддержать ветку `ABSOLUTE_KINDS = ["projects.max", "members_per_project.max"]` — для них считаем по `count(*)`, а не по `usage_counters` (Документ 2, 8.2). UUID v7 для `usage_events.id`.
-- [ ] `quotas.test.ts` (integration): кейсы из Документа 2, 9.2 — free-план лимит, override увеличивает, истёкший override не учитывается, абсолютный `projects.max`.
+- [x] `quotas.ts` — `requireQuota`, `recordUsage`, `resolveLimit`, `currentPeriodStartUTC`. Поддержать ветку `ABSOLUTE_KINDS = ["projects.max", "members_per_project.max"]` — для них считаем по `count(*)`, а не по `usage_counters` (Документ 2, 8.2). UUID v7 для `usage_events.id`.
+- [x] `quotas.test.ts` (integration): кейсы из Документа 2, 9.2 — free-план лимит, override увеличивает, истёкший override не учитывается, абсолютный `projects.max`.
 
 **Верификация:**
 

@@ -57,3 +57,12 @@
 - Верификация: integration-кейсы из Doc 2 §9.2 — org-owner→project-owner, org-member→viewer-default, explicit publisher повышает, downgrade explicit-viewer не понижает org-owner, outsider→null, **incomparable→explicit wins** (custom data-only role не объединяется с viewer.project.view) — все ✓; requirePermission throws 404 для не-членов (вместо 403, чтобы не leak existence). requireAdminPermission проверяет users.is_admin + active admin_role_assignments.
 - Замечание: requirePermission возвращает 404 not_found если юзер вообще не в org, вместо 403; только если юзер в org но без нужного permission — 403 access.denied (Doc 2 §9.4 «доступ к чужому проекту → 404»).
 - Коммит: 56e6bb0
+
+## auth-iter 7 — Helpers: quotas
+- Дата: 2026-05-07
+- Что закрыто: фаза 7 («Quotas»)
+- Тесты: 27/27 (10 unit + 17 integration: 1 bootstrap + 8 authorization + 3 audit + 5 quotas); typecheck baseline; build green
+- Файлы: lib/auth/quotas.ts + tests/auth/quotas.test.ts
+- Верификация: free-план llm.tokens.monthly limit=100k, recordUsage накапливает counter; override 1M пропускает 500k; expired override игнорится (resolveLimit возвращает план); ABSOLUTE_KINDS=projects.max считается через `count(* where status=active)` не по counters; currentPeriodStartUTC возвращает UTC-первое число месяца.
+- Замечание: members_per_project.max декларирован как absolute, но без projectId-параметра (нужен будущий requireQuotaInProject helper) — сейчас это no-op (возвращает 0 — лимит не enforced).
+- Коммит: <pending>
