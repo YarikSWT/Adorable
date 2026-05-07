@@ -12,10 +12,12 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { createAuthMiddleware } from "better-auth/api";
+import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { db } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { normaliseEmail } from "./email-normalize";
 import { bootstrapNewUserIfMissing } from "./bootstrap";
+import { enabledGenericOAuthProviders } from "./providers";
 
 // Endpoints where we rewrite body.email to its canonical form so the lookup
 // finds the existing user. Sign-up is intentionally absent — the database hook
@@ -55,6 +57,7 @@ export const auth = betterAuth({
     minPasswordLength: 8,
   },
   socialProviders: googleProvider ? { google: googleProvider } : {},
+  plugins: [genericOAuth({ config: enabledGenericOAuthProviders() })],
   account: {
     accountLinking: { enabled: false },
     fields: {

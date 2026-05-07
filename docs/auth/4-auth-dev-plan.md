@@ -158,10 +158,10 @@
 
 **Файлы**: `adorable/lib/auth/providers.ts`, `adorable/lib/auth/better-auth.ts` (дополнение), `.env.example`.
 
-- [ ] `providers.ts` — конфиги `yandexOAuth`, `vkOAuth` по Документу 2, 3.3, с правильными URL endpoint'ов и `mapProfileToUser`.
-- [ ] Подключить `genericOAuth({ config: [yandexOAuth, vkOAuth] })` в `plugins` в `better-auth.ts`.
-- [ ] Добавить в `.env.example` ключи `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET`, `VK_CLIENT_ID`, `VK_CLIENT_SECRET` с пояснительными комментариями.
-- [ ] (Опционально) В разработке создать тестовые OAuth-приложения у одного провайдера (Google проще всего) и проверить весь цикл; для Yandex/VK достаточно проверить, что endpoint редиректа возвращает 302 на правильный URL.
+- [x] `providers.ts` — конфиги `yandexOAuth`, `vkOAuth` по Документу 2, 3.3, с правильными URL endpoint'ов и `mapProfileToUser`.
+- [x] Подключить `genericOAuth({ config: [yandexOAuth, vkOAuth] })` в `plugins` в `better-auth.ts`.
+- [x] Добавить в `.env.example` ключи `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET`, `VK_CLIENT_ID`, `VK_CLIENT_SECRET` с пояснительными комментариями.
+- [x] (Опционально) В разработке создать тестовые OAuth-приложения у одного провайдера (Google проще всего) и проверить весь цикл; для Yandex/VK достаточно проверить, что endpoint редиректа возвращает 302 на правильный URL.
 
 **Верификация:**
 

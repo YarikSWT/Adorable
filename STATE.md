@@ -36,3 +36,15 @@
 - Верификация: `curl POST /api/auth/sign-up/email` для phase4-bootstrap@example.com → 200; psql JOIN users×organizations×organization_members×subscriptions показывает 1 personal org (slug=phase4-bootstrap, owner_user_id=user.id), запись member с role_id=organization.owner, активную подписку free с currentPeriodEnd=+1 month.
 - Замечания: spec sketch'ит `after.signUpEmail` и `after.oauthCallback` через `isNewUser`-флаг — Better Auth такой API не предоставляет. Использован эквивалент через `databaseHooks.user.create.after`, который срабатывает только при реальном insert и обслуживает оба пути (email + первый OAuth-callback). Идемпотентность дополнительно подкреплена `bootstrapNewUserIfMissing`-обёрткой.
 - Коммит: 802c2c2
+
+## auth-iter 5 — OAuth (Google + Yandex/VK через genericOAuth)
+- Дата: 2026-05-07
+- Что закрыто: фаза 5 («OAuth»)
+- Тесты: 10/10 unit, build green, typecheck baseline (14)
+- Верификация: с dev-placeholder-* env'ами для Google/Yandex/VK:
+  - `POST /api/auth/sign-in/social {provider:"google"}` → 200 + `Location: https://accounts.google.com/o/oauth2/v2/auth?...client_id=dev-placeholder-google-id...`
+  - `POST /api/auth/sign-in/oauth2 {providerId:"yandex"}` → 200 + `url=https://oauth.yandex.ru/authorize?...&scope=login:email+login:info`
+  - `POST /api/auth/sign-in/oauth2 {providerId:"vk"}` → 200 + `url=https://id.vk.com/authorize?...&scope=email&code_challenge=...` (PKCE работает)
+  - Note: spec говорил "302 на provider"; Better Auth возвращает 200 + URL в `Location` header / response body — клиент сам делает redirect. Поведение функционально эквивалентно.
+- providers.ts: enabledGenericOAuthProviders() пропускает провайдеры без env-credentials, чтобы не регистрировать роуты, которые упадут на использовании.
+- Коммит: <pending>
