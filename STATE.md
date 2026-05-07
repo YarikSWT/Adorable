@@ -87,3 +87,19 @@
   - `curl -b cookie /login` → 307 redirect (server-side getRequestSession)
 - Замечания: Auth-paths bypass-ятся в WorkspaceFrame и ApiKeyGate (общий список AUTH_PREFIXES). Это менее инвазивно, чем restructuring всех роутов в (workspace) group. Hooks API-ключа теперь имеет skip-condition в useEffect и в early-return.
 - Коммит: 5803f4d
+
+## auth-iter 10 — Auth UI: forgot, reset, verify-email, account-conflict, oauth-error
+- Дата: 2026-05-07
+- Что закрыто: фаза 10 («Auth UI второй половины»)
+- Тесты: 31/31 vitest; typecheck baseline (14); build green
+- Файлы: app/(auth)/{forgot-password,reset-password,verify-email,auth/account-conflict,auth/oauth-error}/page.tsx + supporting client forms
+- Верификация (curl):
+  - GET /forgot-password 200 → "Восстановление пароля / Прислать ссылку"
+  - GET /reset-password?token=fake 200 → "Новый пароль / Повторите пароль"
+  - GET /reset-password 200 → "Ссылка недействительна"
+  - GET /verify-email?pending=true&email=foo@bar.com 200 → "Проверьте почту / Запросить заново"
+  - GET /verify-email?token=abc 200 → "Подтверждение email"
+  - GET /auth/account-conflict?provider=google&existingProvider=email&email=… 200 → "Аккаунт уже существует / Войти существующим способом"
+  - GET /auth/oauth-error?reason=access_denied 200 → "Не удалось войти через провайдера / Вернуться ко входу"
+- Замечания: forgot-password шлёт POST на Better Auth `/api/auth/forget-password` (точное название endpoint у BA); UI всегда показывает нейтральное сообщение (за исключением 429). Verify-email с токеном делает GET на `/api/auth/verify-email?token=...` (link click handler).
+- Коммит: <pending>

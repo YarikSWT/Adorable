@@ -244,11 +244,11 @@
 
 **Файлы**: `adorable/app/(auth)/forgot-password/page.tsx`, `reset-password/page.tsx`, `verify-email/page.tsx`, `auth/account-conflict/page.tsx`, `auth/oauth-error/page.tsx`.
 
-- [ ] `/forgot-password` — поле email, кнопка «Прислать ссылку». Submit → POST `/api/auth/forgot-password`. Всегда возвращаем нейтральное сообщение (Документ 3, 3.4).
-- [ ] `/reset-password?token=...` — два поля пароля, валидация совпадения, submit → POST `/api/auth/reset-password`. На отсутствующий/истёкший токен — страница ошибки.
-- [ ] `/verify-email` — два режима по query (`pending=true` и `token=...`). Документ 3, 3.6.
-- [ ] `/auth/account-conflict?provider=...&email=...` — текст из Документа 3, 3.7 + ссылки.
-- [ ] `/auth/oauth-error?reason=...` — generic.
+- [x] `/forgot-password` — поле email, кнопка «Прислать ссылку». Submit → POST `/api/auth/forgot-password`. Всегда возвращаем нейтральное сообщение (Документ 3, 3.4).
+- [x] `/reset-password?token=...` — два поля пароля, валидация совпадения, submit → POST `/api/auth/reset-password`. На отсутствующий/истёкший токен — страница ошибки.
+- [x] `/verify-email` — два режима по query (`pending=true` и `token=...`). Документ 3, 3.6.
+- [x] `/auth/account-conflict?provider=...&email=...` — текст из Документа 3, 3.7 + ссылки.
+- [x] `/auth/oauth-error?reason=...` — generic.
 
 **Верификация:**
 
