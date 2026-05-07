@@ -48,3 +48,12 @@
   - Note: spec говорил "302 на provider"; Better Auth возвращает 200 + URL в `Location` header / response body — клиент сам делает redirect. Поведение функционально эквивалентно.
 - providers.ts: enabledGenericOAuthProviders() пропускает провайдеры без env-credentials, чтобы не регистрировать роуты, которые упадут на использовании.
 - Коммит: e82386e
+
+## auth-iter 6 — Helpers: session + role-cache + authorization + audit
+- Дата: 2026-05-07
+- Что закрыто: фаза 6 («Helpers»)
+- Тесты: 22/22 (10 unit email-normalize + 1 bootstrap + 8 authorization + 3 audit); typecheck baseline (14); build green
+- Файлы: lib/auth/{errors,session,role-cache,authorization,audit}.ts + tests/auth/{authorization,audit}.test.ts
+- Верификация: integration-кейсы из Doc 2 §9.2 — org-owner→project-owner, org-member→viewer-default, explicit publisher повышает, downgrade explicit-viewer не понижает org-owner, outsider→null, **incomparable→explicit wins** (custom data-only role не объединяется с viewer.project.view) — все ✓; requirePermission throws 404 для не-членов (вместо 403, чтобы не leak existence). requireAdminPermission проверяет users.is_admin + active admin_role_assignments.
+- Замечание: requirePermission возвращает 404 not_found если юзер вообще не в org, вместо 403; только если юзер в org но без нужного permission — 403 access.denied (Doc 2 §9.4 «доступ к чужому проекту → 404»).
+- Коммит: <pending>

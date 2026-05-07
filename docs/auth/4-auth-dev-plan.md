@@ -176,12 +176,12 @@
 
 **Файлы**: `adorable/lib/auth/session.ts`, `adorable/lib/auth/role-cache.ts`, `adorable/lib/auth/authorization.ts`, `adorable/lib/auth/audit.ts`, тесты.
 
-- [ ] `session.ts` — `getRequestSession`, `requireSession`, `requireEmailVerified` (см. Документ 2, 5.1). `HttpError` класс там же либо в общем `lib/auth/errors.ts`.
-- [ ] `role-cache.ts` — лениво загружает все системные роли в Map, экспортирует `getRoleId(scope, slug)`. См. Приложение C Документа 2.
-- [ ] `authorization.ts` — `getProjectAccessContext`, `requirePermission`, `requireAdminPermission` точно по Документу 2, 5.2/5.3, **с учётом Правки 1** (несравнимые роли → explicit выигрывает, без объединения). Helper `isSuperset`, `loadRolePermissions` — там же.
-- [ ] `audit.ts` — `writeAuditLog` (Документ 2, 5.5). Не падает наружу, ошибки в stderr.
-- [ ] `tests/auth/authorization.test.ts` (integration): кейсы из Документа 2, 9.2 — org-owner→project-owner, org-member→viewer, explicit publisher повышает, downgrade не понижает, юзер вне org→null, **несравнимые роли→explicit**.
-- [ ] `tests/auth/audit.test.ts` (integration): запись и чтение, индексы работают.
+- [x] `session.ts` — `getRequestSession`, `requireSession`, `requireEmailVerified` (см. Документ 2, 5.1). `HttpError` класс там же либо в общем `lib/auth/errors.ts`.
+- [x] `role-cache.ts` — лениво загружает все системные роли в Map, экспортирует `getRoleId(scope, slug)`. См. Приложение C Документа 2.
+- [x] `authorization.ts` — `getProjectAccessContext`, `requirePermission`, `requireAdminPermission` точно по Документу 2, 5.2/5.3, **с учётом Правки 1** (несравнимые роли → explicit выигрывает, без объединения). Helper `isSuperset`, `loadRolePermissions` — там же.
+- [x] `audit.ts` — `writeAuditLog` (Документ 2, 5.5). Не падает наружу, ошибки в stderr.
+- [x] `tests/auth/authorization.test.ts` (integration): кейсы из Документа 2, 9.2 — org-owner→project-owner, org-member→viewer, explicit publisher повышает, downgrade не понижает, юзер вне org→null, **несравнимые роли→explicit**.
+- [x] `tests/auth/audit.test.ts` (integration): запись и чтение, индексы работают.
 
 **Верификация:**
 
