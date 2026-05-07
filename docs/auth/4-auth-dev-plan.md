@@ -142,9 +142,9 @@
 
 **Файлы**: `adorable/lib/auth/better-auth.ts` (дополнение), `adorable/lib/auth/bootstrap.ts`, `adorable/tests/auth/bootstrap.test.ts`.
 
-- [ ] `bootstrap.ts` — экспортирует `bootstrapNewUser(userId, ctx)` точно по Документу 2, 3.4: транзакция, создаёт organization (type=`personal`), organization_member (роль org-owner), subscription (план free, period_start=now, period_end=now+1 month, provider=manual). `generateUniqueSlug` — слаг из имени + короткий хеш.
-- [ ] Подключить `bootstrapNewUser` в `after.signUpEmail` и `after.oauthCallback` (только при `isNewUser`) в `better-auth.ts`.
-- [ ] `bootstrap.test.ts` (integration, RUN_DB_TESTS=1): после signup появляются orgs(1), organization_members(1), subscriptions(1) с правильными полями.
+- [x] `bootstrap.ts` — экспортирует `bootstrapNewUser(userId, ctx)` точно по Документу 2, 3.4: транзакция, создаёт organization (type=`personal`), organization_member (роль org-owner), subscription (план free, period_start=now, period_end=now+1 month, provider=manual). `generateUniqueSlug` — слаг из имени + короткий хеш.
+- [x] Подключить `bootstrapNewUser` в `after.signUpEmail` и `after.oauthCallback` (только при `isNewUser`) в `better-auth.ts`.
+- [x] `bootstrap.test.ts` (integration, RUN_DB_TESTS=1): после signup появляются orgs(1), organization_members(1), subscriptions(1) с правильными полями.
 
 **Верификация:**
 

@@ -28,3 +28,11 @@
 - Верификация: `curl GET /api/auth/get-session` → 200 `null`; `curl POST /api/auth/sign-up/email` (на адрес `O.t.h.e.r+y@gmail.com`) → 200, юзер создан с `email=other@gmail.com`, `email_raw=o.t.h.e.r+y@gmail.com` (нормализация работает); таблица `rate_limit` создана.
 - Schema deviations from spec §2.2 (документировано тут, чтобы Doc 2 поправить позже): добавлены Better Auth-required колонки — `accounts.password|accessTokenExpiresAt|refreshTokenExpiresAt|updatedAt`, `sessions.token|updatedAt` (с заменой `tokenHash`), `verification_tokens.value|identifier|updatedAt` (наши `tokenHash|userId|type|usedAt` сделаны nullable). Добавлена таблица `rate_limit`. `advanced.database.generateId="uuid"` — иначе Better Auth пишет cuid в uuid-колонки и crash.
 - Коммит: 8a97f77
+
+## auth-iter 4 — Bootstrap нового юзера: org + subscription
+- Дата: 2026-05-07
+- Что закрыто: фаза 4 («Bootstrap новых юзеров»)
+- Тесты: 11/11 (10 unit email-normalize + 1 integration bootstrap); typecheck baseline; build green
+- Верификация: `curl POST /api/auth/sign-up/email` для phase4-bootstrap@example.com → 200; psql JOIN users×organizations×organization_members×subscriptions показывает 1 personal org (slug=phase4-bootstrap, owner_user_id=user.id), запись member с role_id=organization.owner, активную подписку free с currentPeriodEnd=+1 month.
+- Замечания: spec sketch'ит `after.signUpEmail` и `after.oauthCallback` через `isNewUser`-флаг — Better Auth такой API не предоставляет. Использован эквивалент через `databaseHooks.user.create.after`, который срабатывает только при реальном insert и обслуживает оба пути (email + первый OAuth-callback). Идемпотентность дополнительно подкреплена `bootstrapNewUserIfMissing`-обёрткой.
+- Коммит: <pending>

@@ -15,6 +15,7 @@ import { createAuthMiddleware } from "better-auth/api";
 import { db } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { normaliseEmail } from "./email-normalize";
+import { bootstrapNewUserIfMissing } from "./bootstrap";
 
 // Endpoints where we rewrite body.email to its canonical form so the lookup
 // finds the existing user. Sign-up is intentionally absent — the database hook
@@ -113,6 +114,24 @@ export const auth = betterAuth({
               emailRaw: raw,
             },
           };
+        },
+        // Spec §3.4 lives here — Better Auth fires `user.create.after` for
+        // both email signups and first-time OAuth callbacks (i.e. it's
+        // semantically equivalent to "isNewUser"). Failing to bootstrap must
+        // not surface as a 500 to the auth flow; we log and let the user
+        // through, and the missing-org branch will be re-tried lazily on
+        // next request via bootstrapNewUserIfMissing.
+        after: async (user) => {
+          const userId = (user as { id?: string }).id;
+          if (!userId) return;
+          try {
+            await bootstrapNewUserIfMissing(userId, {
+              userName:
+                ((user as { name?: string | null }).name ?? null) || null,
+            });
+          } catch (err) {
+            console.error("[auth.bootstrap] failed for user", userId, err);
+          }
         },
       },
     },
