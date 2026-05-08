@@ -179,3 +179,18 @@
   - DELETE /api/projects/<id> {"archive":false} (имитация submit с правильным confirm) → 200; psql `status='deleted'` ✓
 - Замечания: layout.tsx использует Next-сгенерированный `LayoutProps<"/projects/[id]/settings">`. Project settings sidebar — client component (нужен usePathname для active-state). Tokens/Publication разделы плана 17/18 — линки в sidebar уже на месте, страницы появятся следующими фазами.
 - Коммит: 7215bb0
+
+## auth-iter 17 — Project settings UI: Tokens (one-time plaintext modal)
+- Дата: 2026-05-08
+- Что закрыто: фаза 17 («Tokens UI»)
+- Тесты: 672/701 vitest (29 skipped); typecheck baseline (14); build green
+- Файлы: app/projects/[id]/settings/tokens/{page,tokens-client}.tsx
+- Верификация (Playwright MCP):
+  - signup phase17 проект (createRepo) → переход на /projects/<id>/settings/tokens.
+  - "Создать токен" → диалог с name/kind/expires → submit → POST /api/repos/<wrapperId>/tokens → 200; диалог закрылся, plaintext-modal появилась с `sk_live_ibWyJcbxxtBNG8eU6Whc2gc8DB1I_arZ` ✓
+  - "Скопировать" → navigator.clipboard.writeText (read-permission в Playwright denied — это нормально, в реальном браузере юзер даёт permission).
+  - "Понятно, сохранил" → modal закрылся; таблица показывает «mobile-api / SERVER / ibWyJcbx / Активен / Отозвать» ✓
+  - "Отозвать" → confirm-диалог → подтвердил → таблица показывает «Отозван» (без кнопки revoke) ✓
+  - psql: name='mobile-api', token_prefix='ibWyJcbx', revoked_at NOT NULL, token_hash начинается с `$argon2id$v=19$m=65536...` ✓
+- Замечания: clipboard.readText() в Playwright возвращает permission-denied (по дефолту chrome не даёт permission в headless); writeText сработал.
+- Коммит: <pending>
