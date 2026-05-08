@@ -437,9 +437,9 @@
 
 **Файлы**: `adorable/app/settings/profile/page.tsx`, `security/page.tsx`, `connections/page.tsx`.
 
-- [ ] Profile: аватар (только инициалы в v1), name (PATCH `/api/me`), email read-only с подсказкой про поддержку.
-- [ ] Security: смена пароля → POST `/api/auth/change-password` (Better Auth), таблица активных сессий → POST `/api/auth/revoke-session`.
-- [ ] Connections: для каждого OAuth-провайдера — кнопка привязать/отвязать. Логика — как в Документе 3, 5.3 (последний способ нельзя убрать).
+- [x] Profile: аватар (только инициалы в v1), name (PATCH `/api/me`), email read-only с подсказкой про поддержку.
+- [x] Security: смена пароля → POST `/api/auth/change-password` (Better Auth), таблица активных сессий → POST `/api/auth/revoke-session`.
+- [x] Connections: для каждого OAuth-провайдера — кнопка привязать/отвязать. Логика — как в Документе 3, 5.3 (последний способ нельзя убрать).
 
 **Верификация:**
 
