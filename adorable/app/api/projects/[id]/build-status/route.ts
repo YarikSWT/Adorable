@@ -16,9 +16,32 @@
 // snapshot текущего state'а одним event'ом, если есть running/queued.
 // Если нет активного job'а — никаких events до следующего enqueue.
 
-import { getOrCreateIdentitySession } from "@/lib/identity-session";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db/client";
+import { projects } from "@/lib/db/schema/projects";
 import { getBuildQueue } from "@/lib/preview/provider-singleton";
-import { getSharedAuditLogger } from "@/lib/sandbox/audit-log";
+import { getRequestSession } from "@/lib/auth/session";
+import { getProjectAccessContext } from "@/lib/auth/authorization";
+import {
+  getProjectByGiteaWrapperId,
+  type ProjectRow,
+} from "@/lib/db/queries/projects";
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const resolveProject = async (raw: string): Promise<ProjectRow | null> => {
+  const decoded = decodeURIComponent(raw);
+  if (UUID_RE.test(decoded)) {
+    const rows = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, decoded))
+      .limit(1);
+    if (rows[0]) return rows[0];
+  }
+  return getProjectByGiteaWrapperId(decoded);
+};
 
 const DEFAULT_KEEP_ALIVE_MS = 30_000;
 
@@ -39,25 +62,37 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: rawId } = await params;
-  const projectId = decodeURIComponent(rawId);
-
-  const { identity } = await getOrCreateIdentitySession();
-  const { repositories } = await identity.permissions.git.list({ limit: 200 });
-  if (!repositories.some((r) => r.id === projectId)) {
-    void getSharedAuditLogger()
-      .log({
-        event: "auth_denied",
-        projectId,
-        action: "build-status",
-        reason: "caller has no grant on repo",
-      })
-      .catch(() => undefined);
-    return new Response(JSON.stringify({ error: "Forbidden" }), {
-      status: 403,
-      headers: { "Content-Type": "application/json" },
-    });
+  // SSE route can't use protectedRoute (it returns a streaming Response,
+  // not a regular one). Inline the session/perm checks instead.
+  const session = await getRequestSession();
+  if (!session) {
+    return new Response(
+      JSON.stringify({ error: { code: "auth.unauthenticated" } }),
+      {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+  const project = await resolveProject(rawId);
+  if (!project) {
+    return new Response(
+      JSON.stringify({ error: { code: "not_found" } }),
+      { status: 404, headers: { "Content-Type": "application/json" } },
+    );
+  }
+  const access = await getProjectAccessContext(session.user.id, project.id);
+  if (!access || !access.permissions.has("project.view")) {
+    return new Response(
+      JSON.stringify({ error: { code: "access.denied" } }),
+      { status: 403, headers: { "Content-Type": "application/json" } },
+    );
   }
 
+  // Build queue keyed on the source-repo identifier the PreviewProvider
+  // uses internally (== sourceRepoId, == giteaRepoId).
+  const projectId =
+    project.giteaRepoId ?? project.giteaWrapperRepoId ?? project.id;
   const queue = getBuildQueue();
   const encoder = new TextEncoder();
 

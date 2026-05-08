@@ -15,29 +15,26 @@
 
 import { NextResponse } from "next/server";
 import { createVmForRepo } from "@/lib/adorable-vm";
-import { getOrCreateIdentitySession } from "@/lib/identity-session";
 import { getSandboxProvider } from "@/lib/sandbox/provider-singleton";
 import { readRepoMetadata, writeRepoMetadata } from "@/lib/repo-storage";
+import { protectedRoute } from "@/lib/auth/api-wrap";
+import { requirePermission } from "@/lib/auth/authorization";
+import { getProjectByGiteaWrapperId } from "@/lib/db/queries/projects";
+import { HttpError } from "@/lib/auth/errors";
 
-export async function POST(
-  _req: Request,
-  { params }: { params: Promise<{ repoId: string }> },
-) {
-  const { repoId: rawRepoId } = await params;
-  const repoId = decodeURIComponent(rawRepoId);
+type Params = { repoId: string };
 
-  const { identity } = await getOrCreateIdentitySession();
-  const { repositories } = await identity.permissions.git.list({ limit: 200 });
-  if (!repositories.some((repo) => repo.id === repoId)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+export const POST = protectedRoute<Params>(async ({ params, session }) => {
+  const repoId = decodeURIComponent(params.repoId);
+  const project = await getProjectByGiteaWrapperId(repoId);
+  if (!project) throw new HttpError(404, "not_found", "Project not found");
+  await requirePermission(session.user.id, "project.edit", {
+    projectId: project.id,
+  });
 
   const metadata = await readRepoMetadata(repoId);
   if (!metadata) {
-    return NextResponse.json(
-      { error: "Repository metadata not found" },
-      { status: 404 },
-    );
+    throw new HttpError(404, "not_found", "Repository metadata not found");
   }
 
   // Static-mode projects have no sandbox container to wake — the
@@ -109,4 +106,4 @@ export async function POST(
     recreated: true,
     vm: newVm,
   });
-}
+});

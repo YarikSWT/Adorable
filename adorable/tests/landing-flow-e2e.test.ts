@@ -125,10 +125,6 @@ vi.mock("@/lib/db/client", () => ({
 
 import { __resetGitSingleton } from "@/lib/git/provider-singleton";
 import { __resetSandboxSingleton } from "@/lib/sandbox/provider-singleton";
-import {
-  ADORABLE_IDENTITY_COOKIE,
-  __resetIdentitySessionCache,
-} from "@/lib/identity-session";
 
 import * as reposRoute from "@/app/api/repos/route";
 import * as chatRoute from "@/app/api/chat/route";
@@ -159,7 +155,6 @@ beforeEach(async () => {
   process.env.PREVIEW_PROVIDER = "sandbox";
   aclTmpDir = await fs.mkdtemp(path.join(tmpdir(), "adorable-acl-e2e-"));
   process.env.ADORABLE_ACL_FILE = path.join(aclTmpDir, "acl.json");
-  __resetIdentitySessionCache();
   __resetGitSingleton();
   __resetSandboxSingleton();
 });
@@ -167,7 +162,6 @@ beforeEach(async () => {
 afterEach(async () => {
   __resetSandboxSingleton();
   __resetGitSingleton();
-  __resetIdentitySessionCache();
   if (aclTmpDir) {
     await fs.rm(aclTmpDir, { recursive: true, force: true });
     aclTmpDir = "";
@@ -254,7 +248,6 @@ describe("landing-page generation default flow (e2e)", () => {
     expect(created.metadata.preview?.migrationStatus).toBe("ok");
 
     // Identity cookie проставлен серверным кодом.
-    expect(cookieJar.get(ADORABLE_IDENTITY_COOKIE)).toBeTruthy();
 
     // 2. UI отправляет первый chat-turn.
     const userPrompt =

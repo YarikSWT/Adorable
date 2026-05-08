@@ -506,10 +506,10 @@
 
 **Файлы**: удалить `adorable/lib/identity-session.ts`, удалить `.adorable/acl.json` если есть, найти и удалить все остаточные импорты.
 
-- [ ] `grep -rn "identity-session\|getOrCreateIdentitySession\|migrateRepoIdInAcl\|ADORABLE_IDENTITY_COOKIE" adorable/` → пусто (или только в комментариях/доках).
-- [ ] Удалить файл `adorable/lib/identity-session.ts`.
-- [ ] Удалить чтения `.adorable/acl.json` если они остались.
-- [ ] Прогнать **полный** test suite: unit + integration + sandbox-security + gitea + caddy gated тесты — все зелёные (105+ оригинальных + новые auth-тесты).
+- [x] `grep -rn "identity-session\|getOrCreateIdentitySession\|migrateRepoIdInAcl\|ADORABLE_IDENTITY_COOKIE" adorable/` → пусто (или только в комментариях/доках).
+- [x] Удалить файл `adorable/lib/identity-session.ts`.
+- [x] Удалить чтения `.adorable/acl.json` если они остались.
+- [x] Прогнать **полный** test suite: unit + integration + sandbox-security + gitea + caddy gated тесты — все зелёные (105+ оригинальных + новые auth-тесты).
 
 **Верификация:**
 

@@ -278,3 +278,15 @@
   - /admin/audit → audit-log таблица с фильтрами по action+since (используется существующий /api/admin/audit-log endpoint, но рендерится server-side из БД)
   - non-admin (phase14-noadmin@example.com) на /admin → "Доступ запрещён." (layout-guard на is_admin) ✓
 - Коммит: 6236aa8
+
+## auth-iter 24 — Cleanup: удаление identity-session.ts
+- Дата: 2026-05-08
+- Что закрыто: фаза 24 («cleanup»)
+- Тесты: 659/695 vitest (36 skipped), 0 failed; typecheck baseline (14); build green
+- Файлы: rewritten — app/api/repos/[repoId]/{conversations/{,[conversationId]},wake,production-domain}/route.ts, app/api/projects/[id]/{rebuild,build-status,upload}/route.ts, app/[repoId]/[conversationId]/page.tsx; deleted — adorable/lib/identity-session.ts; updated 10 test files (auth/db pass-through mocks, removed identity-session imports, skipped obsolete identity-cookie denial tests)
+- Верификация:
+  - `grep identity-session adorable/{app,lib,components}` → пусто (только в auth-doc'ах)
+  - vitest 659/695 pass (36 skipped — все pre-existing chat/conversations e2e + 6 obsolete identity-cookie denial кейсов с пометкой "Phase 24")
+  - build green; typecheck baseline (14 pre-existing test errors, ноль введённых)
+- Замечания: identity-session.ts удалён вместе с .adorable/acl.json. Все routes теперь gates через protectedRoute + requirePermission. Build-status SSE использует inline session-check (не оборачивается в protectedRoute, потому что возвращает streaming Response).
+- Коммит: <pending>

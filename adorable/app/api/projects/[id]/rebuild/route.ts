@@ -4,57 +4,72 @@
 //
 //   Body: {} (пусто)
 //   Response 200: { jobId: "uuid", status: "queued" | "running" }
-//   Response 403: { error: "Forbidden" } — caller не владеет проектом.
+//   Response 403: project.edit отсутствует.
 //   Response 403: { error: "manualRebuild not supported" } — provider
-//     с capabilities.manualRebuild=false (sandbox-режим до Phase 4).
-//   Response 404: { error: "Repository not found" } — repo нет в Gitea.
+//     с capabilities.manualRebuild=false (sandbox-режим).
+//   Response 404: project не найден.
 //
-// UI делает client-side debounce ~500мс перед вызовом (ADR-012).
-// LLM имеет аналогичный requestRebuildTool — тоже сюда.
+// `:id` — это projects.id (UUID) ИЛИ giteaWrapperRepoId — UI исторически
+// передавала wrapper-id; принимаем оба варианта.
 
 import { NextResponse } from "next/server";
-
-import { getOrCreateIdentitySession } from "@/lib/identity-session";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db/client";
+import { projects } from "@/lib/db/schema/projects";
 import {
   getBuildQueue,
   getPreviewProvider,
 } from "@/lib/preview/provider-singleton";
-import { getSharedAuditLogger } from "@/lib/sandbox/audit-log";
+import { protectedRoute } from "@/lib/auth/api-wrap";
+import { requirePermission } from "@/lib/auth/authorization";
+import {
+  getProjectByGiteaWrapperId,
+  type ProjectRow,
+} from "@/lib/db/queries/projects";
+import { HttpError } from "@/lib/auth/errors";
 
-export async function POST(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const { id: rawId } = await params;
-  const projectId = decodeURIComponent(rawId);
+type Params = { id: string };
 
-  // Identity check — only repo owner can rebuild.
-  const { identity } = await getOrCreateIdentitySession();
-  const { repositories } = await identity.permissions.git.list({ limit: 200 });
-  if (!repositories.some((r) => r.id === projectId)) {
-    void getSharedAuditLogger()
-      .log({
-        event: "auth_denied",
-        projectId,
-        action: "rebuild",
-        reason: "caller has no grant on repo",
-      })
-      .catch(() => undefined);
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const resolveProject = async (raw: string): Promise<ProjectRow | null> => {
+  const decoded = decodeURIComponent(raw);
+  if (UUID_RE.test(decoded)) {
+    const rows = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, decoded))
+      .limit(1);
+    if (rows[0]) return rows[0];
   }
+  return getProjectByGiteaWrapperId(decoded);
+};
 
-  // Capability check — sandbox provider returns build={succeeded:stub},
-  // но всё равно обозначим intent: только static-режим должен быть
-  // здесь активен. Если provider declares manualRebuild=false — отказ.
+export const POST = protectedRoute<Params>(async ({ params, session }) => {
+  const project = await resolveProject(params.id);
+  if (!project) throw new HttpError(404, "not_found", "Project not found");
+  await requirePermission(session.user.id, "project.edit", {
+    projectId: project.id,
+  });
+
   const provider = await getPreviewProvider();
   if (!provider.capabilities.manualRebuild) {
-    return NextResponse.json(
-      { error: "manualRebuild not supported by provider" },
-      { status: 403 },
+    throw new HttpError(
+      403,
+      "access.denied",
+      "manualRebuild not supported by provider",
     );
   }
 
+  // The build queue keys on sourceRepoId — that's the projectId the
+  // PreviewProvider.create() handed back when this project was set up.
   const queue = getBuildQueue();
-  const result = await queue.enqueue({ projectId, reason: "manual" });
+  const buildProjectId =
+    project.giteaRepoId ?? project.giteaWrapperRepoId ?? project.id;
+  const result = await queue.enqueue({
+    projectId: buildProjectId,
+    reason: "manual",
+  });
   return NextResponse.json(result);
-}
+});

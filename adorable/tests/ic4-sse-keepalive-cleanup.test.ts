@@ -9,11 +9,95 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/identity-session", () => ({
-  getOrCreateIdentitySession: vi.fn(),
+// Phase 24 — Better Auth wrapper bypass. Tests below were written against the
+// old identity-cookie ACL flow; we mock the new auth/db helpers as
+// pass-through so the underlying behaviour (build queue, sandbox lifecycle,
+// upload validation, ...) keeps being exercised. Per-test overrides via
+// `vi.mocked(...).mockImplementationOnce(...)` if a test needs to simulate
+// denial.
+vi.mock("@/lib/auth/api-wrap", async () => {
+  const actual =
+    await vi.importActual<typeof import("@/lib/auth/api-wrap")>(
+      "@/lib/auth/api-wrap",
+    );
+  return {
+    ...actual,
+    protectedRoute:
+      <P>(handler: any) =>
+      async (req: Request, ctx: any): Promise<Response> => {
+        const params = await ctx.params;
+        try {
+          return await handler({
+            req,
+            params,
+            session: {
+              user: {
+                id: "test-user",
+                email: "test@example.com",
+                emailVerified: true,
+                isAdmin: false,
+              },
+              sessionId: "test-session",
+            },
+          });
+        } catch (err) {
+          const { errorToResponse } = await import("@/lib/auth/errors");
+          return errorToResponse(err);
+        }
+      },
+  };
+});
+vi.mock("@/lib/auth/session", () => ({
+  getRequestSession: vi.fn(async () => ({
+    user: {
+      id: "test-user",
+      email: "test@example.com",
+      emailVerified: true,
+      isAdmin: false,
+    },
+    sessionId: "test-session",
+  })),
+  requireSession: vi.fn(async () => ({
+    user: {
+      id: "test-user",
+      email: "test@example.com",
+      emailVerified: true,
+      isAdmin: false,
+    },
+    sessionId: "test-session",
+  })),
+  requireEmailVerified: vi.fn((s: unknown) => s),
+}));
+vi.mock("@/lib/auth/authorization", () => ({
+  requirePermission: vi.fn(async () => ({})),
+  getProjectAccessContext: vi.fn(async () => ({
+    projectId: "test-project",
+    organizationId: "test-org",
+    effectiveRoleId: "test-role",
+    permissions: new Set([
+      "project.view",
+      "project.edit",
+      "project.delete",
+      "project.publish",
+      "project.tokens.manage",
+      "project.members.manage",
+      "project.domain.manage",
+    ]),
+  })),
+}));
+vi.mock("@/lib/db/queries/projects", () => ({
+  getProjectByGiteaWrapperId: vi.fn(async (id: string) => ({
+    id: "test-project",
+    organizationId: "test-org",
+    giteaRepoId: id,
+    giteaRepoName: id,
+    giteaWrapperRepoId: id,
+    giteaWrapperRepoName: id,
+  })),
 }));
 
-import { getOrCreateIdentitySession } from "@/lib/identity-session";
+
+
 import {
   __resetPreviewSingleton,
   getBuildQueue,
@@ -22,18 +106,7 @@ import {
 import { GET } from "@/app/api/projects/[id]/build-status/route";
 
 const mockIdentity = (repos: Array<{ id: string; name: string }>): void => {
-  (
-    getOrCreateIdentitySession as unknown as ReturnType<typeof vi.fn>
-  ).mockResolvedValue({
-    identity: {
-      permissions: {
-        git: {
-          list: vi.fn(async () => ({ repositories: repos })),
-        },
-      },
-    },
-  });
-};
+  };
 
 const callGet = async (id: string, signal: AbortSignal): Promise<Response> =>
   GET(

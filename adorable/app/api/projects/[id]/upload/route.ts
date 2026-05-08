@@ -13,14 +13,39 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import * as path from "node:path";
 
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import { getOrCreateIdentitySession } from "@/lib/identity-session";
+import { db } from "@/lib/db/client";
+import { projects } from "@/lib/db/schema/projects";
+import { protectedRoute } from "@/lib/auth/api-wrap";
+import { requirePermission } from "@/lib/auth/authorization";
+import {
+  getProjectByGiteaWrapperId,
+  type ProjectRow,
+} from "@/lib/db/queries/projects";
+import { HttpError } from "@/lib/auth/errors";
 import {
   validateUpload,
   type UploadValidationErr,
 } from "@/lib/preview/upload-validator";
 import { getSharedAuditLogger } from "@/lib/sandbox/audit-log";
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const resolveProject = async (raw: string): Promise<ProjectRow | null> => {
+  const decoded = decodeURIComponent(raw);
+  if (UUID_RE.test(decoded)) {
+    const rows = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, decoded))
+      .limit(1);
+    if (rows[0]) return rows[0];
+  }
+  return getProjectByGiteaWrapperId(decoded);
+};
 
 const DEFAULT_PROJECTS_ROOT = "/data/projects";
 const DEFAULT_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
@@ -46,26 +71,16 @@ const errorResponse = (
     { status },
   );
 
-export async function POST(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const { id: rawId } = await params;
-  const projectId = decodeURIComponent(rawId);
-
-  const { identity } = await getOrCreateIdentitySession();
-  const { repositories } = await identity.permissions.git.list({ limit: 200 });
-  if (!repositories.some((r) => r.id === projectId)) {
-    void getSharedAuditLogger()
-      .log({
-        event: "auth_denied",
-        projectId,
-        action: "upload",
-        reason: "caller has no grant on repo",
-      })
-      .catch(() => undefined);
-    return errorResponse(403, { error: "Forbidden" });
-  }
+export const POST = protectedRoute<{ id: string }>(async ({ req, params, session }) => {
+  const project = await resolveProject(params.id);
+  if (!project) throw new HttpError(404, "not_found", "Project not found");
+  await requirePermission(session.user.id, "project.edit", {
+    projectId: project.id,
+  });
+  // Build/upload pipelines key on sourceRepoId — that's giteaRepoId or
+  // (legacy) the wrapper id if source isn't tracked yet.
+  const projectId =
+    project.giteaRepoId ?? project.giteaWrapperRepoId ?? project.id;
 
   let form: FormData;
   try {
@@ -125,4 +140,4 @@ export async function POST(
     size: result.size,
     mime: result.mime,
   });
-}
+});

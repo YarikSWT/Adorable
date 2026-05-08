@@ -111,7 +111,6 @@ import {
   __resetPreviewSingleton,
   getBuildQueue,
 } from "@/lib/preview/provider-singleton";
-import { __resetIdentitySessionCache } from "@/lib/identity-session";
 import type { BuildEvent } from "@/lib/adapters/preview";
 
 import * as reposRoute from "@/app/api/repos/route";
@@ -133,7 +132,6 @@ beforeEach(async () => {
   process.env.PREVIEW_PROVIDER = "mock";
   aclTmpDir = await fs.mkdtemp(path.join(tmpdir(), "adorable-acl-static-e2e-"));
   process.env.ADORABLE_ACL_FILE = path.join(aclTmpDir, "acl.json");
-  __resetIdentitySessionCache();
   __resetGitSingleton();
   __resetSandboxSingleton();
   __resetPreviewSingleton();
@@ -143,7 +141,6 @@ afterEach(async () => {
   __resetPreviewSingleton();
   __resetSandboxSingleton();
   __resetGitSingleton();
-  __resetIdentitySessionCache();
   if (aclTmpDir) {
     await fs.rm(aclTmpDir, { recursive: true, force: true });
     aclTmpDir = "";
