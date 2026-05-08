@@ -346,10 +346,10 @@
 
 **Файлы**: `adorable/components/shell/Header.tsx`, `OrgSwitcher.tsx`, `UserMenu.tsx`, `EmailVerifyBanner.tsx`, `adorable/app/layout.tsx` (правка для подключения).
 
-- [ ] Header (Документ 3, 4.1): лого слева, org switcher по центру (только если ≥2 org), user menu справа.
-- [ ] OrgSwitcher (4.2): popover со списком orgs из `/api/me`, активная подсвечена, «Создать организацию» снизу.
-- [ ] UserMenu (4.3): аватар → popover с пунктами Профиль/Безопасность/Подключения/Биллинг/Админка/Выйти. Админка — только если `is_admin=true`.
-- [ ] EmailVerifyBanner (4.6): рендерится глобально, виден только если `!emailVerified`. Кнопка «Отправить заново» с 30-секундным cooldown. Dismiss через localStorage с истечением через 24 часа.
+- [x] Header (Документ 3, 4.1): лого слева, org switcher по центру (только если ≥2 org), user menu справа.
+- [x] OrgSwitcher (4.2): popover со списком orgs из `/api/me`, активная подсвечена, «Создать организацию» снизу.
+- [x] UserMenu (4.3): аватар → popover с пунктами Профиль/Безопасность/Подключения/Биллинг/Админка/Выйти. Админка — только если `is_admin=true`.
+- [x] EmailVerifyBanner (4.6): рендерится глобально, виден только если `!emailVerified`. Кнопка «Отправить заново» с 30-секундным cooldown. Dismiss через localStorage с истечением через 24 часа.
 
 **Верификация:**
 

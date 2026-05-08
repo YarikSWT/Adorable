@@ -154,3 +154,14 @@
   - PATCH /api/admin/users/<victim> от не-admin → 403 ✓
 - Замечания: project tokens используют argon2id для tokenHash; URL-encode repoId (`%2F`) обязателен — в `<owner>/<name>` строке Gitea-id'а слеш ломает Next routing. Last-owner guard для org members PATCH/DELETE.
 - Коммит: 251a42d
+
+## auth-iter 15 — Глобальный шелл UI: header + org switcher + user menu + email banner
+- Дата: 2026-05-08
+- Что закрыто: фаза 15 («Shell UI»)
+- Тесты: 672/701 vitest (29 skipped); typecheck baseline (14); build green
+- Файлы: components/shell/{me-context,header,org-switcher,user-menu,email-verify-banner}.tsx; правка app/workspace-frame.tsx (MeProvider + Header + EmailVerifyBanner поверх RepoWorkspaceShell)
+- Верификация (Playwright MCP):
+  - sign-in phase13-chat (verified, 2 orgs) → home: header `"Adorable"` + OrgSwitcher `"Phase14 Team ▾"` + UserMenu `"PC"`. Banner не виден ✓
+  - sign-up phase15-noverify-mctxe1 (1 org, !verified) → home: `"Adorable / PN / Подтвердите email phase15-noverify-mctxe1@example.com... Отправить заново ✕"`. OrgSwitcher скрыт (1 org) ✓
+- Замечания: shell — MeProvider + client components fetching /api/me. SSR рендерит skeleton (loading state), userMenu/banner появляются после hydration. WorkspaceFrame теперь обёрт в `<div class="flex h-full flex-col">` чтобы header не ломал layout repo-workspace-shell.
+- Коммит: <pending>

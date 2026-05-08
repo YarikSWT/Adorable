@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { RepoWorkspaceShell } from "./[repoId]/repo-workspace-shell";
 import { ApiKeySettingsDialog } from "@/components/api-key-gate";
+import { MeProvider } from "@/components/shell/me-context";
+import { Header } from "@/components/shell/header";
+import { EmailVerifyBanner } from "@/components/shell/email-verify-banner";
 
 type ActiveConversationDetail = {
   repoId: string;
@@ -136,16 +139,28 @@ export function WorkspaceFrame({ children }: { children: React.ReactNode }) {
   const effectiveRepoId = routeRepoId ?? activeRepoId;
   const effectiveConversationId = routeConversationId ?? activeConversationId;
 
+  // Phase 15 — global shell. MeProvider fetches /api/me once and shares it
+  // with Header (logo + org switcher + user menu) and EmailVerifyBanner.
+  // Both render to nothing for anonymous users so the existing flows (e.g.
+  // first-load API-key gate before sign-in) keep working.
   return (
-    <RepoWorkspaceShell
-      repoId={effectiveRepoId}
-      selectedConversationIdOverride={effectiveConversationId}
-    >
-      {children}
-      {/* Settings button */}
-      <div className="fixed bottom-3 left-3 z-50 md:right-3 md:left-auto">
-        <ApiKeySettingsDialog />
+    <MeProvider>
+      <div className="flex h-full flex-col overflow-hidden">
+        <Header />
+        <EmailVerifyBanner />
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <RepoWorkspaceShell
+            repoId={effectiveRepoId}
+            selectedConversationIdOverride={effectiveConversationId}
+          >
+            {children}
+            {/* Settings button */}
+            <div className="fixed bottom-3 left-3 z-50 md:right-3 md:left-auto">
+              <ApiKeySettingsDialog />
+            </div>
+          </RepoWorkspaceShell>
+        </div>
       </div>
-    </RepoWorkspaceShell>
+    </MeProvider>
   );
 }
