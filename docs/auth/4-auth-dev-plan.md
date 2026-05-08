@@ -526,11 +526,11 @@
 
 Каждый сценарий — markdown-файл с шагами и ожидаемым результатом.
 
-- [ ] `auth-signup-and-create-project.md` — signup → verify-email (через DB-извлечение токена) → create project → отправить промпт → видим стрим ответа AI.
-- [ ] `auth-strict-link.md` — signup через email → выйти → попытаться signin через Google с тем же email → видим страницу `/auth/account-conflict` с правильным сообщением.
-- [ ] `auth-quota-exceeded.md` — выставить `usage_counters.used = limit` → отправить сообщение в чат → видим 402-bubble.
-- [ ] `publication-visibility.md` (из Фазы 22, дополнить).
-- [ ] `admin-suspend.md` (если делали Фазу 23) — admin банит юзера → юзер не может зайти.
+- [x] `auth-signup-and-create-project.md` — signup → verify-email (через DB-извлечение токена) → create project → отправить промпт → видим стрим ответа AI.
+- [x] `auth-strict-link.md` — signup через email → выйти → попытаться signin через Google с тем же email → видим страницу `/auth/account-conflict` с правильным сообщением.
+- [x] `auth-quota-exceeded.md` — выставить `usage_counters.used = limit` → отправить сообщение в чат → видим 402-bubble.
+- [x] `publication-visibility.md` (из Фазы 22, дополнить).
+- [x] `admin-suspend.md` (если делали Фазу 23) — admin банит юзера → юзер не может зайти.
 
 **Верификация:**
 

@@ -15,6 +15,7 @@ export type RequestSession = {
     email: string;
     emailVerified: boolean;
     isAdmin: boolean;
+    status: "active" | "suspended" | "deleted";
   };
   sessionId: string;
 };
@@ -22,6 +23,11 @@ export type RequestSession = {
 export const getRequestSession = async (): Promise<RequestSession | null> => {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return null;
+  const rawStatus = (session.user as { status?: unknown }).status;
+  const status: RequestSession["user"]["status"] =
+    rawStatus === "suspended" || rawStatus === "deleted"
+      ? rawStatus
+      : "active";
   return {
     user: {
       id: session.user.id,
@@ -29,6 +35,7 @@ export const getRequestSession = async (): Promise<RequestSession | null> => {
       emailVerified: session.user.emailVerified === true,
       isAdmin:
         (session.user as { isAdmin?: unknown }).isAdmin === true,
+      status,
     },
     sessionId: session.session.id,
   };
@@ -37,6 +44,18 @@ export const getRequestSession = async (): Promise<RequestSession | null> => {
 export const requireSession = async (): Promise<RequestSession> => {
   const s = await getRequestSession();
   if (!s) throw new HttpError(401, "auth.unauthenticated", "Login required");
+  // Suspended/deleted accounts keep a Better Auth session token until it
+  // expires, but they're locked out of every protected surface (Doc 2 §7.11
+  // — admin can suspend; the contract is "loses access immediately"). The
+  // suspend handler also nukes sessions, so this is a defence in depth for
+  // tokens issued before the suspend.
+  if (s.user.status === "suspended" || s.user.status === "deleted") {
+    throw new HttpError(
+      423,
+      "auth.account_suspended",
+      "Аккаунт временно недоступен. Свяжитесь с поддержкой.",
+    );
+  }
   return s;
 };
 

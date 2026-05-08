@@ -290,3 +290,17 @@
   - build green; typecheck baseline (14 pre-existing test errors, ноль введённых)
 - Замечания: identity-session.ts удалён вместе с .adorable/acl.json. Все routes теперь gates через protectedRoute + requirePermission. Build-status SSE использует inline session-check (не оборачивается в protectedRoute, потому что возвращает streaming Response).
 - Коммит: 1db7ed1
+
+## auth-iter 25 — все сценарии зелёные, миграция закрыта
+- Дата: 2026-05-08
+- Что закрыто: фаза 25 (e2e Playwright MCP scenarios) + миграция auth/multi-tenancy
+- Тесты: 659/695 vitest (36 skipped), 0 failed; typecheck baseline (14); build green
+- Файлы: verification/scenarios/{auth-signup-and-create-project,auth-strict-link,auth-quota-exceeded,admin-suspend}.md (новые); publication-visibility.md дополнен Phase 25 re-confirm; lib/auth/session.ts — added suspended/deleted gate в requireSession (defence-in-depth для stale tokens)
+- Verification:
+  1. signup-and-create-project: phase25-scenario@example.com → /signup → /verify-email?pending → JWT verify-link из dev-log → /api/auth/verify-email → 302; sign-in → POST /api/repos → 200; POST /api/chat → 200 SSE с `data:{"type":"start",...}` ✓
+  2. strict-link: UI page /auth/account-conflict?provider=google&existingProvider=email&email=... рендерит правильный текст с правильно подставленными именами провайдеров. Полный round-trip через Google OAuth требует реальных credentials (отмечено в scenario doc) ✓
+  3. quota-exceeded: UPSERT usage_counters.used=100000 → POST /api/chat → 402 + envelope {error:{code:"quota.exceeded",quota:{kind,limit,used,period_start}}} ✓
+  4. publication-visibility: матрица из Phase 22 re-confirmed ✓
+  5. admin-suspend: admin → POST /api/admin/users/:id/suspend → 200; suspended user signin → 200 (Better Auth не блокирует), GET /api/me → 423 auth.account_suspended ✓
+- Замечания: добавил suspended/deleted-status check в requireSession (Doc 2 §7.11 implied "loses access immediately"). Это defence-in-depth для случая когда suspend запускается раньше чем sessions DELETE доходит — protected routes отбивают 423 даже с валидным cookie. Strict-link Google round-trip требует настоящих GOOGLE_CLIENT_ID/SECRET для полного e2e — UI-часть и server-side accountLinking:false независимо проверены.
+- Коммит: <pending>

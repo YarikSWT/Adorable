@@ -47,6 +47,12 @@ visibility=private,        outsider (verified) cookie      → 403
 All seven responses observed exactly as required. The body is empty in
 every case so Caddy doesn't accidentally relay HTML to the upstream.
 
+Phase 25 re-confirmation (8 May 2026): re-ran the matrix after the
+Phase 22 follow-up landed (no Caddyfile-side changes; pure backend
+verify). Matrix still produces the expected 404 / 200 / 401 / 200 /
+401 / 200 / 403, which gives the publication-gateway scenario its
+green check for the migration close-out (auth-iter 25).
+
 ### Notes
 
 - 401 for an authenticated *but un-verified* user is intentional —
