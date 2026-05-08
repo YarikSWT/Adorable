@@ -1,19 +1,11 @@
 "use client";
 
-import { useProjectConversations } from "@/lib/project-conversations-context";
-import { cn } from "@/lib/utils";
 import type { FC } from "react";
 
+// One conversation per project: there is no longer a list to render here.
+// AssistantUI wraps this in its thread-welcome frame; the visible bits
+// come from the surrounding chat composer + history.
 export const RepoWelcome: FC = () => {
-  const {
-    conversations,
-    onSelectConversation,
-    repoId,
-    activeConversationId,
-  } = useProjectConversations();
-
-  const hasConversations = repoId && conversations.length > 0;
-
   return (
     <div className="aui-thread-welcome-root mx-auto my-auto flex w-full max-w-(--thread-max-width) grow flex-col">
       <div className="aui-thread-welcome-center flex w-full grow flex-col items-center justify-center">
@@ -22,38 +14,6 @@ export const RepoWelcome: FC = () => {
             {""}
           </h1>
         </div>
-
-        {hasConversations && (
-          <div className="mt-8 w-full max-w-(--thread-max-width) animate-in delay-100 duration-300 fade-in slide-in-from-bottom-2">
-            <p className="mb-2 px-3 text-xs font-medium text-muted-foreground/50">
-              Previous conversations
-            </p>
-            <div className="divide-y divide-border/50">
-              {conversations.map((conversation) => {
-                const title = conversation.title?.trim();
-                const isActive = conversation.id === activeConversationId;
-                return (
-                  <button
-                    key={conversation.id}
-                    type="button"
-                    onClick={() => onSelectConversation(conversation.id)}
-                    aria-current={isActive ? "page" : undefined}
-                    className={cn(
-                      "flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm transition-colors",
-                      isActive
-                        ? "bg-muted/70 font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                    )}
-                  >
-                    <span className="truncate">
-                      {title || "Untitled conversation"}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

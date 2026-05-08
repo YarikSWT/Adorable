@@ -168,22 +168,19 @@ export const HomeWelcome: FC = () => {
                           />
                         </div>
                       </div>
-                      {/* Info */}
+                      {/* Info — one conversation per project, so we
+                          no longer surface a chat count. Deployments
+                          shown only when there's something to count. */}
                       <div className="px-3 py-2.5">
                         <p className="truncate text-sm font-medium text-foreground group-hover:text-foreground">
                           {repo.name}
                         </p>
-                        <p className="mt-0.5 text-xs text-muted-foreground/50">
-                          {repo.conversations.length} chat
-                          {repo.conversations.length !== 1 ? "s" : ""}
-                          {repo.deployments.length > 0 && (
-                            <>
-                              {" · "}
-                              {repo.deployments.length} deploy
-                              {repo.deployments.length !== 1 ? "s" : ""}
-                            </>
-                          )}
-                        </p>
+                        {repo.deployments.length > 0 ? (
+                          <p className="mt-0.5 text-xs text-muted-foreground/50">
+                            {repo.deployments.length} deploy
+                            {repo.deployments.length !== 1 ? "s" : ""}
+                          </p>
+                        ) : null}
                       </div>
                     </button>
                   );
