@@ -139,4 +139,4 @@
   - psql usage_events для phase13-chat → запись llm.tokens.monthly amount=1902 ✓; usage_counters.used=1902 ✓
   - UPDATE usage_counters.used=100000 → POST /api/chat → 402 quota.exceeded с {kind, limit, used, period_start} ✓
 - Замечания: pre-flight quota = 50_000 tokens (Doc 2 §13). Actual usage берётся из llm.result.usage.totalTokens (или inputTokens+outputTokens) с fallback на estimate если провайдер не вернул цифры. recordUsage обёрнут в try/catch — не валит стрим.
-- Коммит: <pending>
+- Коммит: 140c419
