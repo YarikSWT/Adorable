@@ -221,4 +221,4 @@
   - /orgs/phase19-org/members: таблица с phase13-chat / OWNER (без role-dropdown для self), кнопка «+ Добавить участника» (stub modal) ✓
   - /orgs/phase19-org/settings: «Имя / Slug / Сохранить» + destructive «Удалить организацию» с input-confirm ✓
 - Замечания: personal-org `/orgs/<slug>/*` рендерит «Организация не найдена» (Doc 3 §7.1). Slug auto-fill — useEffect, отключается после ручного редактирования.
-- Коммит: <pending>
+- Коммит: e88b3f9
