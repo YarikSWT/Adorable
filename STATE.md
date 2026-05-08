@@ -164,4 +164,4 @@
   - sign-in phase13-chat (verified, 2 orgs) → home: header `"Adorable"` + OrgSwitcher `"Phase14 Team ▾"` + UserMenu `"PC"`. Banner не виден ✓
   - sign-up phase15-noverify-mctxe1 (1 org, !verified) → home: `"Adorable / PN / Подтвердите email phase15-noverify-mctxe1@example.com... Отправить заново ✕"`. OrgSwitcher скрыт (1 org) ✓
 - Замечания: shell — MeProvider + client components fetching /api/me. SSR рендерит skeleton (loading state), userMenu/banner появляются после hydration. WorkspaceFrame теперь обёрт в `<div class="flex h-full flex-col">` чтобы header не ломал layout repo-workspace-shell.
-- Коммит: <pending>
+- Коммит: 8b446b1
