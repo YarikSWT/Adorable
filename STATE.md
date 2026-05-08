@@ -263,4 +263,4 @@
   - visibility=private, phase13-chat (member) → 200 ✓
   - visibility=private, phase22-outsider (verified, не-member) → 403 ✓
 - Замечания: spec sketch назвал endpoint `/__published_authz`; Next.js refuses double-underscore-prefixed папок (treats as private), потому используем `/api/published-authz`. Caddyfile-снippet и интерпретация статусов задокументированы в scenarios markdown. Live-wiring через `lib/adapters/proxy-caddy.ts` (оборачивание existing routes в `forward_auth`-директиву) — отдельная итерация: route-handler уже содержит всю auth-логику, остаётся переписать proxy-adapter для генерации правильного Caddy JSON.
-- Коммит: <pending>
+- Коммит: 5a74655
