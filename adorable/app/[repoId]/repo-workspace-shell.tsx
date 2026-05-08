@@ -261,13 +261,21 @@ export function RepoWorkspaceShell({
 
   const handleSelectProject = useCallback(
     (nextRepoId: string) => {
-      // repoId из Gitea — "owner/repo" со slash. router.push с raw slash
-      // создаёт многосегментный URL, который Next dynamic route [repoId]
-      // парсит как repoId=owner — открывается не тот репо. encodeURIComponent
-      // превращает "/" в "%2F" и Next decode'ит его обратно в один сегмент.
-      router.push(`/${encodeURIComponent(nextRepoId)}`);
+      // One conversation per project: route straight to the existing
+      // conversation if the cached repo list already knows about it. That
+      // keeps the URL on /[repoId]/[convId] form so the workspace doesn't
+      // fall through to ensureActiveConversation and mint a duplicate.
+      const next = repos.find((r) => r.id === nextRepoId);
+      const firstConv = next?.conversations[0]?.id;
+      // repoId из Gitea — "owner/repo" со slash. encodeURIComponent
+      // превращает "/" в "%2F" — Next dynamic route [repoId] получает
+      // сегмент целиком и корректно его декодирует.
+      const path = firstConv
+        ? `/${encodeURIComponent(nextRepoId)}/${encodeURIComponent(firstConv)}`
+        : `/${encodeURIComponent(nextRepoId)}`;
+      router.push(path);
     },
-    [router],
+    [router, repos],
   );
 
   const selectedRepo = repoId

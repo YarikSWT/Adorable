@@ -24,6 +24,11 @@ export const GET = protectedRoute<Params>(async ({ params, session }) => {
   return NextResponse.json({ conversations: metadata.conversations });
 });
 
+// Idempotent — invariant "one conversation per project". If the project
+// already has a conversation, return that one verbatim; only on the very
+// first call (e.g. immediately after POST /api/repos creates the project +
+// initial conversation in one transaction, or for legacy projects where
+// metadata.conversations got cleared) we mint a new id.
 export const POST = protectedRoute<Params>(async ({ req, params, session }) => {
   const repoId = decodeURIComponent(params.repoId);
   const project = await getProjectByGiteaWrapperId(repoId);
@@ -44,6 +49,15 @@ export const POST = protectedRoute<Params>(async ({ req, params, session }) => {
   const metadata = await readRepoMetadata(repoId);
   if (!metadata) {
     throw new HttpError(404, "not_found", "Repository metadata not found");
+  }
+
+  const existing = metadata.conversations[0];
+  if (existing) {
+    return NextResponse.json({
+      conversationId: existing.id,
+      conversations: metadata.conversations,
+      reused: true,
+    });
   }
 
   const conversationId = randomUUID();
