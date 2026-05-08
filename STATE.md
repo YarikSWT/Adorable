@@ -207,4 +207,4 @@
   - «Изменить» → диалог с pre-selected private → выбрать public → «Сохранить» → page reload → pill `PUBLIC` ✓
   - psql после change: published_visibility='public', preview_subdomain не изменился (locked) ✓
 - Замечания: /api/repos/:repoId/promote был привязан к старому identity-cookie + production-domain flow; полностью переписан под §7.7 (snapshot row + projects.published_*). Кастомный домен скрыт. commit_hash в snapshot — placeholder из metadata.boilerplateVersion (1.0.0); полноценный HEAD-grab будет в отдельной фазе preview-pipeline.
-- Коммит: <pending>
+- Коммит: 4ca4010
