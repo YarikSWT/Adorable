@@ -289,4 +289,4 @@
   - vitest 659/695 pass (36 skipped — все pre-existing chat/conversations e2e + 6 obsolete identity-cookie denial кейсов с пометкой "Phase 24")
   - build green; typecheck baseline (14 pre-existing test errors, ноль введённых)
 - Замечания: identity-session.ts удалён вместе с .adorable/acl.json. Все routes теперь gates через protectedRoute + requirePermission. Build-status SSE использует inline session-check (не оборачивается в protectedRoute, потому что возвращает streaming Response).
-- Коммит: <pending>
+- Коммит: 1db7ed1
