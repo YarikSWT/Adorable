@@ -303,4 +303,4 @@
   4. publication-visibility: матрица из Phase 22 re-confirmed ✓
   5. admin-suspend: admin → POST /api/admin/users/:id/suspend → 200; suspended user signin → 200 (Better Auth не блокирует), GET /api/me → 423 auth.account_suspended ✓
 - Замечания: добавил suspended/deleted-status check в requireSession (Doc 2 §7.11 implied "loses access immediately"). Это defence-in-depth для случая когда suspend запускается раньше чем sessions DELETE доходит — protected routes отбивают 423 даже с валидным cookie. Strict-link Google round-trip требует настоящих GOOGLE_CLIENT_ID/SECRET для полного e2e — UI-часть и server-side accountLinking:false независимо проверены.
-- Коммит: <pending>
+- Коммит: d16f865
