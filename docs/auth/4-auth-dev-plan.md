@@ -420,11 +420,11 @@
 
 **Файлы**: `adorable/app/orgs/[slug]/...`, `adorable/app/orgs/new/page.tsx`.
 
-- [ ] `/orgs/new` — форма (name, slug auto-fill) → POST `/api/orgs`.
-- [ ] `/orgs/<slug>` — overview (Документ 3, 7.2): счётчики, список последних проектов, mini-quota.
-- [ ] `/orgs/<slug>/settings` — name/slug edit, удалить team org.
-- [ ] `/orgs/<slug>/members` — как project members, но для org.
-- [ ] Personal-org через `/orgs/<personal-slug>/...` **не работает** в UI (рендерим 404 или редирект на `/`); биллинг для personal — только через `/orgs/<personal-slug>/billing` (Фаза 21).
+- [x] `/orgs/new` — форма (name, slug auto-fill) → POST `/api/orgs`.
+- [x] `/orgs/<slug>` — overview (Документ 3, 7.2): счётчики, список последних проектов, mini-quota.
+- [x] `/orgs/<slug>/settings` — name/slug edit, удалить team org.
+- [x] `/orgs/<slug>/members` — как project members, но для org.
+- [x] Personal-org через `/orgs/<personal-slug>/...` **не работает** в UI (рендерим 404 или редирект на `/`); биллинг для personal — только через `/orgs/<personal-slug>/billing` (Фаза 21).
 
 **Верификация:**
 

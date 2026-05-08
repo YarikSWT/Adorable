@@ -208,3 +208,17 @@
   - psql после change: published_visibility='public', preview_subdomain не изменился (locked) ✓
 - Замечания: /api/repos/:repoId/promote был привязан к старому identity-cookie + production-domain flow; полностью переписан под §7.7 (snapshot row + projects.published_*). Кастомный домен скрыт. commit_hash в snapshot — placeholder из metadata.boilerplateVersion (1.0.0); полноценный HEAD-grab будет в отдельной фазе preview-pipeline.
 - Коммит: 4ca4010
+
+## auth-iter 19 — Org UI: list/settings/members + /orgs/new
+- Дата: 2026-05-08
+- Что закрыто: фаза 19 («Org UI»)
+- Тесты: 672/701 vitest (29 skipped); typecheck baseline (14); build green
+- Файлы: app/orgs/new/{page,new-org-form}.tsx; app/orgs/[slug]/{page,settings/{page,settings-form},members/{page,members-client}}.tsx
+- Верификация (Playwright MCP под phase13-chat):
+  - GET /orgs/new → форма «Имя / Slug (auto-fill из имени) / Создать» ✓
+  - submit с name="Phase19 Org" → slug auto-filled `phase19-org` → POST /api/orgs → redirect на `/orgs/phase19-org` ✓
+  - /orgs/phase19-org overview: «Phase19 Org TEAM phase19-org / Members / Settings / ПРОЕКТЫ 0 / УЧАСТНИКИ 1 / ПЛАН free / Последние проекты: пусто» ✓
+  - /orgs/phase19-org/members: таблица с phase13-chat / OWNER (без role-dropdown для self), кнопка «+ Добавить участника» (stub modal) ✓
+  - /orgs/phase19-org/settings: «Имя / Slug / Сохранить» + destructive «Удалить организацию» с input-confirm ✓
+- Замечания: personal-org `/orgs/<slug>/*` рендерит «Организация не найдена» (Doc 3 §7.1). Slug auto-fill — useEffect, отключается после ручного редактирования.
+- Коммит: <pending>
