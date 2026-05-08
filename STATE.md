@@ -264,3 +264,17 @@
   - visibility=private, phase22-outsider (verified, не-member) → 403 ✓
 - Замечания: spec sketch назвал endpoint `/__published_authz`; Next.js refuses double-underscore-prefixed папок (treats as private), потому используем `/api/published-authz`. Caddyfile-снippet и интерпретация статусов задокументированы в scenarios markdown. Live-wiring через `lib/adapters/proxy-caddy.ts` (оборачивание existing routes в `forward_auth`-директиву) — отдельная итерация: route-handler уже содержит всю auth-логику, остаётся переписать proxy-adapter для генерации правильного Caddy JSON.
 - Коммит: 5a74655
+
+## auth-iter 23 — Минимальная админка (опционально)
+- Дата: 2026-05-08
+- Что закрыто: фаза 23 (опциональная)
+- Тесты: 672/701 vitest (29 skipped); typecheck baseline (14); build green
+- Файлы: app/admin/{layout,sidebar,page,users/{page,[id]/{page,user-actions}},orgs/[id]/{page,override-form},audit/page}.tsx; app/api/admin/orgs/[orgId]/plan-overrides/route.ts (новый POST endpoint для override-формы)
+- Верификация (Playwright MCP под admin phase13-chat):
+  - /admin → дашборд: «ЮЗЕРЫ (ВСЕГО) 292 / АКТИВНЫЕ 292 / РЕГИСТРАЦИИ ЗА НЕДЕЛЮ 292 / ОРГАНИЗАЦИИ 176 / ОПУБЛИКОВАННЫЕ ПРОЕКТЫ 1» ✓
+  - /admin/users → таблица с email/имя/статус/verified/created + ?q= search ✓
+  - /admin/users/<id> → карточка + список org с ролями + блок «Сменить email» + Suspend/Unsuspend кнопки (использует /api/admin/users/:id и /suspend|unsuspend)
+  - /admin/orgs/<id> → название/тип/план/период + текущий план-лимиты + список активных overrides + форма «Добавить override» (POST /api/admin/orgs/:id/plan-overrides — добавлен в этой фазе)
+  - /admin/audit → audit-log таблица с фильтрами по action+since (используется существующий /api/admin/audit-log endpoint, но рендерится server-side из БД)
+  - non-admin (phase14-noadmin@example.com) на /admin → "Доступ запрещён." (layout-guard на is_admin) ✓
+- Коммит: <pending>
