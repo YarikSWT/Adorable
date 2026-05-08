@@ -234,4 +234,4 @@
   - /settings/security: «Сменить пароль» (current/new/confirm) + «Активные сессии» таблица из 4 строк (curl + Mozilla) с UA-summary + IP + Завершить ✓
   - /settings/connections: 3 провайдера (Google/Yandex/VK), все «Не привязан / Привязать» — фактическое привязывание идёт через POST /api/auth/sign-in/{social|oauth2} (тот же flow, что login-page); unlink через POST /api/auth/unlink-account с last-method guard
 - Замечания: change-password шлёт revokeOtherSessions:true (Better Auth дефолт «сохраняем текущую сессию»). list-sessions endpoint у Better Auth возвращает массив без isCurrent-флага по дефолту — UI пока показывает все строки одинаково (без специальной отметки), это можно расширить в отдельной фазе.
-- Коммит: <pending>
+- Коммит: 6dd8707
