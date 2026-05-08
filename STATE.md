@@ -193,4 +193,4 @@
   - "Отозвать" → confirm-диалог → подтвердил → таблица показывает «Отозван» (без кнопки revoke) ✓
   - psql: name='mobile-api', token_prefix='ibWyJcbx', revoked_at NOT NULL, token_hash начинается с `$argon2id$v=19$m=65536...` ✓
 - Замечания: clipboard.readText() в Playwright возвращает permission-denied (по дефолту chrome не даёт permission в headless); writeText сработал.
-- Коммит: <pending>
+- Коммит: 94b2bae
