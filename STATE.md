@@ -277,4 +277,4 @@
   - /admin/orgs/<id> → название/тип/план/период + текущий план-лимиты + список активных overrides + форма «Добавить override» (POST /api/admin/orgs/:id/plan-overrides — добавлен в этой фазе)
   - /admin/audit → audit-log таблица с фильтрами по action+since (используется существующий /api/admin/audit-log endpoint, но рендерится server-side из БД)
   - non-admin (phase14-noadmin@example.com) на /admin → "Доступ запрещён." (layout-guard на is_admin) ✓
-- Коммит: <pending>
+- Коммит: 6236aa8
