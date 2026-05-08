@@ -316,17 +316,17 @@
 
 **Файлы**: `adorable/app/api/me/route.ts`, `adorable/app/api/orgs/...`, `adorable/app/api/repos/[repoId]/members/route.ts`, `tokens/route.ts`, `visibility/route.ts`, `adorable/app/api/admin/users/...`.
 
-- [ ] `/api/me` — GET, PATCH (Документ 2, 7.2). PATCH — поля name, avatarUrl.
-- [ ] `/api/orgs` — POST для создания team-org. GET вшит в `/api/me` (organizations).
-- [ ] `/api/orgs/:orgId` — GET, PATCH, DELETE (только team).
-- [ ] `/api/orgs/:orgId/members` — GET, PATCH (изменение роли), DELETE.
-- [ ] `/api/repos/:repoId/members` — GET, PATCH, DELETE (без POST в этой версии — приглашения отдельно).
-- [ ] `/api/repos/:repoId/tokens` — GET, POST (с одноразовым возвратом), DELETE.
-- [ ] `/api/repos/:repoId/visibility` — PATCH.
-- [ ] `/api/admin/users` — GET (list).
-- [ ] `/api/admin/users/:id` — PATCH (правка 5: смена email с инвалидацией сессий).
-- [ ] `/api/admin/users/:id/suspend|unsuspend` — POST.
-- [ ] `/api/admin/audit-log` — GET с фильтрами.
+- [x] `/api/me` — GET, PATCH (Документ 2, 7.2). PATCH — поля name, avatarUrl.
+- [x] `/api/orgs` — POST для создания team-org. GET вшит в `/api/me` (organizations).
+- [x] `/api/orgs/:orgId` — GET, PATCH, DELETE (только team).
+- [x] `/api/orgs/:orgId/members` — GET, PATCH (изменение роли), DELETE.
+- [x] `/api/repos/:repoId/members` — GET, PATCH, DELETE (без POST в этой версии — приглашения отдельно).
+- [x] `/api/repos/:repoId/tokens` — GET, POST (с одноразовым возвратом), DELETE.
+- [x] `/api/repos/:repoId/visibility` — PATCH.
+- [x] `/api/admin/users` — GET (list).
+- [x] `/api/admin/users/:id` — PATCH (правка 5: смена email с инвалидацией сессий).
+- [x] `/api/admin/users/:id/suspend|unsuspend` — POST.
+- [x] `/api/admin/audit-log` — GET с фильтрами.
 
 Каждая ручка обёрнута в `protectedRoute`, проверяет нужный пермишен, возвращает корректный формат ошибок.
 

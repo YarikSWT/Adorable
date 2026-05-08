@@ -140,3 +140,17 @@
   - UPDATE usage_counters.used=100000 → POST /api/chat → 402 quota.exceeded с {kind, limit, used, period_start} ✓
 - Замечания: pre-flight quota = 50_000 tokens (Doc 2 §13). Actual usage берётся из llm.result.usage.totalTokens (или inputTokens+outputTokens) с fallback на estimate если провайдер не вернул цифры. recordUsage обёрнут в try/catch — не валит стрим.
 - Коммит: 140c419
+
+## auth-iter 14 — Остальные API: /api/me, /api/orgs, project members/tokens/visibility, admin users + audit-log
+- Дата: 2026-05-08
+- Что закрыто: фаза 14 («все остальные ручки»)
+- Тесты: 672/701 vitest (29 skipped); typecheck baseline (14); build green
+- Файлы: app/api/me/route.ts; app/api/orgs/{,[orgId]/{,members/{,[userId]}}}/route.ts; app/api/repos/[repoId]/{members/{,[userId]},tokens/{,[tokenId]},visibility}/route.ts; app/api/admin/{users/{,[userId]/{,suspend,unsuspend}},audit-log}/route.ts
+- Верификация (curl) с phase13-chat user (после промоции в admin):
+  - GET /api/me → 200 + user{id,email,name,...isAdmin,status} + organizations[{role,subscription{planSlug:"free"}}]
+  - POST /api/orgs {"name":"Phase14 Team","slug":"phase14-team"} → 200; psql organizations показывает type=team
+  - POST /api/repos/<encoded repoId>/tokens {"name":"server-token","kind":"server"} → 200 + plaintext `sk_live_PUKqdKf8...`. GET того же endpoint возвращает только tokenPrefix (без plaintext) ✓
+  - PATCH /api/admin/users/<victim> {"email":"new-victim@..."} от admin → 200; psql email обновился, email_verified=false ✓
+  - PATCH /api/admin/users/<victim> от не-admin → 403 ✓
+- Замечания: project tokens используют argon2id для tokenHash; URL-encode repoId (`%2F`) обязателен — в `<owner>/<name>` строке Gitea-id'а слеш ломает Next routing. Last-owner guard для org members PATCH/DELETE.
+- Коммит: <pending>
