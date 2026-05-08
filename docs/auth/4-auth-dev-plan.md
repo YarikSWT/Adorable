@@ -280,10 +280,10 @@
 
 **Файлы**: `adorable/app/api/repos/route.ts`, `adorable/app/api/repos/[repoId]/route.ts` (если будет создан), `adorable/lib/db/queries/projects.ts`, `adorable/lib/db/queries/users.ts`.
 
-- [ ] `lib/db/queries/projects.ts` — `getProjectByGiteaWrapperId(repoId)`, `listProjectsForUser(userId, opts)`, `getDefaultPersonalOrgId(userId)`, и тонкие helpers поверх `getProjectAccessContext`.
-- [ ] Переписать `POST /api/repos` точно по Документу 2, 8.2 — с **правкой 3**: создатель получает явную запись `project_members` с ролью `owner` в той же транзакции, что и создание проекта. Использовать `getRoleId("project", "owner")` из `role-cache.ts`.
-- [ ] Переписать `GET /api/repos` — фильтрация по `listProjectsForUser`. URL-семантика `repoId` = `gitea_wrapper_repo_id` сохраняется (Приложение A Документа 2).
-- [ ] Удалить из этого файла все импорты и вызовы `getOrCreateIdentitySession`, `migrateRepoIdInAcl`. Соблюсти, что rename Gitea-репо теперь обновляет `projects.giteaWrapperRepoId` напрямую.
+- [x] `lib/db/queries/projects.ts` — `getProjectByGiteaWrapperId(repoId)`, `listProjectsForUser(userId, opts)`, `getDefaultPersonalOrgId(userId)`, и тонкие helpers поверх `getProjectAccessContext`.
+- [x] Переписать `POST /api/repos` точно по Документу 2, 8.2 — с **правкой 3**: создатель получает явную запись `project_members` с ролью `owner` в той же транзакции, что и создание проекта. Использовать `getRoleId("project", "owner")` из `role-cache.ts`.
+- [x] Переписать `GET /api/repos` — фильтрация по `listProjectsForUser`. URL-семантика `repoId` = `gitea_wrapper_repo_id` сохраняется (Приложение A Документа 2).
+- [x] Удалить из этого файла все импорты и вызовы `getOrCreateIdentitySession`, `migrateRepoIdInAcl`. Соблюсти, что rename Gitea-репо теперь обновляет `projects.giteaWrapperRepoId` напрямую.
 
 **Верификация:**
 

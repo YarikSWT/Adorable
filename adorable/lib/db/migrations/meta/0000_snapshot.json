@@ -1,5 +1,5 @@
 {
-  "id": "8bbe0fab-9555-43ab-ba2b-e739b252cc3a",
+  "id": "555f7ca9-df55-452a-b61a-1ed8e65ef6fa",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1183,7 +1183,7 @@
         },
         "gitea_repo_id": {
           "name": "gitea_repo_id",
-          "type": "bigint",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -1195,7 +1195,7 @@
         },
         "gitea_wrapper_repo_id": {
           "name": "gitea_wrapper_repo_id",
-          "type": "bigint",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },

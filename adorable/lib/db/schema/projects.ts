@@ -4,7 +4,6 @@ import {
   text,
   boolean,
   timestamp,
-  bigint,
   jsonb,
   index,
   uniqueIndex,
@@ -28,9 +27,15 @@ export const projects = pgTable(
     // Gitea bindings — both source repo and wrapper repo IDs/names. Wrapper
     // continues to hold metadata/conversations (see ADR-016) while ownership
     // and access live in this table.
-    giteaRepoId: bigint("gitea_repo_id", { mode: "number" }),
+    //
+    // Spec §2.5 sketched these as bigint; our Gitea adapter actually returns
+    // string IDs of the form `<owner>/<name>` (existing fork behaviour), so
+    // the columns are text() and store that opaque token. URL routing keeps
+    // working because the same string round-trips through the encoded URL
+    // segment.
+    giteaRepoId: text("gitea_repo_id"),
     giteaRepoName: text("gitea_repo_name"),
-    giteaWrapperRepoId: bigint("gitea_wrapper_repo_id", { mode: "number" }),
+    giteaWrapperRepoId: text("gitea_wrapper_repo_id"),
     giteaWrapperRepoName: text("gitea_wrapper_repo_name"),
 
     previewSubdomain: text("preview_subdomain").unique(),

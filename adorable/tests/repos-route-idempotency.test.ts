@@ -5,9 +5,61 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/identity-session", () => ({
-  getOrCreateIdentitySession: vi.fn(),
-  migrateRepoIdInAcl: vi.fn(),
+// Auth + DB mocks. The route now goes through requireSession /
+// requirePermission / requireQuota / db.transaction; replace each with a
+// minimal pass-through so the test stays focused on idempotency, not auth.
+vi.mock("@/lib/auth/session", () => ({
+  requireSession: vi.fn(async () => ({
+    user: {
+      id: "user-test-id",
+      email: "test@example.com",
+      emailVerified: true,
+      isAdmin: false,
+    },
+    sessionId: "session-test",
+  })),
+  getRequestSession: vi.fn(async () => ({
+    user: {
+      id: "user-test-id",
+      email: "test@example.com",
+      emailVerified: true,
+      isAdmin: false,
+    },
+    sessionId: "session-test",
+  })),
+  requireEmailVerified: vi.fn((s: unknown) => s),
+}));
+vi.mock("@/lib/auth/authorization", () => ({
+  requirePermission: vi.fn(async () => ({})),
+}));
+vi.mock("@/lib/auth/quotas", () => ({
+  requireQuota: vi.fn(async () => ({ remaining: Number.POSITIVE_INFINITY })),
+  recordUsage: vi.fn(async () => undefined),
+}));
+vi.mock("@/lib/auth/audit", () => ({
+  writeAuditLog: vi.fn(async () => undefined),
+}));
+vi.mock("@/lib/auth/role-cache", () => ({
+  getRoleId: vi.fn(async () => "role-project-owner-id"),
+}));
+vi.mock("@/lib/db/queries/users", () => ({
+  getDefaultPersonalOrgId: vi.fn(async () => "org-default-id"),
+}));
+vi.mock("@/lib/db/queries/projects", () => ({
+  listProjectsForUser: vi.fn(async () => []),
+}));
+vi.mock("@/lib/db/client", () => ({
+  db: {
+    transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({
+        insert: () => ({
+          values: () => ({
+            returning: async () => [{ id: "project-test-id" }],
+          }),
+        }),
+      }),
+    ),
+  },
 }));
 
 vi.mock("@/lib/git/provider-singleton", () => ({
@@ -43,7 +95,6 @@ vi.mock("@/lib/repo-storage", async () => {
   };
 });
 
-import { getOrCreateIdentitySession } from "@/lib/identity-session";
 import { getGitProvider } from "@/lib/git/provider-singleton";
 import { getPreviewProvider } from "@/lib/preview/provider-singleton";
 import {
@@ -53,18 +104,9 @@ import {
 
 type MockedFn = ReturnType<typeof vi.fn>;
 
-const mockIdentity = () => {
-  (getOrCreateIdentitySession as unknown as MockedFn).mockResolvedValue({
-    identity: {
-      permissions: {
-        git: {
-          list: vi.fn(async () => ({ repositories: [] })),
-          grant: vi.fn(async () => undefined),
-        },
-      },
-    },
-  });
-};
+// No-op kept for the few tests that still call it. The route itself doesn't
+// touch identity-session anymore (Phase 12).
+const mockIdentity = () => {};
 
 const mockGitProvider = (createCounter: { count: number }) => {
   (getGitProvider as unknown as MockedFn).mockResolvedValue({
@@ -106,6 +148,7 @@ const callPost = (body: Record<string, unknown>): Promise<Response> =>
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }),
+    { params: Promise.resolve({}) },
   );
 
 beforeEach(() => {

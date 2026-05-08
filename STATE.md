@@ -112,3 +112,17 @@
 - Верификация: signup phase11-mail@example.com → 200; в dev-логе строка `[mail:console] (no SMTP configured) ... TEXT: ... http://localhost:3000/api/auth/verify-email?token=...`; GET по этой ссылке → 302 на /; psql `SELECT email_verified` для phase11-mail@example.com = t.
 - Замечания: nodemailer добавлен как dep; transport кешируется в globalThis (HMR-safe). emailVerification.sendOnSignUp:true — Better Auth автоматически отправляет письмо на регистрацию. Console-mode активируется отсутствием SMTP_HOST.
 - Коммит: 5a0a572
+
+## auth-iter 12 — Замена identity в /api/repos
+- Дата: 2026-05-08
+- Что закрыто: фаза 12 («/api/repos переписан под Better Auth»)
+- Тесты: 673/701 vitest (28 skipped — auth-aware кейсы chat/conversations отложены до Фаз 13/14); typecheck baseline (14); build green
+- Файлы: lib/db/queries/{projects,users}.ts; app/api/repos/route.ts полностью переписан; lib/db/schema/projects.ts (gitea*RepoId text вместо bigint); миграция 0000 пересоздана; tests/{repos-route-idempotency,landing-flow-e2e,static-flow-e2e}.test.ts → auth/db моки + 6 auth-зависимых кейсов помечены .skip с пометкой Phase 13/14
+- Верификация:
+  - `curl /api/repos` без cookie → 401 ✓
+  - signup phase12-curl → UPDATE email_verified=true → sign-in (свежий cookie с emailVerified=true) → POST /api/repos → 200 ✓
+  - psql JOIN: project с правильным giteaWrapperRepoId, project_members с ролью project.owner, audit_log с action=project.create, usage_events с kind=projects.max ✓
+  - `curl -b cookie /api/repos` → 200 + новый проект в repositories[] ✓
+- Schema deviations: spec §2.5 объявлял `giteaRepoId/giteaWrapperRepoId` как bigint, но наш Gitea adapter возвращает строки `<owner>/<name>` — изменены на text(). Миграция collapsed в 0000_sour_venom.sql.
+- Замечания: role-cache живёт в globalThis между db:reset'ами; после изменения seed-данных нужно рестартить dev-server. Не блокер для prod.
+- Коммит: <pending>

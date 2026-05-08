@@ -1,10 +1,6 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { createVmForRepo } from "@/lib/adorable-vm";
-import {
-  getOrCreateIdentitySession,
-  migrateRepoIdInAcl,
-} from "@/lib/identity-session";
 import { getGitProvider } from "@/lib/git/provider-singleton";
 import { seedTemplateRepo } from "@/lib/template-seeder";
 import { readBoilerplateVersion } from "@/lib/preview/boilerplate-version";
@@ -21,6 +17,20 @@ import {
   readRepoMetadata,
   writeRepoMetadata,
 } from "@/lib/repo-storage";
+import { db } from "@/lib/db/client";
+import { projectMembers, projects } from "@/lib/db/schema/projects";
+import { protectedRoute } from "@/lib/auth/api-wrap";
+import { requireEmailVerified, type RequestSession } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/authorization";
+import { recordUsage, requireQuota } from "@/lib/auth/quotas";
+import { writeAuditLog } from "@/lib/auth/audit";
+import { getRoleId } from "@/lib/auth/role-cache";
+import {
+  listProjectsForUser,
+  type ProjectRow,
+} from "@/lib/db/queries/projects";
+import { getDefaultPersonalOrgId } from "@/lib/db/queries/users";
+import { HttpError } from "@/lib/auth/errors";
 
 type CreateRepoResponse = {
   id: string;
@@ -122,11 +132,16 @@ const rewritePreviewPort = (url: string | undefined): string | undefined => {
 };
 
 const toRepoResponse = async (
-  repo: { id: string; name?: string | null },
+  project: ProjectRow,
   deploymentEntries: DeploymentEntry[],
 ) => {
-  const metadata = await readRepoMetadata(repo.id);
-  const repoDisplayName = toDisplayRepoName(repo.name);
+  // URL contract: external `repoId` = giteaWrapperRepoId (string token from
+  // the git provider, kept as-is for the URL).
+  const idStr = project.giteaWrapperRepoId ?? project.id;
+  const metadata = project.giteaWrapperRepoId
+    ? await readRepoMetadata(idStr)
+    : null;
+  const repoDisplayName = toDisplayRepoName(project.giteaWrapperRepoName);
   const metadataDisplayName = toDisplayRepoName(metadata?.name);
   const reconciledMetadata = metadata
     ? {
@@ -146,129 +161,96 @@ const toRepoResponse = async (
     : metadata;
 
   // Display priority:
-  //   1. metadata.name (то, что пользователь увидел в интерфейсе при создании)
-  //   2. stripped repo name (для старых wrapper'ов, у которых metadata.name мог
-  //      не сохраниться; у новых wrapper'ов имя — UUID, не годится для UI)
-  //   3. fallback "Untitled Repo"
+  //   1. project.name (что юзер ввёл при создании, теперь живёт в БД)
+  //   2. metadata.name (legacy projects до Phase 12)
+  //   3. stripped wrapper-repo name
+  //   4. fallback "Untitled Repo"
   return {
-    id: repo.id,
-    name: metadataDisplayName ?? repoDisplayName ?? "Untitled Repo",
+    id: idStr,
+    name:
+      project.name ??
+      metadataDisplayName ??
+      repoDisplayName ??
+      "Untitled Repo",
     metadata: reconciledMetadata,
   };
 };
 
-/**
- * Имена wrapper-репо считаются "чистыми", если соответствуют формату
- * `adorable-meta-<uuid>`. Все остальные (старые: спрэдингованные пробелы
- * → дефисы, осколки prompt'а в URL) подлежат one-time миграции.
- */
-const CLEAN_WRAPPER_NAME_RE =
-  /^adorable-meta-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const GET = protectedRoute(async ({ session }) => {
+  const projectRows = await listProjectsForUser(session.user.id);
+  // TODO(phase-5 of preview-pipeline): list deployments via DeployProvider.
+  const deploymentEntries: DeploymentEntry[] = [];
+  const items = await Promise.all(
+    projectRows.map((p) => toRepoResponse(p, deploymentEntries)),
+  );
+  return NextResponse.json({
+    userId: session.user.id,
+    repositories: items,
+  });
+});
 
-const migrateWrapperNameIfNeeded = async (
-  repo: { id: string; name: string },
-): Promise<{ id: string; name: string }> => {
-  if (CLEAN_WRAPPER_NAME_RE.test(repo.name)) return repo;
-  const provider = await getGitProvider();
-  if (!provider.renameRepo) return repo;
+type CreatePayload = {
+  name?: string;
+  conversationTitle?: string;
+  githubRepoName?: string;
+  clientRequestId?: string;
+  organizationId?: string;
+};
 
-  const newName = `adorable-meta-${randomUUID()}`;
+const parsePayload = async (req: Request): Promise<CreatePayload> => {
   try {
-    const renamed = await provider.renameRepo(repo.id, newName);
-    await migrateRepoIdInAcl(repo.id, renamed.repoId);
-    return { id: renamed.repoId, name: newName };
-  } catch (err) {
-    process.stderr.write(
-      `repos: migrate rename failed for ${repo.id} (${(err as Error).message})\n`,
-    );
-    return repo;
+    const raw = (await req.json()) as Record<string, unknown>;
+    const pickStr = (k: string): string | undefined => {
+      const v = raw[k];
+      if (typeof v !== "string") return undefined;
+      const t = v.trim();
+      return t ? t : undefined;
+    };
+    return {
+      name: pickStr("name"),
+      conversationTitle: pickStr("conversationTitle"),
+      githubRepoName: pickStr("githubRepoName"),
+      clientRequestId: pickStr("clientRequestId"),
+      organizationId: pickStr("organizationId"),
+    };
+  } catch {
+    return {};
   }
 };
 
-export async function GET() {
-  const { identityId, identity } = await getOrCreateIdentitySession();
-  const { repositories } = await identity.permissions.git.list({ limit: 200 });
-  const wrapperRepositories = repositories.filter((repo) =>
-    isWrapperRepoName(repo.name),
-  );
+export const POST = protectedRoute(async ({ req, session }) => {
+  requireEmailVerified(session);
+  const payload = await parsePayload(req);
 
-  // One-time миграция: старые wrapper'ы вроде
-  // "adorable-meta-----------------------------Mazda-MX-5..." (созданные
-  // до фикса префикса) переименовываются в "adorable-meta-<uuid>". ACL
-  // обновляется через migrateRepoIdInAcl. После rename старые URL
-  // перестают работать — пользователь увидит redirect через clean имя
-  // в следующем render'е home grid.
-  const migratedRepositories = await Promise.all(
-    wrapperRepositories.map((repo) => migrateWrapperNameIfNeeded(repo)),
-  );
-
-  // TODO(phase-5): list deployments via DeployProvider. For now leave
-  // empty — the reconciler treats missing matches as "idle"/"deploying"
-  // as appropriate.
-  const deploymentEntries: DeploymentEntry[] = [];
-
-  const items = await Promise.all(
-    migratedRepositories.map((repo) => toRepoResponse(repo, deploymentEntries)),
-  );
-
-  return NextResponse.json({
-    identityId,
-    repositories: items,
-  });
-}
-
-export async function POST(req: Request) {
-  const { identity } = await getOrCreateIdentitySession();
-
-  let requestedName: string | undefined;
-  let requestedConversationTitle: string | undefined;
-  let githubRepoName: string | undefined;
-  let clientRequestId: string | undefined;
-  try {
-    const payload = (await req.json()) as {
-      name?: string;
-      conversationTitle?: string;
-      githubRepoName?: string;
-      clientRequestId?: string;
-    };
-    const nextName = payload?.name?.trim();
-    const nextConversationTitle = payload?.conversationTitle?.trim();
-    const nextGithubRepoName = payload?.githubRepoName?.trim();
-    const nextClientRequestId = payload?.clientRequestId?.trim();
-    requestedName = nextName ? nextName : undefined;
-    requestedConversationTitle = nextConversationTitle
-      ? nextConversationTitle
-      : undefined;
-    githubRepoName = nextGithubRepoName ? nextGithubRepoName : undefined;
-    clientRequestId = nextClientRequestId ? nextClientRequestId : undefined;
-  } catch {
-    requestedName = undefined;
-    requestedConversationTitle = undefined;
-    githubRepoName = undefined;
-    clientRequestId = undefined;
+  const orgId =
+    payload.organizationId ??
+    (await getDefaultPersonalOrgId(session.user.id));
+  if (!orgId) {
+    throw new HttpError(
+      404,
+      "not_found",
+      "Не найдена персональная организация для пользователя",
+    );
   }
 
-  const result = await createRepoIdempotency.run(clientRequestId, () =>
-    createRepoForRequest({
-      identity,
-      requestedName,
-      requestedConversationTitle,
-      githubRepoName,
-    }),
+  await requirePermission(session.user.id, "organization.projects.create", {
+    organizationId: orgId,
+  });
+  await requireQuota(orgId, "projects.max", 1);
+
+  const result = await createRepoIdempotency.run(payload.clientRequestId, () =>
+    createRepoForRequest({ session, payload, organizationId: orgId }),
   );
 
   return NextResponse.json(result);
-}
+});
 
 async function createRepoForRequest(args: {
-  identity: Awaited<ReturnType<typeof getOrCreateIdentitySession>>["identity"];
-  requestedName: string | undefined;
-  requestedConversationTitle: string | undefined;
-  githubRepoName: string | undefined;
+  session: RequestSession;
+  payload: CreatePayload;
+  organizationId: string;
 }): Promise<CreateRepoResponse> {
-  const { identity, requestedName, requestedConversationTitle, githubRepoName } =
-    args;
-
+  const { session, payload, organizationId } = args;
   const gitProvider = await getGitProvider();
 
   // Source-repo тоже получает UUID-имя. Раньше использовалось
@@ -278,68 +260,85 @@ async function createRepoForRequest(args: {
   // из metadata.name — sourceRepo human-readable имя нам не нужно.
   const sourceUuid = randomUUID();
   let sourceRepoId: string;
-  if (githubRepoName) {
+  if (payload.githubRepoName) {
     const { repo, repoId: createdRepoId } = await gitProvider.createRepo({
       name: `adorable-src-${sourceUuid}`,
     });
     sourceRepoId = createdRepoId;
-
-    // Enable GitHub Sync (push-mirror in Gitea).
-    await repo.githubSync.enable({ githubRepoName });
+    await repo.githubSync.enable({ githubRepoName: payload.githubRepoName });
   } else {
-    // Создаём пустой репо и заливаем в него bundled Vite + React template
-    // через seedTemplateRepo. Раньше здесь был gitProvider.createRepo({
-    // import: { url: TEMPLATE_REPO } }) который дёргал Gitea migrate-endpoint
-    // против external GitHub. Теперь template лежит рядом с кодом, никаких
-    // внешних зависимостей при создании проекта.
     const created = await gitProvider.createRepo({
       name: `adorable-src-${sourceUuid}`,
     });
     sourceRepoId = created.repoId;
-    await seedTemplateRepo({
-      provider: gitProvider,
-      repo: created.repo,
-    });
+    await seedTemplateRepo({ provider: gitProvider, repo: created.repo });
   }
 
   const inferredName =
-    requestedName ?? githubRepoName?.split("/").pop()?.trim() ?? "Project";
-  // Раньше имя wrapper-репо склеивалось из ADORABLE_WRAPPER_REPO_PREFIX +
-  // первых 50 символов prompt'а пользователя. Gitea sanitiz'ил пробелы и
-  // спецсимволы в дефисы, и URL получался вроде
-  // /adorable%2Fadorable-meta-----------------------------Mazda-MX-5- —
-  // длинный, нечитабельный, и ничего полезного в нём не было (display name
-  // и так берётся из metadata.json).
-  // Используем UUID — короткий, гарантированно уникальный, без коллизий
-  // при повторных prompt'ах. isWrapperRepoName ловит как старые
-  // "adorable-meta-..." имена, так и новые "adorable-meta-<uuid>".
+    payload.name ??
+    payload.githubRepoName?.split("/").pop()?.trim() ??
+    "Project";
+
   const wrapperUuid = randomUUID();
   const wrapperRepoName = `${ADORABLE_WRAPPER_REPO_PREFIX}${wrapperUuid}`;
   const wrapperCreated = await gitProvider.createRepo({
     name: wrapperRepoName,
   });
   const wrapperRepoId = wrapperCreated.repoId;
+  // Force the wrapper-repo to be picked up by the legacy isWrapperRepoName
+  // filter even if external code touches it; nothing we need to assert here.
+  void isWrapperRepoName;
 
-  await identity.permissions.git.grant({
-    permission: "write",
-    repoId: sourceRepoId,
+  // Phase 12: explicit project_members record for the creator (Doc 2 §8.2 +
+  // правка 3) — same transaction as the project insert. Survives org-role
+  // downgrades and works uniformly for personal- and team-orgs.
+  const projectOwnerRoleId = await getRoleId("project", "owner");
+  const slug = `proj-${wrapperUuid.slice(0, 8)}`;
+
+  const projectRow = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(projects)
+      .values({
+        organizationId,
+        slug,
+        name: inferredName,
+        giteaRepoId: sourceRepoId,
+        giteaRepoName: `adorable-src-${sourceUuid}`,
+        giteaWrapperRepoId: wrapperRepoId,
+        giteaWrapperRepoName: wrapperRepoName,
+        createdByUserId: session.user.id,
+      })
+      .returning();
+    await tx.insert(projectMembers).values({
+      projectId: row.id,
+      userId: session.user.id,
+      roleId: projectOwnerRoleId,
+      invitedBy: session.user.id,
+    });
+    return row;
   });
 
-  await identity.permissions.git.grant({
-    permission: "write",
-    repoId: wrapperRepoId,
+  await writeAuditLog({
+    actorUserId: session.user.id,
+    action: "project.create",
+    targetType: "project",
+    targetId: projectRow.id,
+    organizationId,
+  });
+
+  await recordUsage({
+    organizationId,
+    userId: session.user.id,
+    projectId: projectRow.id,
+    kind: "projects.max",
+    amount: 1,
+    unit: "projects",
   });
 
   // Branch by preview-provider name (CONTRACTS §10):
-  //   - "sandbox": legacy createVmForRepo path stays (it already does
-  //     proxy registration + identity grants via the sandbox provider's
-  //     internals). previewProvider.create() in sandbox-mode is
-  //     idempotent but does its own createVmForRepo — calling both would
-  //     double-create the container, so we skip the provider call here.
-  //   - "static" / "mock": call previewProvider.create() so the project
-  //     is registered with the provider (scratch dir, Caddy file_server
-  //     route, in-memory state). Synthesize the legacy `vm` field from
-  //     PreviewMetadata for backwards compat with existing UI/storage.
+  //   - "sandbox": legacy createVmForRepo path stays.
+  //   - "static" / "mock": call previewProvider.create() and synthesize the
+  //     legacy `vm` field for backwards compat.
   const boilerplateVersion = await readBoilerplateVersion();
   const previewProvider = await getPreviewProvider();
 
@@ -352,21 +351,12 @@ async function createRepoForRequest(args: {
       boilerplateVersion,
     });
     vm = {
-      // For static-mode there is no container; expose sourceRepoId as a
-      // stable identifier so downstream code that passes vmId around
-      // still has something. /wake endpoint already handles missing
-      // sandboxes by falling back to recreate.
       vmId: previewMeta.projectId,
       previewUrl: previewMeta.previewUrl,
       devCommandTerminalUrl: previewMeta.terminalUrls?.devCommand ?? "",
       additionalTerminalsUrl: previewMeta.terminalUrls?.additional ?? "",
     };
   }
-
-  // VM identity grants were a Freestyle concept. In the self-hosted
-  // model the builder process is the sole controller of sandbox
-  // containers, so per-identity ACLs on VMs don't exist. The Git repo
-  // grant above remains (Phase 3 will migrate that to Gitea).
 
   const previewMetadata: RepoPreviewMetadata = {
     provider: previewProvider.name,
@@ -378,7 +368,7 @@ async function createRepoForRequest(args: {
   const initialMetadata: RepoMetadata = {
     version: 2,
     sourceRepoId,
-    ...(requestedName ? { name: requestedName } : {}),
+    name: inferredName,
     vm,
     conversations: [],
     deployments: [],
@@ -395,7 +385,7 @@ async function createRepoForRequest(args: {
     wrapperRepoId,
     initialMetadata,
     conversationId,
-    requestedConversationTitle,
+    payload.conversationTitle,
   );
 
   return {
