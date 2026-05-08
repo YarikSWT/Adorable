@@ -125,4 +125,4 @@
   - `curl -b cookie /api/repos` → 200 + новый проект в repositories[] ✓
 - Schema deviations: spec §2.5 объявлял `giteaRepoId/giteaWrapperRepoId` как bigint, но наш Gitea adapter возвращает строки `<owner>/<name>` — изменены на text(). Миграция collapsed в 0000_sour_venom.sql.
 - Замечания: role-cache живёт в globalThis между db:reset'ами; после изменения seed-данных нужно рестартить dev-server. Не блокер для prod.
-- Коммит: <pending>
+- Коммит: 6f83759
