@@ -365,10 +365,10 @@
 
 **Файлы**: `adorable/app/projects/[id]/settings/layout.tsx`, `general/page.tsx`, `members/page.tsx`, `danger/page.tsx`, sidebar component.
 
-- [ ] Layout с sidebar (Документ 3, 4.4): пункты General/Members/Tokens/Publication/Danger.
-- [ ] General (6.3): name, description, slug (read-only после публикации). Submit → PATCH соответствующей ручки.
-- [ ] Members (6.4): таблица, бейджи ролей, лейбл «Через организацию» / «Явно». Кнопка «+ Добавить» → модалка-заглушка «Приглашения появятся в следующей версии». Изменение роли и удаление — для явных members.
-- [ ] Danger zone (6.7): два блока — архивировать и удалить, с input-confirmation.
+- [x] Layout с sidebar (Документ 3, 4.4): пункты General/Members/Tokens/Publication/Danger.
+- [x] General (6.3): name, description, slug (read-only после публикации). Submit → PATCH соответствующей ручки.
+- [x] Members (6.4): таблица, бейджи ролей, лейбл «Через организацию» / «Явно». Кнопка «+ Добавить» → модалка-заглушка «Приглашения появятся в следующей версии». Изменение роли и удаление — для явных members.
+- [x] Danger zone (6.7): два блока — архивировать и удалить, с input-confirmation.
 
 **Верификация:**
 

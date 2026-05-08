@@ -165,3 +165,17 @@
   - sign-up phase15-noverify-mctxe1 (1 org, !verified) → home: `"Adorable / PN / Подтвердите email phase15-noverify-mctxe1@example.com... Отправить заново ✕"`. OrgSwitcher скрыт (1 org) ✓
 - Замечания: shell — MeProvider + client components fetching /api/me. SSR рендерит skeleton (loading state), userMenu/banner появляются после hydration. WorkspaceFrame теперь обёрт в `<div class="flex h-full flex-col">` чтобы header не ломал layout repo-workspace-shell.
 - Коммит: 8b446b1
+
+## auth-iter 16 — Project settings UI: General + Members + Danger
+- Дата: 2026-05-08
+- Что закрыто: фаза 16 («Project settings UI»)
+- Тесты: 672/701 vitest (29 skipped); typecheck baseline (14); build green
+- Файлы: app/api/projects/[id]/route.ts (PATCH/DELETE/GET); app/projects/[id]/settings/{layout,sidebar}.tsx; settings/general/{page,general-form}.tsx; settings/members/{page,members-add-stub}.tsx; settings/danger/{page,danger-client}.tsx
+- Верификация (Playwright MCP под phase13-chat):
+  - GET /projects/<id>/settings/general → 200, рендерит «Phase13 Test / Settings / General», sidebar с General highlighted, форма «Имя / Описание / Slug / Сохранить».
+  - PATCH /api/projects/<id> {"name":"Phase13 Renamed"} → 200; psql `name='Phase13 Renamed'` ✓
+  - GET /projects/<id>/settings/members → таблица «Phase13 Chat / phase13-chat@example.com / OWNER / Явно» (запись из Phase 12 в project_members) ✓
+  - GET /projects/<id>/settings/danger → оба destructive-кнопки disabled пока confirm-поля пустые ✓
+  - DELETE /api/projects/<id> {"archive":false} (имитация submit с правильным confirm) → 200; psql `status='deleted'` ✓
+- Замечания: layout.tsx использует Next-сгенерированный `LayoutProps<"/projects/[id]/settings">`. Project settings sidebar — client component (нужен usePathname для active-state). Tokens/Publication разделы плана 17/18 — линки в sidebar уже на месте, страницы появятся следующими фазами.
+- Коммит: <pending>
