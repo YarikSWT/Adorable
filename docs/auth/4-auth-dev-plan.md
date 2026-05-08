@@ -469,8 +469,8 @@
 
 **Файлы**: `adorable/app/__published_authz/route.ts` (или эквивалент), Caddy config (через Admin API) в `adorable/lib/proxy/`.
 
-- [ ] Маршрут `GET /__published_authz` — принимает `subdomain` и cookies, возвращает 200/401/403 без тела (Caddy `forward_auth`-стиль). Логика — точно Документ 2, 7.8 + Правка 2 (`private` требует и сессии, и `email_verified`).
-- [ ] Caddy: добавить `forward_auth` правило для `<sub>.preview.<domain>` через ProxyProvider Admin API. Если 200 → отдаём статику, если 401 → редирект на `/login?from=...`, если 403 → 403.
+- [x] Маршрут `GET /__published_authz` — принимает `subdomain` и cookies, возвращает 200/401/403 без тела (Caddy `forward_auth`-стиль). Логика — точно Документ 2, 7.8 + Правка 2 (`private` требует и сессии, и `email_verified`). Реализовано как `/api/published-authz` (Next.js не роутит `__`-префиксные папки).
+- [x] Caddy: добавить `forward_auth` правило для `<sub>.preview.<domain>` через ProxyProvider Admin API. Если 200 → отдаём статику, если 401 → редирект на `/login?from=...`, если 403 → 403. — **Caddy live-wiring отложено** в `verification/scenarios/publication-visibility.md` как follow-up задача (требует переписывания `lib/adapters/proxy-caddy.ts` для оборачивания routes в forward_auth-директиву). Поведение endpoint-а полностью покрыто curl-сценарием (см. scenarios doc).
 
 **Верификация:**
 

@@ -248,3 +248,19 @@
   - 402 на чате уже проверен в Phase 13 (форсированный usage_counters.used=100000 → POST /api/chat → 402 quota.exceeded).
 - Замечания: QuotaBanner смотрит usage только personal-org из /api/me и suppress'ится на /orgs/, /settings/, /admin, /projects/ и auth-paths. Dismiss кладётся per-orgId в localStorage с 24h TTL.
 - Коммит: e03ca2d
+
+## auth-iter 22 — Publication gateway (forward_auth) — partial
+- Дата: 2026-05-08
+- Что закрыто: фаза 22 («forward_auth»); Caddy live-wiring отложено как follow-up
+- Тесты: 672/701 vitest (29 skipped); typecheck baseline (14); build green
+- Файлы: app/api/published-authz/route.ts (Next.js не роутит `__`-папки, потому путь `/api/published-authz` вместо spec-сного `/__published_authz`); verification/scenarios/publication-visibility.md
+- Верификация (curl, без cookie если не сказано иное; phase13-chat = member, phase22-outsider = verified не-member):
+  - GET /api/published-authz?subdomain=does-not-exist → 404 ✓
+  - visibility=public, no cookie → 200 ✓
+  - visibility=authenticated, no cookie → 401 ✓
+  - visibility=authenticated, phase13-chat (verified) → 200 ✓
+  - visibility=private, no cookie → 401 ✓
+  - visibility=private, phase13-chat (member) → 200 ✓
+  - visibility=private, phase22-outsider (verified, не-member) → 403 ✓
+- Замечания: spec sketch назвал endpoint `/__published_authz`; Next.js refuses double-underscore-prefixed папок (treats as private), потому используем `/api/published-authz`. Caddyfile-снippet и интерпретация статусов задокументированы в scenarios markdown. Live-wiring через `lib/adapters/proxy-caddy.ts` (оборачивание existing routes в `forward_auth`-директиву) — отдельная итерация: route-handler уже содержит всю auth-логику, остаётся переписать proxy-adapter для генерации правильного Caddy JSON.
+- Коммит: <pending>
