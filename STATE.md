@@ -178,4 +178,4 @@
   - GET /projects/<id>/settings/danger → оба destructive-кнопки disabled пока confirm-поля пустые ✓
   - DELETE /api/projects/<id> {"archive":false} (имитация submit с правильным confirm) → 200; psql `status='deleted'` ✓
 - Замечания: layout.tsx использует Next-сгенерированный `LayoutProps<"/projects/[id]/settings">`. Project settings sidebar — client component (нужен usePathname для active-state). Tokens/Publication разделы плана 17/18 — линки в sidebar уже на месте, страницы появятся следующими фазами.
-- Коммит: <pending>
+- Коммит: 7215bb0
