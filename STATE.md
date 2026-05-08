@@ -247,4 +247,4 @@
   - На home: после clear localStorage → reload → баннер «Вы используете 100% лимита llm.tokens.monthly на этот месяц. Подробнее ✕» ✓
   - 402 на чате уже проверен в Phase 13 (форсированный usage_counters.used=100000 → POST /api/chat → 402 quota.exceeded).
 - Замечания: QuotaBanner смотрит usage только personal-org из /api/me и suppress'ится на /orgs/, /settings/, /admin, /projects/ и auth-paths. Dismiss кладётся per-orgId в localStorage с 24h TTL.
-- Коммит: <pending>
+- Коммит: e03ca2d
