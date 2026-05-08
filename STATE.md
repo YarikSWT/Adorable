@@ -194,3 +194,17 @@
   - psql: name='mobile-api', token_prefix='ibWyJcbx', revoked_at NOT NULL, token_hash начинается с `$argon2id$v=19$m=65536...` ✓
 - Замечания: clipboard.readText() в Playwright возвращает permission-denied (по дефолту chrome не даёт permission в headless); writeText сработал.
 - Коммит: 94b2bae
+
+## auth-iter 18 — Project settings UI: Publication
+- Дата: 2026-05-08
+- Что закрыто: фаза 18 («Publication UI»)
+- Тесты: 672/701 vitest (29 skipped); typecheck baseline (14); build green
+- Файлы: app/api/repos/[repoId]/promote/route.ts (rewrite per Doc 2 §7.7); app/projects/[id]/settings/publication/{page,publication-client}.tsx
+- Верификация (Playwright MCP):
+  - Empty state на /projects/<id>/settings/publication → CTA «Опубликовать» + информер про visibility-уровни ✓
+  - Публикация → диалог с private/authenticated/public radio → submit (private) → page reload → published-state с URL `http://proj-<slug>-<suffix>.preview.localhost:8080`, кнопка «Скопировать», pill `PRIVATE`, «Изменить», timestamp + snapshot 1.0.0, «Опубликовать снова» ✓
+  - psql после publish: preview_subdomain='proj-7ad20271-iikitn', published_visibility='private', published_snapshot_id NOT NULL, preview_subdomain_locked=true ✓
+  - «Изменить» → диалог с pre-selected private → выбрать public → «Сохранить» → page reload → pill `PUBLIC` ✓
+  - psql после change: published_visibility='public', preview_subdomain не изменился (locked) ✓
+- Замечания: /api/repos/:repoId/promote был привязан к старому identity-cookie + production-domain flow; полностью переписан под §7.7 (snapshot row + projects.published_*). Кастомный домен скрыт. commit_hash в snapshot — placeholder из metadata.boilerplateVersion (1.0.0); полноценный HEAD-grab будет в отдельной фазе preview-pipeline.
+- Коммит: <pending>
