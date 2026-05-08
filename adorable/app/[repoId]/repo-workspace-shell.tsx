@@ -391,29 +391,17 @@ export function RepoWorkspaceShell({
                   <button
                     type="button"
                     onClick={() => {
-                      if (selectedConversationId) {
-                        window.dispatchEvent(
-                          new CustomEvent("adorable:go-to-repo", {
-                            detail: { repoId },
-                          }),
-                        );
-                        router.push(`/${encodeURIComponent(repoId)}`);
-                      } else {
-                        window.dispatchEvent(new Event("adorable:go-home"));
-                        router.push("/");
-                      }
+                      // One conversation per project — there's no
+                      // intermediate "list of conversations" to back out
+                      // to. Back always returns to the apps list on home.
+                      window.dispatchEvent(new Event("adorable:go-home"));
+                      router.push("/");
                     }}
                     className="flex items-center gap-1 rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                    title={
-                      selectedConversationId ? "All conversations" : "All apps"
-                    }
+                    title="All apps"
                   >
                     <ChevronLeftIcon className="size-3.5" />
-                    <span className="text-sm font-medium">
-                      {selectedConversationId
-                        ? "All Conversations"
-                        : "All Apps"}
-                    </span>
+                    <span className="text-sm font-medium">All Apps</span>
                   </button>
                 </div>
               )}
