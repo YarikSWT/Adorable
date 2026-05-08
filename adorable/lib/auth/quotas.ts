@@ -229,6 +229,27 @@ export const recordUsage = async (
   });
 };
 
+export const ABSOLUTE_KINDS_PUBLIC: ReadonlySet<string> = ABSOLUTE_KINDS;
+
+// Same reading as requireQuota uses internally — for surfaces (billing UI)
+// that need to report "used" without going through the full enforcement
+// path.
+export const readUsage = async (
+  organizationId: string,
+  kind: string,
+  database: DbOrTx = defaultDb,
+): Promise<number> => {
+  if (ABSOLUTE_KINDS.has(kind)) {
+    return getAbsoluteUsage(organizationId, kind, database);
+  }
+  return getCounter(
+    organizationId,
+    currentPeriodStartUTC(),
+    kind,
+    database,
+  );
+};
+
 export const __testing = {
   ABSOLUTE_KINDS,
   toIsoDate,

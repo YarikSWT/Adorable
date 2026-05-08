@@ -10,7 +10,7 @@ import {
 } from "@/lib/db/schema/billing";
 import { protectedRoute } from "@/lib/auth/api-wrap";
 import { requirePermission } from "@/lib/auth/authorization";
-import { currentPeriodStartUTC } from "@/lib/auth/quotas";
+import { currentPeriodStartUTC, readUsage } from "@/lib/auth/quotas";
 import { HttpError } from "@/lib/auth/errors";
 
 type Params = { orgId: string };
@@ -86,8 +86,18 @@ export const GET = protectedRoute<Params>(async ({ params, session }) => {
     }
   }
 
+  // Per-kind used. Counter-based kinds come straight from usage_counters;
+  // absolute kinds (projects.max, members_per_project.max) are computed
+  // live via readUsage so the billing UI matches what requireQuota sees.
   const used: Record<string, number> = {};
   for (const c of counters) used[c.kind] = Number(c.used);
+  await Promise.all(
+    Object.keys(effective).map(async (kind) => {
+      if (used[kind] === undefined) {
+        used[kind] = await readUsage(params.orgId, kind);
+      }
+    }),
+  );
 
   const eventsCountRow = await db
     .select({ n: count(), latest: max(usageEvents.createdAt) })
