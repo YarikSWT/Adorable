@@ -7,6 +7,7 @@ import { ApiKeySettingsDialog } from "@/components/api-key-gate";
 import { MeProvider } from "@/components/shell/me-context";
 import { Header } from "@/components/shell/header";
 import { EmailVerifyBanner } from "@/components/shell/email-verify-banner";
+import { QuotaBanner } from "@/components/shell/quota-banner";
 
 type ActiveConversationDetail = {
   repoId: string;
@@ -148,6 +149,7 @@ export function WorkspaceFrame({ children }: { children: React.ReactNode }) {
       <div className="flex h-full flex-col overflow-hidden">
         <Header />
         <EmailVerifyBanner />
+        <QuotaBanner />
         <div className="min-h-0 flex-1 overflow-hidden">
           <RepoWorkspaceShell
             repoId={effectiveRepoId}

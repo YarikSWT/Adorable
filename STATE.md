@@ -235,3 +235,16 @@
   - /settings/connections: 3 провайдера (Google/Yandex/VK), все «Не привязан / Привязать» — фактическое привязывание идёт через POST /api/auth/sign-in/{social|oauth2} (тот же flow, что login-page); unlink через POST /api/auth/unlink-account с last-method guard
 - Замечания: change-password шлёт revokeOtherSessions:true (Better Auth дефолт «сохраняем текущую сессию»). list-sessions endpoint у Better Auth возвращает массив без isCurrent-флага по дефолту — UI пока показывает все строки одинаково (без специальной отметки), это можно расширить в отдельной фазе.
 - Коммит: 6dd8707
+
+## auth-iter 21 — Billing UI (page + inline quota banner)
+- Дата: 2026-05-08
+- Что закрыто: фаза 21 («Billing UI»)
+- Тесты: 672/701 vitest (29 skipped); typecheck baseline (14); build green
+- Файлы: app/api/orgs/[orgId]/usage/route.ts; app/orgs/[slug]/billing/{page,billing-client}.tsx; components/shell/quota-banner.tsx; правка app/workspace-frame.tsx (mount QuotaBanner)
+- Верификация (Playwright MCP под phase13-chat):
+  - GET /api/orgs/<id>/usage → plan/period/limits/used/overrides/events ✓
+  - /orgs/phase13-chat/billing: «Billing — Phase13 Chat», карточка плана Free + период, таблица лимитов с прогрессами (llm.tokens.monthly 100k/100k = красный), история 3-х usage_events ✓
+  - На home: после clear localStorage → reload → баннер «Вы используете 100% лимита llm.tokens.monthly на этот месяц. Подробнее ✕» ✓
+  - 402 на чате уже проверен в Phase 13 (форсированный usage_counters.used=100000 → POST /api/chat → 402 quota.exceeded).
+- Замечания: QuotaBanner смотрит usage только personal-org из /api/me и suppress'ится на /orgs/, /settings/, /admin, /projects/ и auth-paths. Dismiss кладётся per-orgId в localStorage с 24h TTL.
+- Коммит: <pending>
