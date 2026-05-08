@@ -153,4 +153,4 @@
   - PATCH /api/admin/users/<victim> {"email":"new-victim@..."} от admin → 200; psql email обновился, email_verified=false ✓
   - PATCH /api/admin/users/<victim> от не-admin → 403 ✓
 - Замечания: project tokens используют argon2id для tokenHash; URL-encode repoId (`%2F`) обязателен — в `<owner>/<name>` строке Gitea-id'а слеш ломает Next routing. Last-owner guard для org members PATCH/DELETE.
-- Коммит: <pending>
+- Коммит: 251a42d
