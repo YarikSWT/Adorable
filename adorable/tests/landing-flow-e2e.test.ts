@@ -269,6 +269,7 @@ describe("landing-page generation default flow (e2e)", () => {
           messages: [makeUserMessage(userPrompt)],
         }),
       }),
+    { params: Promise.resolve({}) },
     );
     expect(chatResp.status).toBe(200);
 
@@ -342,7 +343,12 @@ describe("landing-page generation default flow (e2e)", () => {
     expect(assistantText).toContain("MOCK_MAIN_RESPONSE");
   });
 
-  it("rejects chat for a repo the identity does not own", async () => {
+  // Phase 13 — replaced by tests/auth/authorization.test.ts cases. The
+  // legacy identity-cookie flow this exercised no longer exists; the
+  // equivalent denial path is now requirePermission("project.edit") on
+  // a missing project membership and is covered at the unit/integration
+  // level.
+  it.skip("rejects chat for a repo the identity does not own", async () => {
     // User A создаёт репо.
     const createResp = await reposRoute.POST(
       new Request("http://localhost/api/repos", {
@@ -372,6 +378,7 @@ describe("landing-page generation default flow (e2e)", () => {
           messages: [makeUserMessage("i don't own this repo")],
         }),
       }),
+    { params: Promise.resolve({}) },
     );
     expect(chatResp.status).toBe(403);
   });
@@ -383,6 +390,7 @@ describe("landing-page generation default flow (e2e)", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: [] }),
       }),
+    { params: Promise.resolve({}) },
     );
     expect(chatResp.status).toBe(400);
 
@@ -395,6 +403,7 @@ describe("landing-page generation default flow (e2e)", () => {
           conversationId: "some-conv",
         }),
       }),
+    { params: Promise.resolve({}) },
     );
     expect(noMessages.status).toBe(400);
   });
@@ -435,6 +444,7 @@ describe("landing-page generation default flow (e2e)", () => {
           messages: [makeUserMessage("hello")],
         }),
       }),
+    { params: Promise.resolve({}) },
     );
     expect(chatResp.status).toBe(401);
     const payload = (await chatResp.json()) as { error?: string };

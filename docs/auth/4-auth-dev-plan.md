@@ -299,9 +299,9 @@
 
 **Файлы**: `adorable/app/api/chat/route.ts`.
 
-- [ ] Переписать поток (Документ 2, 8.2): `requireSession` → `requireEmailVerified` → найти проект по `repoId` (= giteaWrapperRepoId) → `requirePermission("project.edit", { projectId })` → `requireQuota(orgId, "llm.tokens.monthly", 50_000)` → существующий `streamLlmResponse`.
-- [ ] В `onFinish` коллбэке streamText (рядом с существующим `autoCommitWorkspace`) — `recordUsage({ kind: "llm.tokens.monthly", amount: totalTokens, ...metadata })`.
-- [ ] Удалить импорт `getOrCreateIdentitySession` из этого файла.
+- [x] Переписать поток (Документ 2, 8.2): `requireSession` → `requireEmailVerified` → найти проект по `repoId` (= giteaWrapperRepoId) → `requirePermission("project.edit", { projectId })` → `requireQuota(orgId, "llm.tokens.monthly", 50_000)` → существующий `streamLlmResponse`.
+- [x] В `onFinish` коллбэке streamText (рядом с существующим `autoCommitWorkspace`) — `recordUsage({ kind: "llm.tokens.monthly", amount: totalTokens, ...metadata })`.
+- [x] Удалить импорт `getOrCreateIdentitySession` из этого файла.
 
 **Верификация:**
 

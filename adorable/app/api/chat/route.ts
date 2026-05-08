@@ -9,12 +9,17 @@ import {
   ensureCleanupWorkerRunning,
 } from "@/lib/sandbox/provider-singleton";
 import { getGitProvider } from "@/lib/git/provider-singleton";
-import { getOrCreateIdentitySession } from "@/lib/identity-session";
 import {
   readRepoMetadata,
   sanitiseConversationMessages,
   saveConversationMessages,
 } from "@/lib/repo-storage";
+import { protectedRoute } from "@/lib/auth/api-wrap";
+import { requireEmailVerified } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/authorization";
+import { recordUsage, requireQuota } from "@/lib/auth/quotas";
+import { getProjectByGiteaWrapperId } from "@/lib/db/queries/projects";
+import { HttpError } from "@/lib/auth/errors";
 import { getSystemPrompt } from "@/lib/system-prompt";
 import {
   getBuildQueue,
@@ -100,45 +105,61 @@ const autoCommitWorkspace = async (opts: {
   });
 };
 
-export async function POST(req: Request) {
+// Pre-flight quota: how many LLM tokens we *might* burn on this turn. Spec
+// §13 hard-codes 50_000 — generous enough that almost any single completion
+// fits, conservative enough that hitting projects.tokens.monthly limit
+// pre-empts a partial stream rather than after the fact. Actual usage is
+// recorded on stream finish via recordUsage().
+const ESTIMATED_TURN_TOKENS = 50_000;
+
+export const POST = protectedRoute(async ({ req, session }) => {
+  requireEmailVerified(session);
+
   const payload = (await req.json()) as {
     messages?: UIMessage[];
     repoId?: string;
     conversationId?: string;
   };
-
   const { repoId, conversationId } = payload;
   const messages = Array.isArray(payload.messages)
     ? payload.messages
     : undefined;
 
   if (!repoId || !conversationId) {
-    return Response.json(
-      { error: "repoId and conversationId are required." },
-      { status: 400 },
+    throw new HttpError(
+      400,
+      "validation.failed",
+      "repoId and conversationId are required.",
     );
   }
-
   if (!messages) {
-    return Response.json(
-      { error: "messages must be an array." },
-      { status: 400 },
+    throw new HttpError(
+      400,
+      "validation.failed",
+      "messages must be an array.",
     );
   }
 
-  const { identity } = await getOrCreateIdentitySession();
-  const { repositories } = await identity.permissions.git.list({ limit: 200 });
-  const hasAccess = repositories.some((repo) => repo.id === repoId);
-
-  if (!hasAccess) {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
+  const project = await getProjectByGiteaWrapperId(repoId);
+  if (!project) {
+    // 404 (not 403) so non-members can't probe for repo existence — Doc 2 §9.4.
+    throw new HttpError(404, "not_found", "Repository not found");
   }
+  await requirePermission(session.user.id, "project.edit", {
+    projectId: project.id,
+  });
+  await requireQuota(
+    project.organizationId,
+    "llm.tokens.monthly",
+    ESTIMATED_TURN_TOKENS,
+  );
 
   const metadata = await readRepoMetadata(repoId);
   if (!metadata) {
-    return Response.json(
-      { error: "Repository metadata not found." },
-      { status: 404 },
+    throw new HttpError(
+      404,
+      "not_found",
+      "Repository metadata not found.",
     );
   }
 
@@ -292,6 +313,37 @@ export async function POST(req: Request) {
         }
       }
 
+      // Phase 13 — record actual LLM usage. The AI SDK exposes usage as a
+      // resolved value once the stream finishes; if it's missing (e.g. mock
+      // provider returns no token counts), fall back to the estimate so
+      // counters still advance and quota enforcement remains predictable.
+      try {
+        const usage = await llm.result.usage;
+        const totalFromUsage =
+          typeof usage?.totalTokens === "number" && usage.totalTokens > 0
+            ? usage.totalTokens
+            : (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0);
+        const totalTokens =
+          totalFromUsage > 0 ? totalFromUsage : ESTIMATED_TURN_TOKENS;
+        await recordUsage({
+          organizationId: project.organizationId,
+          userId: session.user.id,
+          projectId: project.id,
+          kind: "llm.tokens.monthly",
+          amount: totalTokens,
+          unit: "tokens",
+          model: undefined,
+          metadata: {
+            inputTokens: usage?.inputTokens,
+            outputTokens: usage?.outputTokens,
+          },
+        });
+      } catch (err) {
+        process.stderr.write(
+          `chat onFinish: recordUsage failed: ${(err as Error).message}\n`,
+        );
+      }
+
       // Phase 4 — non-blocking build trigger (BUILD_PIPELINE §2). Sandbox
       // mode (hotReload=true) skips this — Vite HMR handles updates.
       // Static mode enqueues a vite build; user sees fresh artifact via
@@ -312,4 +364,4 @@ export async function POST(req: Request) {
       }
     },
   });
-}
+});

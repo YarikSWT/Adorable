@@ -230,6 +230,7 @@ describe("static preview-provider flow (e2e)", () => {
           messages: [makeUserMessage("ping")],
         }),
       }),
+    { params: Promise.resolve({}) },
     );
     expect(chatResp.status).toBe(200);
 
@@ -313,6 +314,7 @@ describe("static preview-provider flow (e2e)", () => {
           messages: dupedMessages,
         }),
       }),
+    { params: Promise.resolve({}) },
     );
     expect(chatResp.status).toBe(200);
     await chatResp.text(); // drain → triggers onFinish → save
@@ -389,6 +391,7 @@ describe("static preview-provider flow (e2e)", () => {
           messages: [makeUserMessage("ping")],
         }),
       }),
+    { params: Promise.resolve({}) },
     );
     // 200 means the static branch successfully wired tools + ProjectFs +
     // BuildQueue without ever calling sandbox.ref() or createVmTools.

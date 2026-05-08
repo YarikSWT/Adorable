@@ -126,3 +126,17 @@
 - Schema deviations: spec §2.5 объявлял `giteaRepoId/giteaWrapperRepoId` как bigint, но наш Gitea adapter возвращает строки `<owner>/<name>` — изменены на text(). Миграция collapsed в 0000_sour_venom.sql.
 - Замечания: role-cache живёт в globalThis между db:reset'ами; после изменения seed-данных нужно рестартить dev-server. Не блокер для prod.
 - Коммит: 6f83759
+
+## auth-iter 13 — Замена identity в /api/chat
+- Дата: 2026-05-08
+- Что закрыто: фаза 13 («/api/chat переписан под Better Auth»)
+- Тесты: 672/701 vitest (29 skipped, +1 obsolete identity-cookie кейс из landing-flow); typecheck baseline (14); build green
+- Файлы: app/api/chat/route.ts (полный rewrite POST); landing-flow-e2e: ещё 1 .skip ("rejects chat for a repo identity не owned" — заменён помиграционными unit/integration кейсами в tests/auth/authorization.test.ts)
+- Верификация:
+  - `curl /api/chat` без cookie → 401 ✓
+  - signup phase13-chat → POST /api/chat без verify → 423 ✓
+  - после email_verified=true → sign-in → POST /api/repos → создан проект; POST /api/chat → 200 + SSE-стрим ✓
+  - psql usage_events для phase13-chat → запись llm.tokens.monthly amount=1902 ✓; usage_counters.used=1902 ✓
+  - UPDATE usage_counters.used=100000 → POST /api/chat → 402 quota.exceeded с {kind, limit, used, period_start} ✓
+- Замечания: pre-flight quota = 50_000 tokens (Doc 2 §13). Actual usage берётся из llm.result.usage.totalTokens (или inputTokens+outputTokens) с fallback на estimate если провайдер не вернул цифры. recordUsage обёрнут в try/catch — не валит стрим.
+- Коммит: <pending>
