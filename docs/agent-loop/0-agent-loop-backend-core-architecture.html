@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>44bolt — Архитектура долгоживущих runs</title>
+<style>
+  :root{
+    --bg:#f4f0e8; --bg2:#efe9df; --card:#fffdf9; --paper:#fbf8f2;
+    --ink:#36333c; --ink-soft:#5b5862; --muted:#8a8690; --faint:#aaa49e;
+    --line:#e7e0d2; --line-soft:#efe9dd;
+    --blue:#6f99c0; --blue-bg:#e8eff6; --blue-bd:#cedeeb;
+    --sage:#82a079; --sage-bg:#e9f0e4; --sage-bd:#d2e1ca;
+    --clay:#c58a70; --clay-bg:#f4e7e0; --clay-bd:#e7cdc0;
+    --lav:#938abb; --lav-bg:#ebe6f3; --lav-bd:#dad0ea;
+    --amber:#bf9b54; --amber-bg:#f3ebd6; --amber-bd:#e6d7b0;
+    --rose:#bd859d; --rose-bg:#f2e5eb; --rose-bd:#e4ccd7;
+    --radius:16px;
+    --mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Helvetica,Arial,sans-serif;
+    --serif:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,'Times New Roman',serif;
+    --shadow:0 1px 2px rgba(70,55,40,.04),0 10px 30px -16px rgba(70,55,40,.18);
+    --shadow-sm:0 1px 2px rgba(70,55,40,.05),0 4px 14px -10px rgba(70,55,40,.16);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15.5px;line-height:1.62;-webkit-font-smoothing:antialiased}
+  a{color:var(--blue);text-decoration:none}
+  code{font-family:var(--mono);font-size:.85em;background:#f0ece2;border:1px solid var(--line);border-radius:6px;padding:.08em .42em;color:#5a5147}
+
+  .layout{display:grid;grid-template-columns:236px 1fr;gap:42px;max-width:1320px;margin:0 auto;padding:0 30px}
+  nav.toc{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:34px 0 40px}
+  nav.toc .brand{font-family:var(--serif);font-weight:600;font-size:19px;color:var(--ink)}
+  nav.toc .brand span{color:var(--clay)}
+  nav.toc .sub{color:var(--faint);font-size:12px;margin:2px 0 24px}
+  nav.toc a{display:flex;gap:10px;color:var(--muted);padding:7px 13px;border-radius:9px;font-size:13.5px;transition:.15s}
+  nav.toc a:hover{background:var(--paper);color:var(--ink)}
+  nav.toc a .n{color:var(--faint);font-variant-numeric:tabular-nums}
+  main{padding:46px 0 100px;min-width:0}
+
+  header.hero{margin-bottom:8px}
+  .tag{display:inline-block;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--clay);background:var(--clay-bg);border:1px solid var(--clay-bd);padding:4px 12px;border-radius:999px;font-weight:600}
+  h1{font-family:var(--serif);font-weight:600;font-size:38px;line-height:1.16;margin:18px 0 12px;letter-spacing:-.2px;color:#2f2c34}
+  .lede{color:var(--ink-soft);font-size:16.5px;max-width:730px}
+  .meta-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+  .chip{font-size:12.5px;color:var(--ink-soft);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px;box-shadow:var(--shadow-sm)}
+  .chip b{color:var(--ink);font-weight:600}
+
+  section{margin-top:54px;scroll-margin-top:24px}
+  h2{font-family:var(--serif);font-weight:600;font-size:26px;margin:0 0 8px;letter-spacing:-.2px;display:flex;align-items:center;gap:14px;color:#2f2c34}
+  h2 .num{font-family:var(--sans);font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--clay);background:var(--clay-bg);border:1px solid var(--clay-bd);width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;flex:0 0 auto}
+  h3{font-size:16px;margin:24px 0 10px;color:var(--ink)}
+  .note{color:var(--ink-soft);margin:0 0 20px;max-width:840px}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px 24px;box-shadow:var(--shadow)}
+  .grid{display:grid;gap:18px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:920px){.layout{grid-template-columns:1fr}nav.toc{display:none}.g2,.g3{grid-template-columns:1fr}}
+
+  /* decision cards */
+  .dec{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:19px 22px 19px 24px;box-shadow:var(--shadow);overflow:hidden}
+  .dec::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--blue);border-radius:5px 0 0 5px}
+  .dec.sage::before{background:var(--sage)} .dec.lav::before{background:var(--lav)}
+  .dec.amber::before{background:var(--amber)} .dec.clay::before{background:var(--clay)}
+  .dec.rose::before{background:var(--rose)}
+  .dec h4{font-family:var(--serif);margin:0 0 7px;font-size:17px;font-weight:600;color:#322f37;display:flex;flex-wrap:wrap;gap:8px;align-items:baseline}
+  .dec h4 .k{font-family:var(--mono);font-size:11px;font-weight:400;color:var(--faint)}
+  .dec p{margin:0;color:var(--ink-soft);font-size:14px}
+  .dec .why{margin-top:11px;font-size:13px;color:var(--muted);border-top:1px solid var(--line-soft);padding-top:10px}
+  .dec .why b{color:var(--sage);font-weight:600}
+
+  .badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.5px;padding:3px 11px;border-radius:7px}
+  .b-pg{background:var(--sage-bg);color:#4f6f47;border:1px solid var(--sage-bd)}
+  .b-redis{background:var(--clay-bg);color:#9d5740;border:1px solid var(--clay-bd)}
+  .b-git{background:var(--amber-bg);color:#8a6c25;border:1px solid var(--amber-bd)}
+  .b-sdk{background:var(--lav-bg);color:#5f5290;border:1px solid var(--lav-bd)}
+  .b-ours{background:var(--blue-bg);color:#3f648a;border:1px solid var(--blue-bd)}
+
+  .diagram{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:18px;overflow-x:auto;box-shadow:var(--shadow)}
+  svg{display:block;max-width:100%;height:auto}
+  .legend{display:flex;gap:22px;flex-wrap:wrap;margin-top:14px;font-size:12.5px;color:var(--muted);padding-left:4px}
+  .legend span{display:inline-flex;align-items:center;gap:8px}
+  .legend i{width:13px;height:13px;border-radius:4px;display:inline-block}
+
+  .flow{display:grid;gap:11px;counter-reset:s}
+  .flow .step{display:grid;grid-template-columns:32px 1fr;gap:15px;align-items:start;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 17px;box-shadow:var(--shadow-sm)}
+  .flow .step::before{counter-increment:s;content:counter(s);width:28px;height:28px;border-radius:8px;background:var(--blue-bg);border:1px solid var(--blue-bd);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#3f648a}
+  .flow.amber .step::before{background:var(--amber-bg);border-color:var(--amber-bd);color:#8a6c25}
+  .flow.clay .step::before{background:var(--clay-bg);border-color:var(--clay-bd);color:#9d5740}
+  .flow .step b{color:var(--ink)} .flow .step p{margin:3px 0 0;color:var(--ink-soft);font-size:13.5px}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:4px}
+  th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line-soft)}
+  th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px}
+  thead tr{background:var(--bg2)}
+  tbody tr:hover{background:var(--paper)}
+  .st{font-family:var(--mono);font-size:11.5px;padding:2px 8px;border-radius:6px;white-space:nowrap;display:inline-block}
+  .st-q{background:var(--blue-bg);color:#3f648a;border:1px solid var(--blue-bd)}
+  .st-run{background:var(--sage-bg);color:#4f6f47;border:1px solid var(--sage-bd)}
+  .st-cl{background:var(--amber-bg);color:#8a6c25;border:1px solid var(--amber-bd)}
+  .st-rp{background:var(--lav-bg);color:#5f5290;border:1px solid var(--lav-bd)}
+  .st-done{background:var(--sage-bg);color:#3f6036;border:1px solid var(--sage-bd)}
+  .st-fail{background:var(--clay-bg);color:#9d5740;border:1px solid var(--clay-bd)}
+  .st-can{background:#edeae3;color:#6f6b63;border:1px solid var(--line)}
+  .who{font-size:11.5px;color:var(--muted)}
+
+  .invariant{background:linear-gradient(110deg,var(--lav-bg),var(--blue-bg));border:1px solid var(--lav-bd);border-radius:var(--radius);padding:22px 26px;display:flex;gap:18px;align-items:center;box-shadow:var(--shadow)}
+  .invariant .ic{font-size:28px;flex:0 0 auto}
+  .invariant b{color:#5f5290}
+
+  ul.clean{list-style:none;padding:0;margin:0}
+  ul.clean li{padding:8px 0;border-bottom:1px solid var(--line-soft);color:var(--ink-soft);font-size:14px;display:flex;gap:11px;align-items:flex-start}
+  ul.clean li:last-child{border-bottom:0}
+  ul.clean li::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--blue);margin-top:8px;flex:0 0 auto}
+  ul.kill li::before{content:"✕";background:none;color:var(--clay);font-size:12px;width:auto;margin-top:0;font-weight:700}
+  ul.keep li::before{content:"✓";background:none;color:var(--sage);font-size:12px;width:auto;margin-top:0;font-weight:700}
+  ul.clean li b{color:var(--ink);font-weight:600}
+  .two-col{columns:2;column-gap:30px} @media(max-width:760px){.two-col{columns:1}}
+
+  .phases{display:grid;gap:13px}
+  .phase{display:grid;grid-template-columns:128px 1fr;gap:18px;align-items:start;border:1px solid var(--line);border-radius:13px;padding:15px 18px;background:var(--card);box-shadow:var(--shadow-sm)}
+  .phase .ph-id{font-weight:700;font-size:13.5px;color:var(--blue)}
+  .phase .ph-id .d{display:block;color:var(--faint);font-weight:500;font-size:11.5px;margin-top:3px}
+  .phase.block{border-color:var(--clay-bd);background:linear-gradient(180deg,var(--clay-bg),var(--card) 60%)}
+  .phase.block .ph-id{color:#9d5740}
+  .phase ul{margin:5px 0 0;padding-left:18px;color:var(--ink-soft);font-size:13.5px} .phase li{margin:3px 0}
+
+  .define{display:flex;gap:20px;background:linear-gradient(120deg,var(--rose-bg),var(--lav-bg));border:1px solid var(--rose-bd);border-radius:var(--radius);padding:22px 26px;box-shadow:var(--shadow)}
+  .define-icon{font-size:30px;flex:0 0 auto;line-height:1.2}
+  .define-body h3{font-family:var(--serif);margin:0 0 8px;font-size:18px;font-weight:600;color:#7a4f64}
+  .define-body p{margin:0;color:var(--ink-soft);font-size:14.5px}
+  .define-body p b{color:var(--ink);font-weight:600}
+  .define-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;margin-top:16px}
+  @media(max-width:680px){.define-grid{grid-template-columns:1fr}.define{flex-direction:column;gap:12px}}
+  .define-grid > div{font-size:13.5px;color:var(--ink-soft);background:rgba(255,253,249,.6);border:1px solid var(--rose-bd);border-radius:11px;padding:11px 14px}
+  .define-grid .dk{display:block;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--rose);margin-bottom:4px}
+
+  .risk{border:1px solid var(--amber-bd);background:var(--amber-bg);border-radius:var(--radius);padding:18px 22px;box-shadow:var(--shadow-sm)}
+  .risk h4{font-family:var(--serif);margin:0 0 7px;color:#8a6c25;font-size:16px;font-weight:600}
+  .risk p{margin:0;color:var(--ink-soft);font-size:14px}
+
+  .foot{margin-top:64px;padding-top:24px;border-top:1px solid var(--line);color:var(--faint);font-size:13px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <nav class="toc">
+    <div class="brand">44<span>bolt</span></div>
+    <div class="sub">Архитектура долгоживущих runs</div>
+    <a href="#overview"><span class="n">00</span> Обзор</a>
+    <a href="#map"><span class="n">01</span> Карта системы</a>
+    <a href="#decisions"><span class="n">02</span> Ключевые решения</a>
+    <a href="#stores"><span class="n">03</span> Три хранилища</a>
+    <a href="#flow-first"><span class="n">04</span> Поток: первый ход</a>
+    <a href="#flow-cancel"><span class="n">05</span> Поток: отмена</a>
+    <a href="#flow-crash"><span class="n">06</span> Поток: краш → reaper</a>
+    <a href="#fsm"><span class="n">07</span> Машина состояний</a>
+    <a href="#invariant"><span class="n">08</span> Durability</a>
+    <a href="#scope"><span class="n">09</span> SDK vs наш код</a>
+    <a href="#phases"><span class="n">10</span> План миграции</a>
+    <a href="#risk"><span class="n">11</span> Главный риск</a>
+  </nav>
+
+  <main>
+    <header class="hero" id="overview">
+      <span class="tag">Design spec · v2.x</span>
+      <h1>Долгоживущие agent-runs<br>persistent runs + resumable stream</h1>
+      <p class="lede">Agent loop выносится из HTTP-хендлера в отдельный воркер. Результат переживает закрытие вкладки, стрим резюмируется, слои масштабируются независимо. Координация — только через Postgres (durable state) и Redis (эфемерный транспорт).</p>
+      <div class="meta-row">
+        <span class="chip"><b>Проблема:</b> loop крутился внутри <code>POST /api/chat</code></span>
+        <span class="chip"><b>Паттерн:</b> persistent runs + event stream + resume</span>
+        <span class="chip"><b>Правда:</b> Postgres</span>
+        <span class="chip"><b>Код:</b> Gitea</span>
+      </div>
+    </header>
+
+    <div class="invariant" style="margin-top:32px">
+      <div class="ic">🪶</div>
+      <div>Центральный инвариант: <b>система не теряет и не портит runs.</b> Любой принятый run приходит к терминальному статусу, транскрипт воспроизводим, наработанный код не теряется — даже при закрытии вкладки, рестарте или смерти воркера.</div>
+    </div>
+
+    <!-- ===== 01 MAP ===== -->
+    <section id="map">
+      <h2><span class="num">01</span> Карта системы</h2>
+      <p class="note">Слева — плоскость исполнения (Browser → Next → очередь → Worker → Reaper). Справа — backing-сервисы. Стрим течёт через Redis, состояние — через Postgres, код — в Gitea. Никакого прямого RPC.</p>
+      <div class="diagram">
+        <svg viewBox="0 0 1040 600" font-family="var(--sans)">
+          <defs>
+            <marker id="a" markerWidth="10" markerHeight="10" refX="7.5" refY="3" orient="auto"><path d="M0,0 L7.5,3 L0,6 Z" fill="#b6ad9c"/></marker>
+            <marker id="ab" markerWidth="10" markerHeight="10" refX="7.5" refY="3" orient="auto"><path d="M0,0 L7.5,3 L0,6 Z" fill="#9cbad9"/></marker>
+          </defs>
+          <style>
+            .bx{rx:13} .ti{font-weight:700;font-size:13.5px} .sm{font-size:11.5px;fill:#8a8690}
+            .lb{font-size:11px;fill:#9a948a} .ed{stroke:#cfc7b6;stroke-width:1.6;fill:none}
+            .es{stroke:#9cbad9;stroke-width:2;fill:none}
+          </style>
+
+          <!-- Browser -->
+          <rect class="bx" x="40" y="34" width="270" height="66" fill="#fbf8f2" stroke="#e7e0d2"/>
+          <text class="ti" x="175" y="62" text-anchor="middle" fill="#36333c">FRONTEND · browser</text>
+          <text class="sm" x="175" y="82" text-anchor="middle">useChat({ resume: true })</text>
+
+          <!-- Next -->
+          <rect class="bx" x="40" y="150" width="270" height="98" fill="#e8eff6" stroke="#cedeeb"/>
+          <text class="ti" x="175" y="178" text-anchor="middle" fill="#3f648a">NEXT.JS · thin API</text>
+          <text class="sm" x="175" y="199" text-anchor="middle">POST /chat (bridge)</text>
+          <text class="sm" x="175" y="216" text-anchor="middle">GET /:id/stream (resume)</text>
+          <text class="sm" x="175" y="233" text-anchor="middle">POST /:id/stop · GET /:id</text>
+
+          <!-- Redis -->
+          <rect class="bx" x="372" y="150" width="236" height="84" fill="#f4e7e0" stroke="#e7cdc0"/>
+          <text class="ti" x="490" y="180" text-anchor="middle" fill="#9d5740">Redis</text>
+          <text class="sm" x="490" y="200" text-anchor="middle">байты стрима · TTL</text>
+          <text class="sm" x="490" y="217" text-anchor="middle">noeviction · AOF</text>
+
+          <!-- Queue -->
+          <rect class="bx" x="40" y="300" width="270" height="58" fill="#fbf8f2" stroke="#e7e0d2"/>
+          <text class="ti" x="175" y="326" text-anchor="middle" fill="#36333c">pg-boss queue</text>
+          <text class="sm" x="175" y="344" text-anchor="middle">retryLimit: 0</text>
+
+          <!-- Worker -->
+          <rect class="bx" x="372" y="290" width="296" height="168" fill="#e9f0e4" stroke="#d2e1ca"/>
+          <text class="ti" x="520" y="316" text-anchor="middle" fill="#4f6f47">AGENT WORKER · Node-процесс</text>
+          <text class="sm" x="388" y="340">• ранняя публикация стрима → bridge &lt;1с</text>
+          <text class="sm" x="388" y="360">• resolve sandbox + hydrate (warmup-парты)</text>
+          <text class="sm" x="388" y="380">• streamText → toUIMessageStream → Redis</text>
+          <text class="sm" x="388" y="400">• heartbeat 10с · cancel-poll 5с</text>
+          <text class="sm" x="388" y="420">• bounded validation feedback (auto-retry)</text>
+          <text class="sm" x="388" y="440">• onFinish save · recordUsage (все ветки)</text>
+
+          <!-- Reaper -->
+          <rect class="bx" x="372" y="498" width="296" height="74" fill="#ebe6f3" stroke="#dad0ea"/>
+          <text class="ti" x="520" y="524" text-anchor="middle" fill="#5f5290">REAPER · tick 30с, advisory-lock</text>
+          <text class="sm" x="520" y="545" text-anchor="middle">метёт running/cancelling/queued по таймауту</text>
+          <text class="sm" x="520" y="562" text-anchor="middle">CAS→reaping · draft-commit · terminal · release</text>
+
+          <!-- Postgres -->
+          <rect class="bx" x="732" y="210" width="270" height="150" fill="#e9f0e4" stroke="#d2e1ca"/>
+          <text class="ti" x="867" y="240" text-anchor="middle" fill="#4f6f47">Postgres · источник правды</text>
+          <text class="sm" x="867" y="264" text-anchor="middle">runs · messages · conversations</text>
+          <text class="sm" x="867" y="284" text-anchor="middle">pgboss.* · usage / квоты</text>
+          <text class="sm" x="867" y="316" text-anchor="middle" fill="#a8a39c">статус · транскрипт · activeStreamId</text>
+
+          <!-- Gitea -->
+          <rect class="bx" x="732" y="420" width="270" height="78" fill="#f3ebd6" stroke="#e6d7b0"/>
+          <text class="ti" x="867" y="450" text-anchor="middle" fill="#8a6c25">Gitea · только код</text>
+          <text class="sm" x="867" y="472" text-anchor="middle">main (успех) · draft/run-* (cancel/fail)</text>
+
+          <!-- ===== edges ===== -->
+          <!-- browser <-> next -->
+          <path class="es" d="M175,100 L175,150" marker-end="url(#ab)"/>
+          <path class="es" d="M165,150 L165,100" marker-end="url(#ab)"/>
+          <text class="lb" x="192" y="128">стрим ⇅ resume</text>
+
+          <!-- next -> redis subscribe -->
+          <path class="es" d="M310,182 L372,182" marker-end="url(#ab)"/>
+          <text class="lb" x="316" y="173">subscribe</text>
+
+          <!-- next -> queue enqueue -->
+          <path class="ed" d="M175,248 L175,300" marker-end="url(#a)"/>
+          <text class="lb" x="186" y="278">enqueue</text>
+
+          <!-- queue -> worker poll -->
+          <path class="ed" d="M310,329 L372,329" marker-end="url(#a)"/>
+          <text class="lb" x="316" y="320">poll</text>
+
+          <!-- worker -> redis publish (orthogonal up) -->
+          <path class="es" d="M520,290 L520,234" marker-end="url(#ab)"/>
+          <text class="lb" x="530" y="266">publish · стрим</text>
+
+          <!-- worker -> postgres (orthogonal) -->
+          <path class="ed" d="M668,330 L700,330 L700,266 L732,266" marker-end="url(#a)"/>
+          <text class="lb" x="690" y="300" text-anchor="middle">status · транскрипт</text>
+
+          <!-- worker -> gitea -->
+          <path class="ed" d="M668,406 L712,406 L712,448 L732,448" marker-end="url(#a)"/>
+          <text class="lb" x="690" y="425" text-anchor="middle">commit код</text>
+
+          <!-- reaper -> postgres -->
+          <path class="ed" d="M668,524 L688,524 L688,320 L732,320" marker-end="url(#a)"/>
+          <!-- reaper -> gitea -->
+          <path class="ed" d="M668,548 L722,548 L722,470 L732,470" marker-end="url(#a)"/>
+          <text class="lb" x="520" y="484" text-anchor="middle">reaper → Postgres · Gitea</text>
+        </svg>
+        <div class="legend">
+          <span><i style="background:var(--blue)"></i> транспорт стрима (Redis)</span>
+          <span><i style="background:var(--sage)"></i> durable state (Postgres)</span>
+          <span><i style="background:var(--amber)"></i> код (Gitea)</span>
+          <span><i style="background:#cfc7b6"></i> координация</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 02 DECISIONS ===== -->
+    <section id="decisions">
+      <h2><span class="num">02</span> Ключевые архитектурные решения</h2>
+      <p class="note">Каждое — закрытая развилка с осознанным trade-off. Снизу — какую проблему устраняет.</p>
+      <div class="grid g2">
+
+        <div class="dec sage">
+          <h4>Loop в отдельном воркере <span class="k">pg-boss</span></h4>
+          <p>Agent loop переезжает из Next.js в долгоживущий Node-процесс. API становится тонким: создать run, поставить в очередь, проксировать стрим.</p>
+          <div class="why"><b>Персистентность при закрытии вкладки</b>, независимый рестарт, горизонтальное масштабирование.</div>
+        </div>
+
+        <div class="dec lav">
+          <h4>Готовый транспорт <span class="k">resumable-stream + Redis</span></h4>
+          <p>Вместо самописного event-log + SSE + reducer — библиотека AI SDK поверх Redis. Воркер publisher, Next subscriber.</p>
+          <div class="why">Убирает <b>целый класс багов</b> (гонки, порядок, backpressure) — этот код больше не наш.</div>
+        </div>
+
+        <div class="dec sage">
+          <h4>Fail-fast вместо retry <span class="k">retryLimit: 0</span></h4>
+          <p>Упавший run не переисполняется. LLM недетерминирована — повтор склеил бы две генерации в один транскрипт.</p>
+          <div class="why">Durability обеспечивает не retry, а <b>reaper</b>. Транскрипт не портится склейкой.</div>
+        </div>
+
+        <div class="dec blue">
+          <h4>Server-side bridge для первого хода <span class="k">POST → стрим</span></h4>
+          <p><code>POST /api/chat</code> сам подписывается на Redis-стрим воркера и отдаёт его клиенту. <code>useChat</code> получает живой стрим из ответа на send.</p>
+          <div class="why">Стрим публикуется <b>до</b> гидрации sandbox → bridge цепляется &lt;1с, холодный старт идёт как warmup-парты.</div>
+        </div>
+
+        <div class="dec blue">
+          <h4>Транскрипт в Postgres <span class="k">UIMessage[] jsonb</span></h4>
+          <p>Полные <code>UIMessage</code> с tool-parts через <code>onFinish</code>, не плоский текст. Идемпотентность по <code>runId</code>.</p>
+          <div class="why">Не теряем <b>tool-историю</b> между ходами; на фронт — нативный формат без конверсий.</div>
+        </div>
+
+        <div class="dec rose">
+          <h4>Reaper застрявших runs <span class="k">heartbeat + CAS</span></h4>
+          <p>Воркер бьёт heartbeat каждые 10с. Reaper метёт любой не-терминальный статус по таймауту: коммит наработки в draft, терминализация, возврат резерва.</p>
+          <div class="why">Закрывает <b>осиротевшие runs</b> при hard-crash и не даёт проекту залочиться навсегда.</div>
+        </div>
+
+        <div class="dec amber">
+          <h4>Liveness ≠ job-expiration</h4>
+          <p>Срок жизни джобы (<code>24h</code>) — грубый потолок, не сигнал живости. Живость определяет только heartbeat.</p>
+          <div class="why">Устраняет <b>двойное исполнение</b> на границе истечения для реально длинных runs.</div>
+        </div>
+
+        <div class="dec sage">
+          <h4>1 активный run на проект <span class="k">partial unique index</span></h4>
+          <p>Уникальный индекс <code>project_id WHERE status NOT terminal</code> вместо racy check-then-insert. Второй POST → unique violation → 409.</p>
+          <div class="why">Никакого <b>TOCTOU</b>; cancel быстро уводит run в терминал и разблокирует re-enqueue.</div>
+        </div>
+
+        <div class="dec clay">
+          <h4>Резервация квоты <span class="k">reserve → reconcile</span></h4>
+          <p>На входе атомарно резервируется оценка под максимум многошагового run-а; в конце <code>recordUsage</code> сверяет факт и возвращает остаток.</p>
+          <div class="why">Закрывает <b>check-then-act</b> гонку и пере-/недо-биллинг при бёрсте.</div>
+        </div>
+
+        <div class="dec blue">
+          <h4>Bounded validation feedback</h4>
+          <p>Ошибки билда/типов идут модели как tool-result с эскалацией (3 попытки/категория, дедуп по hash). На исчерпании — модель доигрывает объяснение, без жёсткого abort.</p>
+          <div class="why">Система <b>сама чинит</b> ошибки за 1–3 итерации без участия юзера.</div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===== 03 STORES ===== -->
+    <section id="stores">
+      <h2><span class="num">03</span> Три хранилища, три роли</h2>
+      <p class="note">Жёсткое разделение ответственности — ключ к простоте восстановления после сбоев.</p>
+      <div class="grid g3">
+        <div class="card">
+          <span class="badge b-pg">POSTGRES</span>
+          <h3>Источник правды</h3>
+          <ul class="clean">
+            <li>статус и метаданные run</li>
+            <li>транскрипт <code>messages</code> (UIMessage)</li>
+            <li><code>activeStreamId</code>, <code>jobId</code>, очередь</li>
+            <li>usage и квоты</li>
+          </ul>
+          <p style="color:var(--faint);font-size:12.5px;margin:14px 0 0">Переживает всё. Завершённый run полностью восстановим отсюда.</p>
+        </div>
+        <div class="card">
+          <span class="badge b-redis">REDIS</span>
+          <h3>Эфемерный транспорт</h3>
+          <ul class="clean">
+            <li>живые байты UIMessage-стрима (TTL)</li>
+            <li>cancel-флаг <code>cancel:{runId}</code></li>
+            <li><code>noeviction</code> — не выселять живой стрим</li>
+            <li>AOF everysec — потеря ≤ 1с</li>
+          </ul>
+          <p style="color:var(--faint);font-size:12.5px;margin:14px 0 0">Потеря допустима: reaper доведёт активные runs до failed, завершённые не страдают.</p>
+        </div>
+        <div class="card">
+          <span class="badge b-git">GITEA</span>
+          <h3>Только код</h3>
+          <ul class="clean">
+            <li><code>main</code> — на успешном run</li>
+            <li><code>draft/run-*</code> — на cancel / fail / crash</li>
+            <li>meta-репо упразднено</li>
+            <li>sandbox <code>tmpfs</code> жив по idle-TTL 30 мин</li>
+          </ul>
+          <p style="color:var(--faint);font-size:12.5px;margin:14px 0 0">Наработка не теряется ни в одной ветке завершения, включая hard-crash (через reaper).</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 04 FLOW FIRST ===== -->
+    <section id="flow-first">
+      <h2><span class="num">04</span> Поток: первый ход</h2>
+      <p class="note">Как живой стрим первого сообщения доезжает до браузера через bridge, минуя гонку холодного старта.</p>
+      <div class="flow">
+        <div class="step"><div><b>POST /api/chat</b><p>Резерв квоты → user-сообщение в БД → INSERT run (unique-индекс) → enqueue + сохранить <code>jobId</code>.</p></div></div>
+        <div class="step"><div><b>Воркер берёт джобу</b><p>CAS <code>queued → running</code>, запускает heartbeat (10с) и cancel-poll (5с).</p></div></div>
+        <div class="step"><div><b>Ранняя публикация стрима</b><p><code>setActiveStream</code> + <code>notifyStreamReady</code> <u>до</u> гидрации. Bridge цепляется за &lt;1с.</p></div></div>
+        <div class="step"><div><b>Bridge возвращает стрим</b><p>POST подписывается через <code>resumeExistingStream</code> и отдаёт байты клиенту. Юзер видит «warming up».</p></div></div>
+        <div class="step"><div><b>Гидрация + streamText</b><p>sandbox + git clone / npm install (warmup-парты) → <code>streamText</code> → <code>toUIMessageStream</code> → дренаж в Redis.</p></div></div>
+        <div class="step"><div><b>onFinish + финализация</b><p>Сохранить UIMessage[] (tool-parts), commit в <code>main</code>, <code>recordUsage</code>, CAS <code>running → completed</code>.</p></div></div>
+      </div>
+    </section>
+
+    <!-- ===== 05 FLOW CANCEL ===== -->
+    <section id="flow-cancel">
+      <h2><span class="num">05</span> Поток: отмена — без дедлока</h2>
+      <p class="note">Развилка по статусу — место, где наивная реализация залочивала бы проект навсегда в статусе <code>cancelling</code>.</p>
+      <div class="grid g2">
+        <div class="card">
+          <h3 style="margin-top:0">Run ещё <span class="st st-q">queued</span></h3>
+          <div class="flow amber">
+            <div class="step"><div><b>boss.cancel(jobId)</b><p>Снимает джобу — воркер её уже никогда не подберёт.</p></div></div>
+            <div class="step"><div><b>CAS queued → cancelled</b><p>Финализируем <u>сразу в /stop</u>: некому довести <code>cancelling → cancelled</code>.</p></div></div>
+            <div class="step"><div><b>release + clear</b><p>Вернуть резерв квоты, очистить флаги. Проект свободен из unique-индекса.</p></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0">Run уже <span class="st st-run">running</span></h3>
+          <div class="flow amber">
+            <div class="step"><div><b>CAS running → cancelling</b><p>Помечаем намерение; воркер довершит сам.</p></div></div>
+            <div class="step"><div><b>cancel-флаг в Redis</b><p>Воркер видит его на следующей итерации loop (≤ 5с) → <code>abort()</code>.</p></div></div>
+            <div class="step"><div><b>Воркер: CAS → cancelled</b><p>Сохраняет частичную работу в draft, finalize. Reaper подстрахует при гонке.</p></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 06 FLOW CRASH ===== -->
+    <section id="flow-crash">
+      <h2><span class="num">06</span> Поток: смерть воркера → reaper</h2>
+
+      <div class="define">
+        <div class="define-icon">🌾</div>
+        <div class="define-body">
+          <h3>Что такое Reaper</h3>
+          <p><b>Reaper</b> (англ. «жнец», сборщик) — фоновый процесс-санитар. Раз в 30с он сканирует Postgres и подбирает <b>«застрявшие» runs</b> — те, что в не-терминальном статусе, но за которыми уже никто не следит: воркер умер, джоба потерялась, отмена не довершилась.</p>
+          <p style="margin-top:8px">Он нужен именно потому, что воркер <code>retryLimit: 0</code> при падении <b>не переисполняется</b>. Без reaper упавший run завис бы в <span class="st st-run">running</span> навсегда, а partial-unique-index <b>залочил бы проект</b>. Reaper — гарант инварианта «любой принятый run придёт к терминальному статусу».</p>
+          <div class="define-grid">
+            <div><span class="dk">Как находит застрявших</span>По heartbeat: живой воркер бьёт <code>heartbeatAt</code> каждые 10с. Старше 60с → осиротел.</div>
+            <div><span class="dk">Что считается застрявшим</span><code>running</code> (crash) · <code>cancelling</code> (отмена не дошла) · <code>queued</code> с потерянной джобой.</div>
+            <div><span class="dk">Что делает</span>CAS→<span class="st st-rp">reaping</span> (захват) → draft-commit наработки → терминал → возврат резерва квоты → очистка.</div>
+            <div><span class="dk">Сколько экземпляров</span>Ровно один при <code>scale &gt; 1</code> — через <code>pg_try_advisory_lock</code>.</div>
+          </div>
+        </div>
+      </div>
+
+      <p class="note" style="margin-top:22px">Конкретный сценарий — hard-crash (OOM / SIGKILL): <code>finally</code> воркера не выполнится, draft-commit оттуда не произойдёт. Подхватывает reaper — и забирает наработку.</p>
+      <div class="flow clay">
+        <div class="step"><div><b>Воркер убит в середине</b><p>Heartbeat перестаёт обновляться. Run застрял в <span class="st st-run">running</span>. Sandbox-контейнер ещё жив (idle-TTL 30 мин).</p></div></div>
+        <div class="step"><div><b>Reaper детектит застревание</b><p>tick 30с: <code>status = running</code> и <code>heartbeatAt</code> старше 60с → осиротел.</p></div></div>
+        <div class="step"><div><b>CAS running → reaping</b><p>Эксклюзивный lock на git-операции: живой handler уже не сможет коммитить параллельно.</p></div></div>
+        <div class="step"><div><b>Draft-commit наработки</b><p>Подключается к живому sandbox и коммитит <code>/workspace</code> в <code>draft/run-*</code>. Код не потерян.</p></div></div>
+        <div class="step"><div><b>reaping → failed + release</b><p>Терминализация, возврат резерва квоты, очистка стрима/флага. Проект разблокирован.</p></div></div>
+      </div>
+    </section>
+
+    <!-- ===== 07 FSM ===== -->
+    <section id="fsm">
+      <h2><span class="num">07</span> Машина состояний — источник правды</h2>
+      <p class="note">Все переходы — через <code>finalizeRunCAS(expectStatusIn, …)</code>: кто первым сменил статус, тот владелец; остальные — no-op. Нет флипов и двойных операций.</p>
+
+      <div class="diagram" style="padding:24px 18px">
+        <svg viewBox="0 0 1000 270" font-family="var(--sans)">
+          <defs><marker id="fa" markerWidth="10" markerHeight="10" refX="7.5" refY="3" orient="auto"><path d="M0,0 L7.5,3 L0,6 Z" fill="#b6ad9c"/></marker></defs>
+          <style>
+            .node{rx:11} .nt{font-weight:700;font-size:13px;text-anchor:middle}
+            .fed{stroke:#cfc7b6;stroke-width:1.7;fill:none} .flb{font-size:11px;fill:#9a948a;text-anchor:middle}
+            .track{font-size:11px;fill:#aaa49e;letter-spacing:.5px}
+          </style>
+
+          <text class="track" x="40" y="32">НЕ-ТЕРМИНАЛЬНЫЕ · занимают проект</text>
+          <!-- top lane -->
+          <rect class="node" x="40"  y="48" width="120" height="46" fill="#e8eff6" stroke="#cedeeb"/><text class="nt" x="100" y="76" fill="#3f648a">queued</text>
+          <rect class="node" x="255" y="48" width="120" height="46" fill="#e9f0e4" stroke="#d2e1ca"/><text class="nt" x="315" y="76" fill="#4f6f47">running</text>
+          <rect class="node" x="470" y="48" width="130" height="46" fill="#f3ebd6" stroke="#e6d7b0"/><text class="nt" x="535" y="76" fill="#8a6c25">cancelling</text>
+          <rect class="node" x="700" y="48" width="120" height="46" fill="#ebe6f3" stroke="#dad0ea"/><text class="nt" x="760" y="76" fill="#5f5290">reaping</text>
+
+          <!-- top progression -->
+          <path class="fed" d="M160,71 L255,71" marker-end="url(#fa)"/><text class="flb" x="207" y="62">CAS старт</text>
+          <path class="fed" d="M375,71 L470,71" marker-end="url(#fa)"/><text class="flb" x="422" y="62">stop</text>
+          <path class="fed" d="M600,71 L700,71" marker-end="url(#fa)"/><text class="flb" x="650" y="62">reaper (stuck)</text>
+
+          <text class="track" x="40" y="186">ТЕРМИНАЛЬНЫЕ</text>
+          <!-- bottom lane (aligned under sources) -->
+          <rect class="node" x="255" y="200" width="120" height="46" fill="#e9f0e4" stroke="#d2e1ca"/><text class="nt" x="315" y="228" fill="#3f6036">completed</text>
+          <rect class="node" x="475" y="200" width="120" height="46" fill="#edeae3" stroke="#e7e0d2"/><text class="nt" x="535" y="228" fill="#6f6b63">cancelled</text>
+          <rect class="node" x="700" y="200" width="120" height="46" fill="#f4e7e0" stroke="#e7cdc0"/><text class="nt" x="760" y="228" fill="#9d5740">failed</text>
+
+          <!-- vertical terminal arrows (aligned, no crossings) -->
+          <path class="fed" d="M315,94 L315,200" marker-end="url(#fa)"/><text class="flb" x="315" y="150" fill="#4f6f47">ok</text>
+          <path class="fed" d="M535,94 L535,200" marker-end="url(#fa)"/><text class="flb" x="535" y="150">abort</text>
+          <path class="fed" d="M760,94 L760,200" marker-end="url(#fa)"/><text class="flb" x="760" y="150">crash</text>
+        </svg>
+      </div>
+      <p style="color:var(--muted);font-size:13px;margin:10px 2px 0">Диаграмма — основной жизненный цикл. Полный список из 12 переходов (включая queued→cancelled, lost-job, reaping→cancelled) — в таблице:</p>
+
+      <table style="margin-top:14px">
+        <thead><tr><th>Из</th><th>В</th><th>Кто</th><th>Условие</th></tr></thead>
+        <tbody>
+          <tr><td>—</td><td><span class="st st-q">queued</span></td><td class="who">API POST</td><td>INSERT; unique-индекс не даёт второй активный на проект</td></tr>
+          <tr><td><span class="st st-q">queued</span></td><td><span class="st st-run">running</span></td><td class="who">Worker</td><td>CAS на старте; иначе выход</td></tr>
+          <tr><td><span class="st st-q">queued</span></td><td><span class="st st-can">cancelled</span></td><td class="who">API stop / step-0</td><td>boss.cancel снял джобу → CAS напрямую + release</td></tr>
+          <tr><td><span class="st st-q">queued</span></td><td><span class="st st-fail">failed</span></td><td class="who">Reaper</td><td>джоба потеряна (нет в очереди), <code>lost-job</code></td></tr>
+          <tr><td><span class="st st-run">running</span></td><td><span class="st st-cl">cancelling</span></td><td class="who">API stop</td><td>running-путь; воркер довершит по флагу</td></tr>
+          <tr><td><span class="st st-run">running</span></td><td><span class="st st-done">completed</span></td><td class="who">Worker finally</td><td>стрим завершился штатно</td></tr>
+          <tr><td><span class="st st-run">running</span></td><td><span class="st st-fail">failed</span></td><td class="who">Worker finally</td><td>пойманная ошибка (не cancel)</td></tr>
+          <tr><td><span class="st st-run">running</span></td><td><span class="st st-can">cancelled</span></td><td class="who">Worker finally</td><td>abort по cancel-флагу</td></tr>
+          <tr><td><span class="st st-run">running</span></td><td><span class="st st-rp">reaping</span> → <span class="st st-fail">failed</span></td><td class="who">Reaper</td><td>heartbeat протух (crash); draft-commit наработки</td></tr>
+          <tr><td><span class="st st-cl">cancelling</span></td><td><span class="st st-can">cancelled</span></td><td class="who">Worker finally</td><td>abort долетел, штатное завершение</td></tr>
+          <tr><td><span class="st st-cl">cancelling</span></td><td><span class="st st-rp">reaping</span> → <span class="st st-can">cancelled</span></td><td class="who">Reaper</td><td>застрял (heartbeat протух), <code>stuck-cancelling</code></td></tr>
+          <tr><td><span class="st st-rp">reaping</span></td><td>terminal</td><td class="who">Reaper</td><td>владелец reap-операции, всегда проходит</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ===== 08 INVARIANT ===== -->
+    <section id="invariant">
+      <h2><span class="num">08</span> Как держится durability</h2>
+      <div class="grid g2">
+        <div class="card">
+          <h3 style="margin-top:0">Четыре правила инварианта</h3>
+          <ul class="clean">
+            <li><b>Все переходы через CAS</b> — кто первый сменил статус, тот владелец; гонок и флипов нет.</li>
+            <li><b><code>reaping</code> — эксклюзивный lock</b> на git: пока reaper держит, живой handler уже не закоммитит.</li>
+            <li><b>Идемпотентность по <code>runId</code></b>: <code>releaseReservation</code> и <code>recordUsage</code> безопасны при повторе.</li>
+            <li><b>У каждого не-терминала есть выход</b> — актором или reaper-ом по таймауту. Проект не лочится навсегда.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0">Что переживает каждый сбой</h3>
+          <table>
+            <thead><tr><th>Сбой</th><th>Кто чинит</th><th>Потери</th></tr></thead>
+            <tbody>
+              <tr><td>Закрыл вкладку</td><td class="who">resume через GET</td><td style="color:#4f6f47">нет</td></tr>
+              <tr><td>Рестарт Next</td><td class="who">стрим в Redis жив</td><td style="color:#4f6f47">нет</td></tr>
+              <tr><td>Рестарт воркера</td><td class="who">reaper → failed</td><td style="color:#8a6c25">этот ход</td></tr>
+              <tr><td>Hard-crash воркера</td><td class="who">reaper + draft-commit</td><td style="color:#8a6c25">транскрипт хода</td></tr>
+              <tr><td>Флап Redis</td><td class="who">reaper → failed</td><td style="color:#8a6c25">активные стримы</td></tr>
+              <tr><td>Потеря Postgres</td><td class="who">бэкап</td><td style="color:#9d5740">критично</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 09 SCOPE ===== -->
+    <section id="scope">
+      <h2><span class="num">09</span> Граница: SDK vs наш код</h2>
+      <p class="note">Принцип — максимум отдать готовому, оставить себе только то, чего в библиотеках нет.</p>
+      <div class="grid g2">
+        <div class="card">
+          <span class="badge b-sdk">ЗАБРАЛ SDK / RESUMABLE-STREAM</span>
+          <ul class="clean keep" style="margin-top:12px">
+            <li>batching, порядок, backpressure стрима</li>
+            <li>реконструкция UIMessage с tool-parts (<code>onFinish</code>)</li>
+            <li>resume после reconnect (<code>useChat resume</code>)</li>
+            <li>несколько подписчиков на один стрим</li>
+            <li>рендер UI из стрима — без нашего reducer-а</li>
+          </ul>
+        </div>
+        <div class="card">
+          <span class="badge b-ours">ОСТАЁТСЯ НАШИМ</span>
+          <ul class="clean keep" style="margin-top:12px">
+            <li>очередь + воркер (pg-boss) и его durability</li>
+            <li>reaper застрявших runs</li>
+            <li>fail-fast политика и state-machine</li>
+            <li>bounded validation feedback (auto-retry)</li>
+            <li>квоты / usage, stop ↔ pg-boss, commit + draft-ветка</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card" style="margin-top:18px">
+        <h3 style="margin-top:0">Выкинуто из v1 — самописный транспорт</h3>
+        <ul class="clean kill two-col">
+          <li>таблица <code>run_events</code> (append-only)</li>
+          <li>event-emitter с batching</li>
+          <li>SSE-эндпоинт с LISTEN/NOTIFY + Last-Event-ID</li>
+          <li>reducer на фронте</li>
+          <li>колонка <code>hasStreamedContent</code> (мёртвая)</li>
+          <li>singletonKey (заменён unique-индексом)</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ===== 10 PHASES ===== -->
+    <section id="phases">
+      <h2><span class="num">10</span> План миграции</h2>
+      <p class="note">Каждая фаза гейтится своими тестами на Testcontainers (Postgres + Redis + mock-модель + fake vm).</p>
+      <div class="phases">
+        <div class="phase block">
+          <div class="ph-id">Phase 0<span class="d">1–2 дня · БЛОКИРУЕТ</span></div>
+          <div><b>Спайк <code>resumable-stream</code></b><ul>
+            <li>headless-publish из воркера без HTTP-клиента + механизм дренажа</li>
+            <li>буферизация для позднего subscriber (нужна для bridge)</li>
+            <li>склейка warmup → llm в один протокол-валидный UIMessage-стрим</li>
+            <li><b style="color:#9d5740">Бинарный исход:</b> подходит → Phase 3; нет → fallback на свой Redis Streams pub/sub</li>
+          </ul></div>
+        </div>
+        <div class="phase"><div class="ph-id">Phase 1<span class="d">2–3 дня · ∥</span></div><div><b>Инфраструктура</b><ul><li>Redis (noeviction/AOF), таблицы runs/conversations/messages, pg-boss, скелет worker + reaper</li></ul></div></div>
+        <div class="phase"><div class="ph-id">Phase 2<span class="d">2–3 дня · ∥</span></div><div><b>Транскрипт в Postgres</b><ul><li>перенос conversation-функций, разовая миграция из Gitea meta-репо</li></ul></div></div>
+        <div class="phase"><div class="ph-id">Phase 3<span class="d">5–8 дней</span></div><div><b>Resumable stream + bridge + воркер</b><ul><li>loop в воркере, publish с дренажом, bridge в POST, resume-GET, фронт на useChat</li></ul></div></div>
+        <div class="phase"><div class="ph-id">Phase 4<span class="d">2–3 дня</span></div><div><b>Fail-fast + reaper + heartbeat</b><ul><li>статусы cancelling/reaping, sweep всех не-терминалов, CAS-claim перед commit</li></ul></div></div>
+        <div class="phase"><div class="ph-id">Phase 5<span class="d">2 дня</span></div><div><b>Stop + cancel</b><ul><li>разветвление queued/running, cancel-флаг, re-enqueue, навигация ≠ stop</li></ul></div></div>
+        <div class="phase"><div class="ph-id">Phase 6<span class="d">2–3 дня</span></div><div><b>Квоты + usage + auto-retry</b><ul><li>резервация, reconcile во всех ветках, validation feedback loop</li></ul></div></div>
+        <div class="phase"><div class="ph-id">Phase 7<span class="d">по мере</span></div><div><b>Polish</b><ul><li>реальные modelId, cap размера tool-part, observability, admin-панель</li></ul></div></div>
+      </div>
+    </section>
+
+    <!-- ===== 11 RISK ===== -->
+    <section id="risk">
+      <h2><span class="num">11</span> Главный оставшийся риск</h2>
+      <div class="risk">
+        <h4>Не дефект спеки — неизвестность, которую нельзя закрыть на бумаге</h4>
+        <p>Поведение <code>resumable-stream</code> как headless-publisher (воркер публикует без HTTP-клиента) и валидность склейки <code>warmup → llm</code> фрейминга. Корректно изолировано в <b>блокирующем Phase 0</b> с бинарным исходом и готовым fallback на тонкий Redis Streams pub/sub. Дальше его снимает только код, не дизайн.</p>
+      </div>
+    </section>
+
+    <div class="foot">
+      <span>44bolt · архитектура долгоживущих runs · v2.x</span>
+      <span>Postgres = правда · Redis = транспорт · Gitea = код</span>
+    </div>
+  </main>
+</div>
+</body>
+</html>

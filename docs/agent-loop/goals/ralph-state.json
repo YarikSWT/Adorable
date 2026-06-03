@@ -1,0 +1,26 @@
+{
+  "_schema": "Источник правды для ralph-loop. Агент читает/пишет ЭТОТ файл каждой итерацией. Не в контексте.",
+  "_buckets": "fixed | ack_stale | abandoned | external_blocker. Юнит, добитый до корзины ack_stale/abandoned/external_blocker, ИСКЛЮЧАЕТСЯ из будущих итераций.",
+  "loop": {
+    "iteration": 0,
+    "maxIterations": 40,
+    "stall": 0,
+    "maxStall": 2,
+    "retryCeilingPerCategory": 3,
+    "phase0Verdict": null,
+    "activePhase": null,
+    "lastIterationFailureLog": "",
+    "finalManualVerify": "pending"
+  },
+  "_manualVerify": "pending | pass | external_blocker. Playwright-mcp гейт для фаз 3/5 и финала. Протокол: MANUAL-VERIFY.md. Артефакты: verification/agent-loop/.",
+  "phases": [
+    { "id": 0, "file": "goal-0-spike.md", "title": "Спайк resumable-stream (БЛОКИРУЮЩИЙ)", "requires": [], "unitsTotal": 3, "status": "pending", "buckets": { "fixed": 0, "ack_stale": 0, "abandoned": 0, "external_blocker": 0 } },
+    { "id": 1, "file": "goal-1-infra.md", "title": "Инфра: Redis/pg-boss/worker/reaper/схема", "requires": [], "unitsTotal": 5, "status": "pending", "buckets": { "fixed": 0, "ack_stale": 0, "abandoned": 0, "external_blocker": 0 } },
+    { "id": 2, "file": "goal-2-transcript.md", "title": "Транскрипт → Postgres", "requires": [], "unitsTotal": 3, "status": "pending", "buckets": { "fixed": 0, "ack_stale": 0, "abandoned": 0, "external_blocker": 0 } },
+    { "id": 3, "file": "goal-3-bridge-worker.md", "title": "Bridge + worker + resumable", "requires": [0, 1, 2], "unitsTotal": 7, "status": "pending", "manualVerify": "pending", "buckets": { "fixed": 0, "ack_stale": 0, "abandoned": 0, "external_blocker": 0 } },
+    { "id": 4, "file": "goal-4-failfast-reaper.md", "title": "Fail-fast + reaper + heartbeat", "requires": [3], "unitsTotal": 3, "status": "pending", "buckets": { "fixed": 0, "ack_stale": 0, "abandoned": 0, "external_blocker": 0 } },
+    { "id": 5, "file": "goal-5-stop-cancel.md", "title": "Stop + cancel", "requires": [4], "unitsTotal": 4, "status": "pending", "manualVerify": "pending", "buckets": { "fixed": 0, "ack_stale": 0, "abandoned": 0, "external_blocker": 0 } },
+    { "id": 6, "file": "goal-6-quota-usage.md", "title": "Quota + usage + auto-retry", "requires": [5], "unitsTotal": 3, "status": "pending", "buckets": { "fixed": 0, "ack_stale": 0, "abandoned": 0, "external_blocker": 0 } }
+  ],
+  "units": []
+}
