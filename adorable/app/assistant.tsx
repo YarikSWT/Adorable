@@ -62,6 +62,7 @@ export const Assistant = ({
   onThreadStateChange,
   onActiveConversationChange,
   welcome,
+  homeBackdrop = false,
 }: {
   initialMessages?: UIMessage[];
   selectedRepoId?: string | null;
@@ -69,6 +70,7 @@ export const Assistant = ({
   onThreadStateChange?: (next: ThreadState) => void;
   onActiveConversationChange?: (repoId: string, conversationId: string) => void;
   welcome?: ReactNode;
+  homeBackdrop?: boolean;
 }) => {
   const resolvedInitialMessages = initialMessages ?? EMPTY_MESSAGES;
 
@@ -494,7 +496,7 @@ export const Assistant = ({
   return (
     <AssistantRuntimeProvider key={runtimeKey} runtime={runtime}>
       <ThreadStateBridge onThreadStateChange={handleThreadStateChange} />
-      <Thread welcome={welcome} />
+      <Thread welcome={welcome} homeBackdrop={homeBackdrop} />
     </AssistantRuntimeProvider>
   );
 };

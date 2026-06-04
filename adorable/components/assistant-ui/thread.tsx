@@ -53,15 +53,19 @@ import {
 } from "lucide-react";
 import type { FC, ReactNode } from "react";
 
-export const Thread: FC<{ welcome?: ReactNode }> = ({ welcome }) => {
+export const Thread: FC<{ welcome?: ReactNode; homeBackdrop?: boolean }> = ({
+  welcome,
+  homeBackdrop = false,
+}) => {
   return (
     <ThreadPrimitive.Root
-      className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
+      className="aui-root aui-thread-root @container relative flex h-full flex-col bg-background"
       style={{
         ["--thread-max-width" as string]: "44rem",
       }}
     >
-      <ThreadPrimitive.Viewport className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-hidden overflow-y-scroll px-4 pt-4">
+      {homeBackdrop && <HomeBackdrop />}
+      <ThreadPrimitive.Viewport className="aui-thread-viewport relative z-10 flex flex-1 flex-col overflow-x-hidden overflow-y-scroll px-4 pt-4">
         {welcome && (
           <AssistantIf condition={({ thread }) => thread.isEmpty}>
             {welcome}
@@ -85,6 +89,23 @@ export const Thread: FC<{ welcome?: ReactNode }> = ({ welcome }) => {
   );
 };
 
+// Sunbaked sunset wash behind the empty home (matches mockups/desktop/home.html
+// .main). Gated on thread.isEmpty so it never bleeds into an active chat/editor.
+const HomeBackdrop: FC = () => {
+  return (
+    <AssistantIf condition={({ thread }) => thread.isEmpty}>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 115% 90% at 82% 75%, var(--coral) 0%, var(--coral-soft) 12%, #F2A788 26%, #F1C5A8 44%, var(--cream) 65%, var(--paper) 92%)",
+        }}
+      />
+    </AssistantIf>
+  );
+};
+
 const ThreadScrollToBottom: FC = () => {
   return (
     <ThreadPrimitive.ScrollToBottom asChild>
@@ -101,7 +122,7 @@ const ThreadScrollToBottom: FC = () => {
 const Composer: FC = () => {
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
-      <ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border border-input bg-background px-1 pt-2 transition-shadow outline-none has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20 data-[dragging=true]:border-dashed data-[dragging=true]:border-ring data-[dragging=true]:bg-accent/50">
+      <ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-[var(--r-xl)] border border-cream-deep bg-paper px-1 pt-2 shadow-[var(--sh-sm)] transition-shadow outline-none has-[textarea:focus-visible]:border-coral has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-coral/20 data-[dragging=true]:border-dashed data-[dragging=true]:border-coral data-[dragging=true]:bg-cream/50">
         <ComposerAttachments />
         <ComposerPrimitive.Input
           placeholder="Send a message..."
@@ -126,7 +147,7 @@ const ComposerAction: FC = () => {
             tooltip="Send message"
             side="bottom"
             type="submit"
-            variant="default"
+            variant="brand"
             size="icon"
             className="aui-composer-send size-8 rounded-full"
             aria-label="Send message"
