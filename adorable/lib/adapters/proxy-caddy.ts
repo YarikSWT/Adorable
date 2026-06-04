@@ -207,7 +207,12 @@ export const createCaddyProxyProvider = (
       "GET",
       `/config/apps/http/servers/${encodeURIComponent(serverName)}`,
     );
-    if (r.ok) return;
+    // A missing server still returns HTTP 200 — with a literal `null` body
+    // (the path is valid but unset). `r.ok` alone therefore reports a
+    // non-existent server as present, after which addRoute's POST to
+    // .../servers/<name>/routes/... fails with "invalid traversal path".
+    // Guard on a non-null value so we actually scaffold the server.
+    if (r.ok && r.json != null) return;
     // Initialize the http.servers.<serverName> scaffold if missing.
     const root = await apiJson("GET", `/config/apps/http`);
     if (!root.ok) {
