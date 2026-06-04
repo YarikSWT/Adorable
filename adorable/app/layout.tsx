@@ -35,7 +35,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark h-full overflow-hidden ${geistSans.variable} ${geistMono.variable} ${fraunces.variable}`}
+      className={`h-full overflow-hidden ${geistSans.variable} ${geistMono.variable} ${fraunces.variable}`}
     >
       <body className="h-full overflow-hidden overscroll-none antialiased">
         <ApiKeyGate>
