@@ -55,8 +55,15 @@ export function WorkspaceFrame({ children }: { children: React.ReactNode }) {
     [pathname],
   );
 
-  const routeRepoId = pathParts[0] ?? null;
-  const routeConversationId = pathParts[1] ?? null;
+  // Top-level app routes that are NOT repo workspaces. Without this guard the
+  // first path segment (e.g. "settings") is taken as a repoId, which forces the
+  // editor split + empty preview pane onto settings/projects/orgs/admin pages.
+  const NON_REPO_SEGMENTS = new Set(["settings", "projects", "orgs", "admin"]);
+  const firstSegment = pathParts[0] ?? null;
+  const isNonRepoRoute =
+    firstSegment !== null && NON_REPO_SEGMENTS.has(firstSegment);
+  const routeRepoId = isNonRepoRoute ? null : firstSegment;
+  const routeConversationId = isNonRepoRoute ? null : (pathParts[1] ?? null);
 
   const [activeRepoId, setActiveRepoId] = useState<string | null>(null);
   const [activeConversationId, setActiveConversationId] = useState<

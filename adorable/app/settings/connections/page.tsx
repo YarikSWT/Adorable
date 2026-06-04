@@ -28,9 +28,11 @@ export default async function ConnectionsPage() {
     Boolean(user[0]?.passwordHash) || linkedSet.has("credential");
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="mb-2 text-lg font-semibold">Подключения</h1>
-      <p className="mb-4 text-sm text-muted-foreground">
+    <div className="mx-auto max-w-2xl">
+      <h1 className="mb-1 font-display text-2xl font-medium text-ink">
+        Подключения
+      </h1>
+      <p className="mb-6 text-sm text-n-500">
         Один OAuth-аккаунт может быть привязан только к одному пользователю
         Adorable. Если попробуете привязать аккаунт, который уже используется
         кем-то ещё — получите ошибку.

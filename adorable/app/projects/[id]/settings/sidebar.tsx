@@ -23,10 +23,10 @@ export function ProjectSettingsSidebar({ projectId }: { projectId: string }) {
             key={s.href}
             href={href}
             className={
-              "rounded px-3 py-2 hover:bg-accent " +
+              "relative rounded-[var(--r-md)] px-3 py-2 transition-colors " +
               (active
-                ? "border-l-2 border-primary bg-accent/40 font-medium"
-                : "border-l-2 border-transparent")
+                ? "bg-cream font-medium text-coral-deep before:absolute before:top-1/2 before:left-0 before:h-4 before:w-[3px] before:-translate-y-1/2 before:rounded-full before:bg-coral before:content-['']"
+                : "text-ink hover:bg-cream")
             }
           >
             {s.label}

@@ -12,20 +12,23 @@ export default async function UserSettingsLayout({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center gap-3 border-b border-border/40 px-4 py-3">
+      <div className="flex items-center gap-3 border-b border-cream-deep px-5 py-3.5">
         <Link
           href="/"
-          className="text-xs text-muted-foreground hover:text-foreground"
+          className="text-sm text-n-500 transition-colors hover:text-ink"
+          aria-label="Back to all apps"
         >
           ←
         </Link>
-        <span className="text-sm font-semibold">Настройки</span>
+        <span className="font-display text-lg font-medium text-ink">
+          Settings
+        </span>
       </div>
       <div className="flex flex-1 min-h-0">
-        <aside className="w-56 shrink-0 border-r border-border/40">
+        <aside className="w-56 shrink-0 border-r border-cream-deep p-1">
           <UserSettingsSidebar />
         </aside>
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-6 md:p-8">{children}</main>
       </div>
     </div>
   );
