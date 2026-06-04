@@ -41,8 +41,14 @@ export default async function BillingPage({
     );
   }
   return (
-    <div className="mx-auto max-w-4xl p-6">
-      <h1 className="mb-4 text-xl font-semibold">Billing — {org.name}</h1>
+    <div className="mx-auto max-w-4xl p-6 md:p-8">
+      <h1 className="mb-1 font-display text-3xl font-medium tracking-tight text-ink [font-variation-settings:'opsz'_144]">
+        Billing
+      </h1>
+      <p className="mb-6 text-sm text-n-500">
+        Plan, limits and usage for{" "}
+        <span className="font-medium text-ink">{org.name}</span>.
+      </p>
       <BillingClient orgId={org.id} />
     </div>
   );

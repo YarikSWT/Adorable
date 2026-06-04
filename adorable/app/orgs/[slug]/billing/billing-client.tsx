@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Chip } from "@/components/ui/chip";
 
 type Usage = {
   plan: { slug: string; name: string; limits: Record<string, number> };
@@ -38,9 +40,9 @@ const fmtDate = (iso: string | null): string =>
   iso ? new Date(iso).toLocaleString() : "—";
 
 const barColor = (pct: number): string => {
-  if (pct >= 100) return "bg-destructive";
-  if (pct >= 80) return "bg-amber-500";
-  return "bg-primary";
+  if (pct >= 100) return "bg-danger";
+  if (pct >= 80) return "bg-warning";
+  return "bg-coral";
 };
 
 export function BillingClient({ orgId }: { orgId: string }) {
@@ -79,17 +81,27 @@ export function BillingClient({ orgId }: { orgId: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="rounded-md border border-border/40 p-4">
-        <div className="flex items-center gap-3">
-          <div>
-            <div className="text-xs uppercase text-muted-foreground">План</div>
-            <div className="text-lg font-semibold">{data.plan.name}</div>
+      <Card className="flex-row items-center gap-4">
+        <div>
+          <div className="font-mono text-xs tracking-wide text-coral uppercase">
+            Текущий план
           </div>
-          <div className="ml-auto text-xs text-muted-foreground">
-            Период: {fmtDate(data.period.start)} — {fmtDate(data.period.end)}
+          <div className="mt-1 flex items-center gap-2">
+            <span className="font-display text-2xl font-medium text-ink">
+              {data.plan.name}
+            </span>
+            <Chip size="sm">{data.plan.slug}</Chip>
           </div>
         </div>
-      </section>
+        <div className="ml-auto text-right text-xs text-n-500">
+          <div className="font-mono tracking-wide text-n-400 uppercase">
+            Период
+          </div>
+          <div className="mt-1">
+            {fmtDate(data.period.start)} — {fmtDate(data.period.end)}
+          </div>
+        </div>
+      </Card>
 
       <section>
         <h2 className="mb-2 text-sm font-semibold">Лимиты и использование</h2>
