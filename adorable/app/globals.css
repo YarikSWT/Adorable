@@ -139,3 +139,154 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* =============================================================================
+   Sunbaked redesign tokens — sourced from docs/redesign/tokens/{tokens,tailwind}.css
+   and reconciled against the target mockups (docs/redesign/mockups/shared.css,
+   which wins on radius/shadow conflicts since the mockups are the visual target).
+
+   Phase 0 (setup) — ADDITIVE ONLY. This makes the coral / olive / cream palette,
+   the Fraunces display font, warm shadows and the brand gradients available both
+   as Tailwind utilities (bg-coral, text-ink, font-display, shadow-coral, …) and as
+   raw CSS variables (var(--coral), var(--paper), var(--gradient-prompt-glow), …).
+   The existing shadcn theme vars (--background, --primary, --radius, …) and the
+   forced dark mode are intentionally left untouched here — later phases migrate
+   each surface onto these tokens and flip the page to the cream theme.
+   ========================================================================== */
+
+@theme {
+  /* Brand — coral lineage */
+  --color-coral: #e84e2f;
+  --color-coral-soft: #f47a5e;
+  --color-coral-deep: #b83a1f;
+
+  /* Brand — olive lineage (our secondary brand; base44 has none) */
+  --color-olive: #6b7c3e;
+  --color-olive-soft: #8a9e5c;
+  --color-olive-deep: #4a5829;
+
+  /* Cream + warm ink */
+  --color-cream: #f3ebd7;
+  --color-cream-deep: #e5d9bb;
+  --color-ink: #2a2419;
+  --color-ink-2: #3a3327;
+
+  /* Paper (page background) + warm neutral scale */
+  --color-paper: #fbf7ec;
+  --color-n-100: #f0e8d2;
+  --color-n-200: #ddd2b5;
+  --color-n-300: #bfb290;
+  --color-n-400: #8b7f62;
+  --color-n-500: #5c5240;
+  --color-n-700: #3d3527;
+
+  /* Semantic */
+  --color-success: #5c7c3e;
+  --color-warning: #c77a1e;
+  --color-danger: #c7392e;
+  --color-info: #4a6b8a;
+
+  /* Display font. Geist (sans) + Geist Mono stay wired via the @theme inline block
+     above. Fraunces is loaded via next/font as --font-fraunces, exposed on <html>
+     (= :root) in app/layout.tsx — so this plain @theme var resolves at :root and
+     drives both the `font-display` utility and raw var(--font-display) usage. */
+  --font-display: var(--font-fraunces), Georgia, serif;
+
+  /* Brand shadow utilities (distinct names — do not clobber Tailwind's defaults) */
+  --shadow-coral: 0 8px 24px rgb(232 78 47 / 0.22);
+  --shadow-prompt: 0 16px 30px rgb(42 36 25 / 0.05);
+}
+
+:root {
+  /* Raw color aliases for plain-CSS / arbitrary-value usage (mirror @theme) */
+  --coral: var(--color-coral);
+  --coral-soft: var(--color-coral-soft);
+  --coral-deep: var(--color-coral-deep);
+  --olive: var(--color-olive);
+  --olive-soft: var(--color-olive-soft);
+  --olive-deep: var(--color-olive-deep);
+  --cream: var(--color-cream);
+  --cream-deep: var(--color-cream-deep);
+  --ink: var(--color-ink);
+  --ink-2: var(--color-ink-2);
+  --paper: var(--color-paper);
+  --n-100: var(--color-n-100);
+  --n-200: var(--color-n-200);
+  --n-300: var(--color-n-300);
+  --n-400: var(--color-n-400);
+  --n-500: var(--color-n-500);
+  --n-700: var(--color-n-700);
+  --n-900: var(--color-ink);
+  --success: var(--color-success);
+  --warning: var(--color-warning);
+  --danger: var(--color-danger);
+  --info: var(--color-info);
+
+  /* Display font as a guaranteed raw var (the @theme --font-display token only
+     reaches :root once a utility references it; this mirror is always emitted,
+     so raw var(--font-display) in ported component CSS resolves to Fraunces). */
+  --font-display: var(--font-fraunces), Georgia, serif;
+
+  /* Radius scale — mockup (target) values; kept separate from shadcn's --radius-* */
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 10px;
+  --r-lg: 12px;
+  --r-xl: 18px;
+  --r-pill: 9999px;
+
+  /* Warm shadow scale — mockup (target) values */
+  --sh-sm: 0 1px 2px 0 rgb(42 36 25 / 0.05);
+  --sh-md: 0 4px 6px -1px rgb(42 36 25 / 0.08), 0 2px 4px -2px rgb(42 36 25 / 0.06);
+  --sh-lg: 0 10px 15px -3px rgb(42 36 25 / 0.1), 0 4px 6px -4px rgb(42 36 25 / 0.08);
+  --sh-prompt: var(--shadow-prompt);
+  --sh-coral: var(--shadow-coral);
+  /* Numbered aliases for spec / component-doc compatibility */
+  --sh-1: var(--sh-sm);
+  --sh-2: var(--sh-md);
+  --sh-3: var(--sh-lg);
+
+  /* Semantic aliases consumed directly by sunbaked components */
+  --bg-page: var(--paper);
+  --bg-surface: var(--paper);
+  --bg-surface-alt: var(--n-100);
+  --bg-surface-warm: var(--cream);
+  --bg-elevated: var(--paper);
+  --bg-muted: var(--cream);
+  --bg-accent: var(--cream-deep);
+  --bg-workspace: var(--cream-deep);
+
+  --border-default: var(--cream-deep);
+  --border-strong: var(--n-200);
+  --border-muted: var(--cream-deep);
+
+  --text-primary: var(--ink);
+  --text-secondary: var(--n-500);
+  --text-muted: var(--n-400);
+  --text-inverse: var(--cream);
+
+  --action-primary: var(--ink);
+  --action-primary-hover: var(--ink-2);
+  --action-brand: var(--coral);
+  --action-brand-hover: var(--coral-deep);
+  --action-brand-soft: var(--coral-soft);
+  --action-secondary: var(--olive);
+  --action-ghost-hover: var(--cream);
+
+  --focus-ring: 0 0 0 3px rgb(232 78 47 / 0.15);
+
+  /* Brand gradients (exact hero/prompt stops are tuned against the mockup in Phase 3) */
+  --gradient-prompt-glow:
+    linear-gradient(var(--paper), var(--paper)),
+    radial-gradient(circle at 0% 100%, var(--coral) 0%, transparent 24%);
+  --gradient-hero-backdrop:
+    radial-gradient(ellipse at 90% 0%, var(--cream) 0%, transparent 55%),
+    var(--paper);
+  --gradient-app-card-preview: linear-gradient(135deg, var(--cream), var(--cream-deep));
+  --gradient-cta-glow: linear-gradient(135deg, var(--coral), var(--coral-deep));
+}
+
+::selection {
+  background: var(--coral);
+  color: #fff;
+}

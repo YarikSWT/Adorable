@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import { WorkspaceFrame } from "./workspace-frame";
 import { ApiKeyGate } from "@/components/api-key-gate";
 import "./globals.css";
@@ -14,6 +14,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Sunbaked display face — used for hero, plan prices, italic accent words.
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  axes: ["opsz"],
+});
+
 export const metadata: Metadata = {
   title: "Adorable",
   description: "Build beautiful apps with AI",
@@ -25,10 +33,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark h-full overflow-hidden">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} h-full overflow-hidden overscroll-none antialiased`}
-      >
+    <html
+      lang="en"
+      className={`dark h-full overflow-hidden ${geistSans.variable} ${geistMono.variable} ${fraunces.variable}`}
+    >
+      <body className="h-full overflow-hidden overscroll-none antialiased">
         <ApiKeyGate>
           <WorkspaceFrame>{children}</WorkspaceFrame>
         </ApiKeyGate>
