@@ -1,0 +1,10 @@
+data: {"type":"data-progress","data":{"stage":"sandbox","message":"Preparing environment…"},"transient":true}
+
+data: {"type":"data-progress","data":{"stage":"hydrate","message":"Loading project…"},"transient":true}
+
+data: {"type":"start","messageId":"QmvS45RoihO8RAF2"}
+
+data: {"type":"start-step"}
+
+data: {"type":"text-start","id":"t0"}
+

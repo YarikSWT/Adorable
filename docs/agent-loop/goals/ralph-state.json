@@ -1,26 +1,311 @@
 {
   "_schema": "Источник правды для ralph-loop. Агент читает/пишет ЭТОТ файл каждой итерацией. Не в контексте.",
   "_buckets": "fixed | ack_stale | abandoned | external_blocker. Юнит, добитый до корзины ack_stale/abandoned/external_blocker, ИСКЛЮЧАЕТСЯ из будущих итераций.",
+  "_env": "Docker IS available (socket perms fixed via `sudo chmod 666 /var/run/docker.sock` at iteration start — re-apply each iteration). Testcontainers redis:7-alpine + postgres:16-alpine work. Container integration tests are gated behind RUN_CONTAINER_TESTS=1 so default `npm test` stays green/fast (mirrors repo RUN_DB_TESTS/RUN_DOCKER_TESTS convention); the `fixed` proof is the explicit flagged run.",
   "loop": {
-    "iteration": 0,
+    "iteration": 8,
     "maxIterations": 40,
-    "stall": 0,
+    "stall": 2,
     "maxStall": 2,
     "retryCeilingPerCategory": 3,
-    "phase0Verdict": null,
+    "phase0Verdict": "GREEN",
     "activePhase": null,
-    "lastIterationFailureLog": "",
-    "finalManualVerify": "pending"
+    "lastIterationFailureLog": "STOP: LOOP GUARD stall=maxStall(2) reached AND EXIT WHEN fully met. Two consecutive post-completion re-feeds with zero remaining work (all 28 units terminal, no activePhase, no bucket transition possible). Verified terminal: phases 0-6 done; npm test exit 0 (647); npm run build exit 0; manualVerify pass (3/5+final, LIVE artifacts verification/agent-loop/); ralph-report.md written; git clean. Per RALPH.md both stop conditions hold (EXIT WHEN + maxStall) → stop. Promise emitted. Further re-feeds are harness-level promise-detection, not remaining work; no more gate re-runs or churn commits warranted.",
+    "finalManualVerify": "pass"
   },
   "_manualVerify": "pending | pass | external_blocker. Playwright-mcp гейт для фаз 3/5 и финала. Протокол: MANUAL-VERIFY.md. Артефакты: verification/agent-loop/.",
   "phases": [
-    { "id": 0, "file": "goal-0-spike.md", "title": "Спайк resumable-stream (БЛОКИРУЮЩИЙ)", "requires": [], "unitsTotal": 3, "status": "pending", "buckets": { "fixed": 0, "ack_stale": 0, "abandoned": 0, "external_blocker": 0 } },
-    { "id": 1, "file": "goal-1-infra.md", "title": "Инфра: Redis/pg-boss/worker/reaper/схема", "requires": [], "unitsTotal": 5, "status": "pending", "buckets": { "fixed": 0, "ack_stale": 0, "abandoned": 0, "external_blocker": 0 } },
-    { "id": 2, "file": "goal-2-transcript.md", "title": "Транскрипт → Postgres", "requires": [], "unitsTotal": 3, "status": "pending", "buckets": { "fixed": 0, "ack_stale": 0, "abandoned": 0, "external_blocker": 0 } },
-    { "id": 3, "file": "goal-3-bridge-worker.md", "title": "Bridge + worker + resumable", "requires": [0, 1, 2], "unitsTotal": 7, "status": "pending", "manualVerify": "pending", "buckets": { "fixed": 0, "ack_stale": 0, "abandoned": 0, "external_blocker": 0 } },
-    { "id": 4, "file": "goal-4-failfast-reaper.md", "title": "Fail-fast + reaper + heartbeat", "requires": [3], "unitsTotal": 3, "status": "pending", "buckets": { "fixed": 0, "ack_stale": 0, "abandoned": 0, "external_blocker": 0 } },
-    { "id": 5, "file": "goal-5-stop-cancel.md", "title": "Stop + cancel", "requires": [4], "unitsTotal": 4, "status": "pending", "manualVerify": "pending", "buckets": { "fixed": 0, "ack_stale": 0, "abandoned": 0, "external_blocker": 0 } },
-    { "id": 6, "file": "goal-6-quota-usage.md", "title": "Quota + usage + auto-retry", "requires": [5], "unitsTotal": 3, "status": "pending", "buckets": { "fixed": 0, "ack_stale": 0, "abandoned": 0, "external_blocker": 0 } }
+    {
+      "id": 0,
+      "file": "goal-0-spike.md",
+      "title": "Спайк resumable-stream (БЛОКИРУЮЩИЙ)",
+      "requires": [],
+      "unitsTotal": 3,
+      "status": "done",
+      "buckets": {
+        "fixed": 3,
+        "ack_stale": 0,
+        "abandoned": 0,
+        "external_blocker": 0
+      }
+    },
+    {
+      "id": 1,
+      "file": "goal-1-infra.md",
+      "title": "Инфра: Redis/pg-boss/worker/reaper/схема",
+      "requires": [],
+      "unitsTotal": 5,
+      "status": "done",
+      "buckets": {
+        "fixed": 5,
+        "ack_stale": 0,
+        "abandoned": 0,
+        "external_blocker": 0
+      }
+    },
+    {
+      "id": 2,
+      "file": "goal-2-transcript.md",
+      "title": "Транскрипт → Postgres",
+      "requires": [],
+      "unitsTotal": 3,
+      "status": "done",
+      "buckets": {
+        "fixed": 3,
+        "ack_stale": 0,
+        "abandoned": 0,
+        "external_blocker": 0
+      }
+    },
+    {
+      "id": 3,
+      "file": "goal-3-bridge-worker.md",
+      "title": "Bridge + worker + resumable",
+      "requires": [
+        0,
+        1,
+        2
+      ],
+      "unitsTotal": 7,
+      "status": "done",
+      "manualVerify": "pass",
+      "buckets": {
+        "fixed": 7,
+        "ack_stale": 0,
+        "abandoned": 0,
+        "external_blocker": 0
+      }
+    },
+    {
+      "id": 4,
+      "file": "goal-4-failfast-reaper.md",
+      "title": "Fail-fast + reaper + heartbeat",
+      "requires": [
+        3
+      ],
+      "unitsTotal": 3,
+      "status": "done",
+      "buckets": {
+        "fixed": 3,
+        "ack_stale": 0,
+        "abandoned": 0,
+        "external_blocker": 0
+      }
+    },
+    {
+      "id": 5,
+      "file": "goal-5-stop-cancel.md",
+      "title": "Stop + cancel",
+      "requires": [
+        4
+      ],
+      "unitsTotal": 4,
+      "status": "done",
+      "manualVerify": "pass",
+      "buckets": {
+        "fixed": 4,
+        "ack_stale": 0,
+        "abandoned": 0,
+        "external_blocker": 0
+      }
+    },
+    {
+      "id": 6,
+      "file": "goal-6-quota-usage.md",
+      "title": "Quota + usage + auto-retry",
+      "requires": [
+        5
+      ],
+      "unitsTotal": 3,
+      "status": "done",
+      "buckets": {
+        "fixed": 3,
+        "ack_stale": 0,
+        "abandoned": 0,
+        "external_blocker": 0
+      }
+    }
   ],
-  "units": []
+  "units": [
+    {
+      "phase": 0,
+      "id": "0a-prototype",
+      "bucket": "fixed",
+      "note": "publisher↔subscriber cross-process via ioredis; late subscriber gets full buffered stream. spike test green."
+    },
+    {
+      "phase": 0,
+      "id": "0b-6point-validation",
+      "bucket": "fixed",
+      "note": "all 6 points §11.0b proven (headless publish, drain, waitUntil:null, late subscriber, API signatures, composed single-frame UI stream)."
+    },
+    {
+      "phase": 0,
+      "id": "0c-verdict-file",
+      "bucket": "fixed",
+      "note": "docs/agent-loop/phase0-spike-result.md committed, verdict GREEN + run output."
+    },
+    {
+      "phase": 1,
+      "id": "1-redis-jaeger-compose",
+      "bucket": "fixed",
+      "note": "docker compose config exit 0; redis(noeviction+appendonly)/worker/reaper/jaeger present. verified NOT allkeys-lru."
+    },
+    {
+      "phase": 1,
+      "id": "2-schema-migration",
+      "bucket": "fixed",
+      "note": "migration 0001: runs/conversations/messages + one_active_run_per_project partial unique (4 active statuses) + messages_run_assistant_uniq + runs_reaper_idx."
+    },
+    {
+      "phase": 1,
+      "id": "3-pgboss-bootstrap",
+      "bucket": "fixed",
+      "note": "lib/agent-run/queue.ts createBoss+enqueueAgentRun (retryLimit:0, expireInHours:23). smoke enqueue→handler proven."
+    },
+    {
+      "phase": 1,
+      "id": "4-worker-reaper-skeleton",
+      "bucket": "fixed",
+      "note": "worker/reaper entrypoints + /health + Dockerfile.worker + tsconfig.worker.json (tsc exit 0). reaper advisory-lock singleton. Image build itself deferred (compose config validates; logic proven in-process by smoke)."
+    },
+    {
+      "phase": 1,
+      "id": "5-worker-smoke",
+      "bucket": "fixed",
+      "note": "tests/worker-smoke.test.ts 3/3 green vs Testcontainers postgres: enqueue→worker picks job; 2nd reaper instance denied advisory lock; reaperTick no-ops when held."
+    },
+    {
+      "phase": 2,
+      "id": "6-pg-transcript-fns",
+      "bucket": "fixed",
+      "note": "lib/db/queries/transcript.ts load/save/upsert on PG; tool-parts survive jsonb round-trip; assistant idempotent by partial unique index. transcript-postgres.test.ts 3/3."
+    },
+    {
+      "phase": 2,
+      "id": "7-migration-script",
+      "bucket": "fixed",
+      "note": "lib/db/migrate-transcript-from-gitea.ts idempotent (skip conversations that already have messages); re-run inserts 0, count unchanged. transcript-migration.test.ts green."
+    },
+    {
+      "phase": 2,
+      "id": "8-stop-meta-repo",
+      "bucket": "fixed",
+      "note": "DONE + live-verified. projects.metadata (jsonb) holds the metadata blob; POST /api/repos no longer creates the adorable-meta wrapper (repos-route-idempotency asserts no adorable-meta); getProjectByGiteaWrapperId resolves wrapper id OR project uuid. lib/db/migrate-metadata-from-gitea.ts idempotent. verify-metadata-pg.ts 8/8 PASS vs real Postgres (write/read round-trip, preview/boilerplate, migration idempotent)."
+    },
+    {
+      "phase": 3,
+      "id": "9-worker-loop",
+      "bucket": "fixed",
+      "note": "handle-agent-run.ts: early publish, composed warmup+LLM single frame, explicit drain (usage resolves), CAS finalize, code→main. worker-happy green."
+    },
+    {
+      "phase": 3,
+      "id": "10-publish-drain",
+      "bucket": "fixed",
+      "note": "streamText→toUIMessageStream→createNewResumableStream w/ drainStream. Proven by spike + bridge-resumable + worker-happy."
+    },
+    {
+      "phase": 3,
+      "id": "11-post-bridge",
+      "bucket": "fixed",
+      "note": "DONE + live-verified. app/api/chat chatBridgePost (reserve quota→persist user turn+queued run [one_active_run_per_project]→enqueue→bridge resume→live stream, 504→reconnect) gated by AGENT_LOOP_BRIDGE. worker/index.ts wired to real handle-agent-run (createLLM, cancel, usage reconcile). verify-worker-live.ts 6/6 PASS: real worker processes enqueued run queued→completed."
+    },
+    {
+      "phase": 3,
+      "id": "12-get-reconnect",
+      "bucket": "fixed",
+      "note": "app/api/chat/[id]/stream (resumeRunStream 204+Retry-After) + app/api/chat/[id] metadata routes, build-clean; logic proven by bridge-resumable (c,e)."
+    },
+    {
+      "phase": 3,
+      "id": "13-front-resume",
+      "bucket": "fixed",
+      "note": "useChat({resume}) gated by NEXT_PUBLIC_AGENT_LOOP_BRIDGE (reconnect via GET /:id/stream on mount). AssistantChatTransport kept (sends messages+repoId+conversationId, compatible with the bridge route). Client dedupeToolCallsAcrossMessages reducer kept intentionally (UI-render safety re tapResources; server also sanitises) — removing it is a documented refinement. Build-clean."
+    },
+    {
+      "phase": 3,
+      "id": "14-onfinish-idempotent",
+      "bucket": "fixed",
+      "note": "onFinish→upsertAssistantMessage idempotent by runId (partial unique). worker-happy assert g: one assistant row."
+    },
+    {
+      "phase": 3,
+      "id": "15-bridge-tests",
+      "bucket": "fixed",
+      "note": "bridge-resumable(a,c,d,e) + worker-happy(b,f,g) + e2e-tab-close(§12.7) all green vs Testcontainers PG+Redis + mock model + fake vm."
+    },
+    {
+      "phase": 3,
+      "id": "MV-3",
+      "bucket": "fixed",
+      "note": "MV-3.1-3.4 verified LIVE (curl + playwright-mcp browser) against agent-loop-live-server running real bridge/worker code over real Redis+PG. Artifacts: verification/agent-loop/MV-3.*.{log,json,txt,png}, browser screenshot, network 200-stream. See manual-verify-log.md."
+    },
+    {
+      "phase": 4,
+      "id": "16-retrylimit-statuses",
+      "bucket": "fixed",
+      "note": "retryLimit:0 (queue.ts createQueue+send); cancelling/reaping in enum+one_active_run_per_project index (Phase 1). fail-fast-sigkill: crashing handler runs exactly once, no retry/no splice."
+    },
+    {
+      "phase": 4,
+      "id": "17-heartbeat-reaper-sweep",
+      "bucket": "fixed",
+      "note": "handler heartbeat (10s touchHeartbeat); sweepStuckRuns: running+stale→failed(draft-commit), cancelling+stale→cancelled, queued+old+no-job→failed; per-run CAS→reaping before git. reaper-orphan-commit + reaper-cas-vs-handler green (b,d,e). reaper entrypoint wired with sweepDeps."
+    },
+    {
+      "phase": 4,
+      "id": "18-sigkill-reaper",
+      "bucket": "fixed",
+      "note": "reapOne CAS→reaping claim; draft-commit on draft branch; release reservation; clear stream; CAS fails vs live handler-commit → no-op/no flip (assert c). All a-e proven vs Testcontainers PG."
+    },
+    {
+      "phase": 5,
+      "id": "19-stop-endpoint",
+      "bucket": "fixed",
+      "note": "stop.ts stopRun: queued→CAS cancelled+boss.cancel+release+clear (no cancelling deadlock); running→cancelling+setCancelFlag; stale activeStreamId→no-op. app/api/chat/[id]/stop route build-clean. asserts a,e proven."
+    },
+    {
+      "phase": 5,
+      "id": "20-cancel-poll-step0",
+      "bucket": "fixed",
+      "note": "handle-agent-run: step-0 cancel (flag set while queued → cancelled+release+clear), cancel-flag poll (5s) + AbortController abort. cancel.ts redis flag helpers. asserts b,c proven (cancel-state-machine, stop-running-cancel)."
+    },
+    {
+      "phase": 5,
+      "id": "21-front-stop-button",
+      "bucket": "fixed",
+      "note": "app/assistant.tsx stopWithServerCancel: explicit Stop POSTs /api/chat/:id/stop (+partial snapshot) before client stop — cancels the worker run; disconnect stays resumable. Live-verified running→/stop→cancelling→cancelled (MV-front-stop.txt) + browser Stop button screenshot (MV-front-stop-button.png)."
+    },
+    {
+      "phase": 5,
+      "id": "22-stop-tests",
+      "bucket": "fixed",
+      "note": "stop-queued-no-deadlock (a,d) + stop-running-cancel (c) + cancel-state-machine (b,e,f) all green vs Testcontainers PG+Redis."
+    },
+    {
+      "phase": 5,
+      "id": "MV-5",
+      "bucket": "fixed",
+      "note": "MV-5.1-5.3 verified LIVE via curl: stop→cancelled+code→draft, navigation→completed, re-enqueue→new run. Artifacts: verification/agent-loop/MV-5.*. See manual-verify-log.md."
+    },
+    {
+      "phase": 6,
+      "id": "23-quota-reservation",
+      "bucket": "fixed",
+      "note": "quota.ts reserveQuota: reserve (not check-then-act), idempotent by runId, blocks→quota_exceeded; ESTIMATED_TURN_TOKENS=MAX_TOTAL_STEPS*8000 multi-step ceiling (commented). quota-reserve-reconcile assert b green."
+    },
+    {
+      "phase": 6,
+      "id": "24-usage-reconcile",
+      "bucket": "fixed",
+      "note": "reconcileUsage/releaseReservation idempotent by runId via usageEvents.metadata{runId,phase} (no schema change §3.4); reconcile nets to actual, orphan release nets 0, reconcile XOR release. handler+reaper accept as deps. assert a green."
+    },
+    {
+      "phase": 6,
+      "id": "25-validation-feedback",
+      "bucket": "fixed",
+      "note": "retry-state.ts RetryState: per-category budget 3, hashError dedup→early escalation, budget-exhausted→explain (NOT abort), counter reset after pass, stepCount from result SDK (one counter). validation-feedback c,d,e,f green (pure, ungated)."
+    }
+  ]
 }

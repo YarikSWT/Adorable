@@ -28,6 +28,40 @@ export const getProjectByGiteaWrapperId = async (
     .from(projects)
     .where(eq(projects.giteaWrapperRepoId, giteaWrapperRepoId))
     .limit(1);
+  if (rows[0]) return rows[0];
+  // Wrapper-less projects (after the metadata→Postgres migration) use their
+  // project uuid as the external repoId token. Guard so a non-uuid token
+  // (legacy wrapper id) can't error the uuid-typed query.
+  if (!UUID_RE.test(giteaWrapperRepoId)) return null;
+  const byId = await database
+    .select()
+    .from(projects)
+    .where(eq(projects.id, giteaWrapperRepoId))
+    .limit(1);
+  return byId[0] ?? null;
+};
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Resolve the external `repoId` URL token → project. Legacy projects use their
+ * Gitea wrapper repo id; wrapper-less projects (after the metadata→Postgres
+ * migration) use their project uuid directly. Tries the wrapper id first, then
+ * the project uuid (guarded so a non-uuid token can't error the query).
+ */
+export const getProjectByExternalRepoId = async (
+  repoId: string,
+  database: DbOrTx = defaultDb,
+): Promise<ProjectRow | null> => {
+  const byWrapper = await getProjectByGiteaWrapperId(repoId, database);
+  if (byWrapper) return byWrapper;
+  if (!UUID_RE.test(repoId)) return null;
+  const rows = await database
+    .select()
+    .from(projects)
+    .where(eq(projects.id, repoId))
+    .limit(1);
   return rows[0] ?? null;
 };
 

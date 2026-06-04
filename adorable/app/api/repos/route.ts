@@ -135,12 +135,11 @@ const toRepoResponse = async (
   project: ProjectRow,
   deploymentEntries: DeploymentEntry[],
 ) => {
-  // URL contract: external `repoId` = giteaWrapperRepoId (string token from
-  // the git provider, kept as-is for the URL).
+  // URL contract: external `repoId` = giteaWrapperRepoId for legacy projects,
+  // the project uuid for wrapper-less ones. Metadata is read PG-first (with a
+  // Gitea fallback) for BOTH.
   const idStr = project.giteaWrapperRepoId ?? project.id;
-  const metadata = project.giteaWrapperRepoId
-    ? await readRepoMetadata(idStr)
-    : null;
+  const metadata = await readRepoMetadata(idStr);
   const repoDisplayName = toDisplayRepoName(project.giteaWrapperRepoName);
   const metadataDisplayName = toDisplayRepoName(metadata?.name);
   const reconciledMetadata = metadata
@@ -279,21 +278,17 @@ async function createRepoForRequest(args: {
     payload.githubRepoName?.split("/").pop()?.trim() ??
     "Project";
 
-  const wrapperUuid = randomUUID();
-  const wrapperRepoName = `${ADORABLE_WRAPPER_REPO_PREFIX}${wrapperUuid}`;
-  const wrapperCreated = await gitProvider.createRepo({
-    name: wrapperRepoName,
-  });
-  const wrapperRepoId = wrapperCreated.repoId;
-  // Force the wrapper-repo to be picked up by the legacy isWrapperRepoName
-  // filter even if external code touches it; nothing we need to assert here.
+  // Metadata now lives in projects.metadata (Postgres) — the Gitea adorable-meta
+  // wrapper repo is no longer created (спец §3.3 / Phase 2 unit 8). The external
+  // repoId becomes the project uuid; getProjectByGiteaWrapperId resolves it.
   void isWrapperRepoName;
+  void ADORABLE_WRAPPER_REPO_PREFIX;
 
   // Phase 12: explicit project_members record for the creator (Doc 2 §8.2 +
   // правка 3) — same transaction as the project insert. Survives org-role
   // downgrades and works uniformly for personal- and team-orgs.
   const projectOwnerRoleId = await getRoleId("project", "owner");
-  const slug = `proj-${wrapperUuid.slice(0, 8)}`;
+  const slug = `proj-${randomUUID().slice(0, 8)}`;
 
   const projectRow = await db.transaction(async (tx) => {
     const [row] = await tx
@@ -304,8 +299,9 @@ async function createRepoForRequest(args: {
         name: inferredName,
         giteaRepoId: sourceRepoId,
         giteaRepoName: `adorable-src-${sourceUuid}`,
-        giteaWrapperRepoId: wrapperRepoId,
-        giteaWrapperRepoName: wrapperRepoName,
+        // No wrapper repo — metadata is in projects.metadata.
+        giteaWrapperRepoId: null,
+        giteaWrapperRepoName: null,
         createdByUserId: session.user.id,
       })
       .returning();
@@ -378,18 +374,18 @@ async function createRepoForRequest(args: {
     preview: previewMetadata,
   };
 
-  await writeRepoMetadata(wrapperRepoId, initialMetadata);
+  await writeRepoMetadata(projectRow.id, initialMetadata);
 
   const conversationId = randomUUID();
   const metadata = await createConversationInRepo(
-    wrapperRepoId,
+    projectRow.id,
     initialMetadata,
     conversationId,
     payload.conversationTitle,
   );
 
   return {
-    id: wrapperRepoId,
+    id: projectRow.id,
     metadata,
     conversationId,
   };

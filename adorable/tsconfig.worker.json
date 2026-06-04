@@ -1,0 +1,9 @@
+{
+  "//": "Typecheck config for the worker/reaper entrypoints. Inherits the app's module settings (esnext/bundler) so transitively-imported app code using import.meta typechecks. The worker RUNS via tsx (no compile step); the authoritative typecheck is `npm run build`.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["worker/**/*.ts", "reaper/**/*.ts", "lib/agent-run/**/*.ts"],
+  "exclude": ["node_modules", "tests", ".next"]
+}

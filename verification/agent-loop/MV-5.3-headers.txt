@@ -1,0 +1,10 @@
+HTTP/1.1 200 OK
+content-type: text/event-stream
+cache-control: no-cache
+connection: keep-alive
+x-vercel-ai-ui-message-stream: v1
+x-accel-buffering: no
+x-run-id: 9e8c85c5-bc36-4d8b-827e-5396aa22626b
+Date: Thu, 04 Jun 2026 07:02:07 GMT
+Transfer-Encoding: chunked
+

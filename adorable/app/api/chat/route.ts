@@ -15,11 +15,115 @@ import {
   saveConversationMessages,
 } from "@/lib/repo-storage";
 import { protectedRoute } from "@/lib/auth/api-wrap";
-import { requireEmailVerified } from "@/lib/auth/session";
+import { requireEmailVerified, type RequestSession } from "@/lib/auth/session";
 import { requirePermission } from "@/lib/auth/authorization";
 import { recordUsage, requireQuota } from "@/lib/auth/quotas";
 import { getProjectByGiteaWrapperId } from "@/lib/db/queries/projects";
+import type { ProjectRow } from "@/lib/db/queries/projects";
 import { HttpError } from "@/lib/auth/errors";
+import { UI_MESSAGE_STREAM_HEADERS } from "ai";
+import { db } from "@/lib/db/client";
+import { runs } from "@/lib/db/schema/runs";
+import { messages as messagesTable } from "@/lib/db/schema/messages";
+import { eq } from "drizzle-orm";
+import { ensureConversation } from "@/lib/db/queries/transcript";
+import { getBoss, getStreamContext } from "@/lib/agent-run/app-singletons";
+import { enqueueAgentRun } from "@/lib/agent-run/queue";
+import { bridgeFirstStream } from "@/lib/agent-run/stream";
+import { reserveQuota } from "@/lib/agent-run/quota";
+
+/**
+ * Server-side bridge for POST /api/chat (спец v2.1 §4.1). Enabled via
+ * AGENT_LOOP_BRIDGE=1 in environments that run the agent worker. Reserves quota,
+ * persists the user turn + a queued run (one_active_run_per_project), enqueues
+ * the run, then waits for the worker to publish its stream and RESUMES it — so
+ * the client gets a live UIMessage stream out of POST (not JSON). 504 = "worker
+ * not started yet", which the front treats as "reconnect", not a failed run.
+ */
+async function chatBridgePost(args: {
+  project: ProjectRow;
+  conversationId: string;
+  uiMessages: UIMessage[];
+  session: RequestSession;
+}): Promise<Response> {
+  const { project, conversationId, uiMessages, session } = args;
+  const userMsg = [...uiMessages].reverse().find((m) => m.role === "user");
+  if (!userMsg) {
+    return Response.json({ error: "no user message" }, { status: 400 });
+  }
+
+  // Quota RESERVATION (reserve, not check-then-act).
+  const runId = crypto.randomUUID();
+  const reservation = await reserveQuota(db, {
+    runId,
+    organizationId: project.organizationId,
+    userId: session.user.id,
+    projectId: project.id,
+  });
+  if (!reservation.ok) {
+    return Response.json({ error: "quota_exceeded" }, { status: 429 });
+  }
+
+  await ensureConversation(db, {
+    conversationId,
+    projectId: project.id,
+    userId: session.user.id,
+  });
+  await db
+    .insert(messagesTable)
+    .values({ conversationId, role: "user", uiMessage: userMsg });
+
+  // queued run — the partial unique index enforces one active run per project.
+  try {
+    await db.insert(runs).values({
+      id: runId,
+      userId: session.user.id,
+      organizationId: project.organizationId,
+      projectId: project.id,
+      conversationId,
+      prompt: extractText(userMsg),
+      modelKey: "default",
+      status: "queued",
+    });
+  } catch {
+    return Response.json({ error: "run_already_active" }, { status: 409 });
+  }
+
+  const boss = await getBoss();
+  const jobId = await enqueueAgentRun(boss, {
+    runId,
+    userId: session.user.id,
+    organizationId: project.organizationId,
+    projectId: project.id,
+    conversationId,
+    modelKey: "default",
+    reservationId: runId,
+  });
+  if (jobId) await db.update(runs).set({ jobId }).where(eq(runs.id, runId));
+
+  const ctx = getStreamContext();
+  const stream = await bridgeFirstStream(ctx.ctx, db, runId, {
+    timeoutMs: 20_000,
+  });
+  if (!stream) {
+    return Response.json(
+      { error: "stream_start_timeout", runId },
+      { status: 504 },
+    );
+  }
+  return new Response(stream as unknown as BodyInit, {
+    headers: { ...UI_MESSAGE_STREAM_HEADERS, "x-run-id": runId },
+  });
+}
+
+const extractText = (m: UIMessage): string => {
+  const t = (m.parts ?? [])
+    .filter((p) => p.type === "text")
+    .map((p) => (p as { text?: string }).text ?? "")
+    .join(" ")
+    .trim();
+  return t || "(no text)";
+};
 import { getSystemPrompt } from "@/lib/system-prompt";
 import {
   getBuildQueue,
@@ -148,6 +252,19 @@ export const POST = protectedRoute(async ({ req, session }) => {
   await requirePermission(session.user.id, "project.edit", {
     projectId: project.id,
   });
+
+  // Server-side bridge (worker architecture) when enabled — returns a live
+  // stream from the worker. Otherwise the inline path below runs the loop in
+  // the request (legacy / no-worker environments).
+  if (process.env.AGENT_LOOP_BRIDGE === "1") {
+    return chatBridgePost({
+      project,
+      conversationId,
+      uiMessages: messages,
+      session,
+    });
+  }
+
   await requireQuota(
     project.organizationId,
     "llm.tokens.monthly",

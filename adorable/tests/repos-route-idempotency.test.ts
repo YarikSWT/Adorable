@@ -48,13 +48,17 @@ vi.mock("@/lib/db/queries/users", () => ({
 vi.mock("@/lib/db/queries/projects", () => ({
   listProjectsForUser: vi.fn(async () => []),
 }));
+import { randomUUID } from "crypto";
+
 vi.mock("@/lib/db/client", () => ({
   db: {
     transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
       fn({
         insert: () => ({
+          // Each project insert gets a fresh uuid (like a real DB). The external
+          // repoId is now the project uuid (no wrapper repo).
           values: () => ({
-            returning: async () => [{ id: "project-test-id" }],
+            returning: async () => [{ id: randomUUID() }],
           }),
         }),
       }),
@@ -108,10 +112,14 @@ type MockedFn = ReturnType<typeof vi.fn>;
 // touch identity-session anymore (Phase 12).
 const mockIdentity = () => {};
 
-const mockGitProvider = (createCounter: { count: number }) => {
+const mockGitProvider = (createCounter: {
+  count: number;
+  names?: string[];
+}) => {
   (getGitProvider as unknown as MockedFn).mockResolvedValue({
     createRepo: vi.fn(async ({ name }: { name: string }) => {
       createCounter.count += 1;
+      (createCounter.names ??= []).push(name);
       return {
         repoId: name,
         repo: {
@@ -180,10 +188,14 @@ describe("POST /api/repos idempotency", () => {
     expect(body1.id).toBe(body2.id);
     expect(body1.conversationId).toBe(body2.conversationId);
 
-    // Each createRepo call (gitProvider) creates source + wrapper = 2 calls
-    // per real execution. Idempotency must collapse to one execution.
-    expect(repoCreateCounter.count).toBe(2);
+    // Metadata lives in Postgres now — only the SOURCE repo is created, NOT a
+    // wrapper adorable-meta repo. Idempotency collapses to one execution.
+    expect(repoCreateCounter.count).toBe(1);
     expect(previewCreateCounter.count).toBe(1);
+    // Explicit: no adorable-meta wrapper repo is ever created (Phase 2 unit 8).
+    expect(
+      (repoCreateCounter.names ?? []).some((n) => n.startsWith("adorable-meta")),
+    ).toBe(false);
   });
 
   it("creates one wrapper repo when same clientRequestId arrives concurrently", async () => {
@@ -206,7 +218,7 @@ describe("POST /api/repos idempotency", () => {
 
     expect(body1.id).toBe(body2.id);
     expect(body1.conversationId).toBe(body2.conversationId);
-    expect(repoCreateCounter.count).toBe(2);
+    expect(repoCreateCounter.count).toBe(1);
     expect(previewCreateCounter.count).toBe(1);
   });
 
@@ -223,7 +235,7 @@ describe("POST /api/repos idempotency", () => {
     const body1 = await res1.json();
     const body2 = await res2.json();
     expect(body1.id).not.toBe(body2.id);
-    expect(repoCreateCounter.count).toBe(4);
+    expect(repoCreateCounter.count).toBe(2);
     expect(previewCreateCounter.count).toBe(2);
   });
 
@@ -240,6 +252,6 @@ describe("POST /api/repos idempotency", () => {
     const body1 = await res1.json();
     const body2 = await res2.json();
     expect(body1.id).not.toBe(body2.id);
-    expect(repoCreateCounter.count).toBe(4);
+    expect(repoCreateCounter.count).toBe(2);
   });
 });

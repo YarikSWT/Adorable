@@ -105,6 +105,22 @@ vi.mock("@/lib/db/client", () => ({
   },
 }));
 
+// Metadata persistence moved to Postgres (projects.metadata). For this e2e the
+// DB is a thin mock, so stub the repo-storage writers — the test asserts the
+// metadata shape the route BUILDS (preview capabilities pinned), not its storage.
+vi.mock("@/lib/repo-storage", async () => {
+  const actual =
+    await vi.importActual<typeof import("@/lib/repo-storage")>(
+      "@/lib/repo-storage",
+    );
+  return {
+    ...actual,
+    writeRepoMetadata: vi.fn(async () => undefined),
+    createConversationInRepo: vi.fn(async (_repoId, metadata) => metadata),
+    readRepoMetadata: vi.fn(async () => null),
+  };
+});
+
 import { __resetGitSingleton } from "@/lib/git/provider-singleton";
 import { __resetSandboxSingleton } from "@/lib/sandbox/provider-singleton";
 import {

@@ -8,6 +8,20 @@
       "when": 1778217350498,
       "tag": "0000_sour_venom",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780498424449,
+      "tag": "0001_short_jazinda",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780558571609,
+      "tag": "0002_worthless_triton",
+      "breakpoints": true
     }
   ]
 }

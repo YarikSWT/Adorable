@@ -4,7 +4,18 @@
 [`ralph-state.json`](./ralph-state.json) (ledger), детальные критерии каждой фазы —
 в `goal-N-*.md`. Loop читает ledger + нужный goal-файл каждой итерацией, не из контекста.
 
-Запуск: `/ralph-loop`, затем вставить контракт-блок ниже как задачу.
+## Запуск — скопировать и вставить в промпт
+
+```
+/ralph-loop Прочитай docs/agent-loop/goals/RALPH.md и выполняй его как контракт, фазы 0-6 спеки agent-loop. Источник правды по прогрессу docs/agent-loop/goals/ralph-state.json: читай в начале каждой итерации, переписывай в конце, состояние в контексте не держи. Каждой итерацией выбирай activePhase по requires-gate из ledger, открывай её goal-N файл за детальными критериями, читай поле lastIterationFailureLog и правь реальные ошибки. Фазы 3 и 5 плюс финал верифицируй через playwright-mcp по docs/agent-loop/goals/MANUAL-VERIFY.md, артефакты клади в verification/agent-loop. Соблюдай LOOP GUARD и EXIT WHEN из RALPH.md. Верь только артефактам, не словам. --max-iterations 40 --completion-promise "RALPH-LOOP COMPLETE per RALPH.md EXIT WHEN phases 0-6 done, npm test and npm run build exit 0, manual-verify pass, ralph-report.md written"
+```
+
+- `--max-iterations 40` — hard-ceiling на уровне самого loop (дублирует `loop.maxIterations` в ledger).
+- `--completion-promise "…"` — loop выйдет, ТОЛЬКО когда выведешь `<promise>…</promise>` с этой строкой, а это допустимо лишь когда она буквально истинна (= наш EXIT WHEN). Раньше выводить нельзя, даже если кажется «застряли».
+
+> ⚠ **Промпт без shell-метасимволов.** Slash-команда `/ralph-loop` подставляет аргументы в bash и **eval'ит строку целиком**. Поэтому в промпте НЕЛЬЗЯ `( ) | * ! $ < > & ; \`` и непарные кавычки — иначе `syntax error near unexpected token '('`. Вся детализация (со скобками, пайпами, глобами) живёт в RALPH.md/ledger, а промпт — только короткий указатель на них.
+
+Перед запуском проверь permission-allowlist и наличие Docker/браузера (см. секции ниже).
 
 ---
 

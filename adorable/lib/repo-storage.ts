@@ -1,6 +1,16 @@
 import { type UIMessage } from "ai";
+import { desc, eq } from "drizzle-orm";
 import { getGitProvider } from "@/lib/git/provider-singleton";
 import { dedupeToolCallsAcrossMessages } from "@/lib/cross-message-tool-dedup";
+import { db } from "@/lib/db/client";
+import { projects } from "@/lib/db/schema/projects";
+import { conversations } from "@/lib/db/schema/conversations";
+import { getProjectByExternalRepoId } from "@/lib/db/queries/projects";
+import {
+  loadConversationUIMessages,
+  saveConversationMessages as savePgConversationMessages,
+  ensureConversation,
+} from "@/lib/db/queries/transcript";
 
 export const ADORABLE_METADATA_PATH = "metadata.json";
 export const ADORABLE_CONVERSATIONS_DIR = "conversations";
@@ -191,16 +201,45 @@ const deriveConversationTitle = (
   return clean.slice(0, 60);
 };
 
-export const readRepoMetadata = async (
+// ─────────────────────── PG-backed metadata + transcript ───────────────────────
+// (спец v2.1 §3.2/§3.3) The project metadata that used to live in the Gitea
+// adorable-meta wrapper repo now lives in projects.metadata (jsonb) and the
+// transcript in conversations/messages. The Gitea helpers above are retained
+// only for the one-time migration (lib/db/migrate-metadata-from-gitea.ts).
+
+/** The persisted blob = RepoMetadata minus the (PG-row-sourced) conversations. */
+type MetadataBlob = Omit<StoredRepoMetadata, "conversations">;
+
+/**
+ * Resolve the project for an external repoId, swallowing DB errors (so callers
+ * fall back to the legacy Gitea path for un-migrated projects / non-DB test
+ * envs). Returns null if there is no project or the DB is unavailable.
+ */
+const tryProject = async (repoId: string) => {
+  try {
+    return await getProjectByExternalRepoId(repoId);
+  } catch {
+    return null;
+  }
+};
+
+/** A project counts as PG-migrated once its metadata blob is present. */
+const hasPgMetadata = (
+  p: Awaited<ReturnType<typeof tryProject>>,
+): p is NonNullable<typeof p> & { metadata: MetadataBlob } => {
+  const blob = (p?.metadata ?? null) as MetadataBlob | null;
+  return !!blob && !!blob.sourceRepoId;
+};
+
+// ── legacy Gitea read/write (fallback for un-migrated projects) ──
+const readGiteaMetadata = async (
   repoId: string,
 ): Promise<RepoMetadata | null> => {
   const metadata = await readJsonFile<StoredRepoMetadata>(
     repoId,
     ADORABLE_METADATA_PATH,
   );
-  if (!metadata) return null;
-  if (!metadata.sourceRepoId) return null;
-
+  if (!metadata || !metadata.sourceRepoId) return null;
   return {
     version: metadata.version,
     sourceRepoId: metadata.sourceRepoId,
@@ -217,18 +256,82 @@ export const readRepoMetadata = async (
   };
 };
 
+const conversationSummaries = async (
+  projectId: string,
+): Promise<RepoConversationSummary[]> => {
+  const rows = await db
+    .select()
+    .from(conversations)
+    .where(eq(conversations.projectId, projectId))
+    .orderBy(desc(conversations.createdAt));
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title ?? "Conversation",
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  }));
+};
+
+export const readRepoMetadata = async (
+  repoId: string,
+): Promise<RepoMetadata | null> => {
+  const project = await tryProject(repoId);
+  if (!hasPgMetadata(project)) {
+    // Un-migrated / no-DB: read legacy Gitea wrapper.
+    return readGiteaMetadata(repoId);
+  }
+  const blob = project.metadata;
+  return {
+    version: 2,
+    sourceRepoId: blob.sourceRepoId,
+    name: blob.name,
+    vm: blob.vm,
+    conversations: await conversationSummaries(project.id),
+    deployments: blob.deployments ?? [],
+    productionDomain: blob.productionDomain ?? null,
+    productionDeploymentId: blob.productionDeploymentId ?? null,
+    ...(blob.boilerplateVersion !== undefined
+      ? { boilerplateVersion: blob.boilerplateVersion }
+      : {}),
+    ...(blob.preview !== undefined ? { preview: blob.preview } : {}),
+  };
+};
+
 export const resolveSourceRepoId = async (repoId: string) => {
   const metadata = await readRepoMetadata(repoId);
   return metadata?.sourceRepoId ?? repoId;
+};
+
+/** Persist the metadata blob to PG (conversations stripped — they are PG rows). */
+const saveMetadataBlobPg = async (
+  projectId: string,
+  metadata: RepoMetadata,
+): Promise<void> => {
+  const { conversations: _conversations, ...blob } = metadata;
+  void _conversations;
+  await db
+    .update(projects)
+    .set({ metadata: blob as Record<string, unknown> })
+    .where(eq(projects.id, projectId));
+};
+
+/** Legacy Gitea write (fallback). */
+const writeGiteaMetadata = async (
+  repoId: string,
+  metadata: RepoMetadata,
+): Promise<void> => {
+  await writeCommit(repoId, "Update adorable metadata", [
+    { path: ADORABLE_METADATA_PATH, content: encodeJson(metadata) },
+  ]);
 };
 
 export const writeRepoMetadata = async (
   repoId: string,
   metadata: RepoMetadata,
 ) => {
-  await writeCommit(repoId, "Update adorable metadata", [
-    { path: ADORABLE_METADATA_PATH, content: encodeJson(metadata) },
-  ]);
+  const project = await tryProject(repoId);
+  if (project) await saveMetadataBlobPg(project.id, metadata);
+  else await writeGiteaMetadata(repoId, metadata);
 };
 
 export const createConversationInRepo = async (
@@ -237,40 +340,40 @@ export const createConversationInRepo = async (
   conversationId: string,
   initialTitle?: string,
 ) => {
-  const latestMetadata = (await readRepoMetadata(repoId)) ?? metadata;
-  const now = new Date().toISOString();
   const normalizedInitialTitle = initialTitle?.trim().replace(/\s+/g, " ");
-  const fallbackTitle =
+  const title =
     normalizedInitialTitle && normalizedInitialTitle.length > 0
       ? normalizedInitialTitle.slice(0, 60)
-      : `Conversation ${latestMetadata.conversations.length + 1}`;
+      : "Conversation 1";
 
+  const project = await tryProject(repoId);
+  if (project) {
+    await ensureConversation(db, {
+      conversationId,
+      projectId: project.id,
+      userId: project.createdByUserId,
+      title,
+    });
+    if (!hasPgMetadata(project)) await saveMetadataBlobPg(project.id, metadata);
+    return (await readRepoMetadata(repoId)) ?? metadata;
+  }
+
+  // Legacy Gitea fallback.
+  const latestMetadata = (await readGiteaMetadata(repoId)) ?? metadata;
+  const now = new Date().toISOString();
   const nextMetadata: RepoMetadata = {
     ...metadata,
     ...latestMetadata,
     sourceRepoId: latestMetadata.sourceRepoId,
     conversations: [
-      {
-        id: conversationId,
-        title: fallbackTitle,
-        createdAt: now,
-        updatedAt: now,
-      },
+      { id: conversationId, title, createdAt: now, updatedAt: now },
       ...latestMetadata.conversations,
     ],
   };
-
   await writeCommit(repoId, "Create conversation", [
-    {
-      path: ADORABLE_METADATA_PATH,
-      content: encodeJson(nextMetadata),
-    },
-    {
-      path: conversationPath(conversationId),
-      content: encodeJson([]),
-    },
+    { path: ADORABLE_METADATA_PATH, content: encodeJson(nextMetadata) },
+    { path: conversationPath(conversationId), content: encodeJson([]) },
   ]);
-
   return nextMetadata;
 };
 
@@ -278,11 +381,11 @@ export const readConversationMessages = async (
   repoId: string,
   conversationId: string,
 ): Promise<UIMessage[]> => {
+  const project = await tryProject(repoId);
+  if (project) return loadConversationUIMessages(db, conversationId);
   return (
-    (await readJsonFile<UIMessage[]>(
-      repoId,
-      conversationPath(conversationId),
-    )) ?? []
+    (await readJsonFile<UIMessage[]>(repoId, conversationPath(conversationId))) ??
+    []
   );
 };
 
@@ -341,45 +444,55 @@ export const saveConversationMessages = async (
   messages: UIMessage[],
 ) => {
   const sanitisedMessages = sanitiseConversationMessages(messages);
-  const latestMetadata = (await readRepoMetadata(repoId)) ?? metadata;
-  const now = new Date().toISOString();
+  const project = await tryProject(repoId);
 
+  if (project) {
+    // PG path: ensure the conversation row, persist transcript, refresh title.
+    await ensureConversation(db, {
+      conversationId,
+      projectId: project.id,
+      userId: project.createdByUserId,
+    });
+    await savePgConversationMessages(db, {
+      conversationId,
+      messages: sanitisedMessages,
+    });
+    const existing = (await readRepoMetadata(repoId))?.conversations.find(
+      (c) => c.id === conversationId,
+    );
+    const title = deriveConversationTitle(
+      sanitisedMessages,
+      existing?.title ?? "Conversation 1",
+    );
+    await db
+      .update(conversations)
+      .set({ title, updatedAt: new Date() })
+      .where(eq(conversations.id, conversationId));
+    if (!hasPgMetadata(project)) await saveMetadataBlobPg(project.id, metadata);
+    return (await readRepoMetadata(repoId)) ?? metadata;
+  }
+
+  // Legacy Gitea fallback.
+  const latestMetadata = (await readGiteaMetadata(repoId)) ?? metadata;
+  const now = new Date().toISOString();
   const existing = latestMetadata.conversations.find(
     (c) => c.id === conversationId,
   );
-  const fallbackTitle =
-    existing?.title ??
-    `Conversation ${latestMetadata.conversations.length + 1}`;
-  const title = deriveConversationTitle(sanitisedMessages, fallbackTitle);
-
-  const updatedConversation: RepoConversationSummary = {
-    id: conversationId,
-    title,
-    createdAt: existing?.createdAt ?? now,
-    updatedAt: now,
-  };
-
-  const nextConversations = [
-    updatedConversation,
-    ...latestMetadata.conversations.filter((c) => c.id !== conversationId),
-  ];
-
+  const title = deriveConversationTitle(
+    sanitisedMessages,
+    existing?.title ?? `Conversation ${latestMetadata.conversations.length + 1}`,
+  );
   const nextMetadata: RepoMetadata = {
     ...latestMetadata,
-    conversations: nextConversations,
+    conversations: [
+      { id: conversationId, title, createdAt: existing?.createdAt ?? now, updatedAt: now },
+      ...latestMetadata.conversations.filter((c) => c.id !== conversationId),
+    ],
   };
-
   await writeCommit(repoId, "Update conversation", [
-    {
-      path: ADORABLE_METADATA_PATH,
-      content: encodeJson(nextMetadata),
-    },
-    {
-      path: conversationPath(conversationId),
-      content: encodeJson(sanitisedMessages),
-    },
+    { path: ADORABLE_METADATA_PATH, content: encodeJson(nextMetadata) },
+    { path: conversationPath(conversationId), content: encodeJson(sanitisedMessages) },
   ]);
-
   return nextMetadata;
 };
 
@@ -398,14 +511,7 @@ export const addRepoDeployment = async (
       ),
     ],
   };
-
-  await writeCommit(repoId, "Record deployment", [
-    {
-      path: ADORABLE_METADATA_PATH,
-      content: encodeJson(nextMetadata),
-    },
-  ]);
-
+  await writeRepoMetadata(repoId, nextMetadata);
   return nextMetadata;
 };
 
@@ -415,18 +521,8 @@ export const setRepoProductionDomain = async (
   productionDomain: string,
 ) => {
   const latestMetadata = (await readRepoMetadata(repoId)) ?? metadata;
-  const nextMetadata: RepoMetadata = {
-    ...latestMetadata,
-    productionDomain,
-  };
-
-  await writeCommit(repoId, "Configure production domain", [
-    {
-      path: ADORABLE_METADATA_PATH,
-      content: encodeJson(nextMetadata),
-    },
-  ]);
-
+  const nextMetadata: RepoMetadata = { ...latestMetadata, productionDomain };
+  await writeRepoMetadata(repoId, nextMetadata);
   return nextMetadata;
 };
 
@@ -440,13 +536,6 @@ export const promoteRepoDeploymentToProduction = async (
     ...latestMetadata,
     productionDeploymentId,
   };
-
-  await writeCommit(repoId, "Promote deployment to production", [
-    {
-      path: ADORABLE_METADATA_PATH,
-      content: encodeJson(nextMetadata),
-    },
-  ]);
-
+  await writeRepoMetadata(repoId, nextMetadata);
   return nextMetadata;
 };

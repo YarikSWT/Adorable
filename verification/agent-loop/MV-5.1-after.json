@@ -1,0 +1,1 @@
+{"run":{"id":"0643ea3e-1a04-4e9f-9aed-c90933eff41a","status":"cancelled","activeStreamId":null,"stepCount":0},"messages":[{"id":"24f40025-7094-4018-9e7d-ab06d1755fa5","role":"user","parts":[{"text":"stop me","type":"text"}]},{"id":"","role":"assistant","parts":[{"type":"step-start"},{"text":"","type":"text","state":"streaming"}]}]}

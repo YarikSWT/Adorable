@@ -1,0 +1,23 @@
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P06',
+  message: 'schema "drizzle" already exists, skipping',
+  file: 'schemacmds.c',
+  line: '132',
+  routine: 'CreateSchemaCommand'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "__drizzle_migrations" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '207',
+  routine: 'transformCreateStmt'
+}
+{"ev":"ready","port":7802,"userId":"746ba49d-1f14-4880-8931-f17402635d4f","organizationId":"6a1cc6cf-901c-4049-b4b5-20f46f35b6b2","projectId":"f7af64d3-580d-49c6-b84b-5584c8129aef","conversationId":"9d0a2574-b165-40f0-8550-12348d9c2810"}
+{"ev":"gitCommit","branch":"draft/run-0643ea3e","runId":"0643ea3e-1a04-4e9f-9aed-c90933eff41a"}
+{"ev":"gitCommit","branch":"main","runId":"fba8af25-6574-4e7f-9b22-41f05efb3994"}
+{"ev":"gitCommit","branch":"main","runId":"9e8c85c5-bc36-4d8b-827e-5396aa22626b"}
+{"ev":"gitCommit","branch":"main","runId":"cb4c256c-9b28-4faf-9dbb-5d79922a4e5e"}

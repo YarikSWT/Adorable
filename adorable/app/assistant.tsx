@@ -398,6 +398,11 @@ export const Assistant = ({
 
   const chat = useChat<UIMessage>({
     id: runtimeKey,
+    // Bridge mode (worker architecture): reconnect to the worker's live stream
+    // via GET /api/chat/:id/stream on mount (закрыл вкладку — не потерял). The
+    // server returns 204 when there is no active stream, so this is safe even
+    // for completed runs. (Off in the inline/no-worker path.)
+    resume: process.env["NEXT_PUBLIC_AGENT_LOOP_BRIDGE"] === "1",
     transport: new AssistantChatTransport({
       api: "/api/chat",
       prepareSendMessagesRequest: async (options) => {
@@ -457,7 +462,34 @@ export const Assistant = ({
     () => dedupeToolCallsAcrossMessages(chat.messages),
     [chat.messages],
   );
-  const runtime = useAISDKRuntime({ ...chat, messages: dedupedMessages });
+
+  // Stop button (спец §4.3): an EXPLICIT stop must cancel the worker run, not
+  // just disconnect the client (disconnect ≠ stop — the worker keeps going and
+  // the stream stays resumable). In bridge mode we POST /api/chat/:id/stop with
+  // the partial assistant snapshot before the normal client-side stop.
+  const stopWithServerCancel = useCallback(async () => {
+    const conversationId = activeConversationIdRef.current;
+    if (
+      conversationId &&
+      process.env["NEXT_PUBLIC_AGENT_LOOP_BRIDGE"] === "1"
+    ) {
+      const assistantMessage = [...chat.messages]
+        .reverse()
+        .find((m) => m.role === "assistant");
+      void fetch(`/api/chat/${encodeURIComponent(conversationId)}/stop`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assistantMessage }),
+      }).catch(() => undefined);
+    }
+    chat.stop();
+  }, [chat]);
+
+  const runtime = useAISDKRuntime({
+    ...chat,
+    stop: stopWithServerCancel,
+    messages: dedupedMessages,
+  });
 
   return (
     <AssistantRuntimeProvider key={runtimeKey} runtime={runtime}>

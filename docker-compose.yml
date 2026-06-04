@@ -137,6 +137,109 @@ services:
       retries: 10
       start_period: 5s
 
+  # ───────────────────────── agent-loop backend (спец v2.1 §2.1) ─────────────────────────
+
+  # Redis — транспорт UIMessage-стрима (resumable-stream). НЕ allkeys-lru:
+  # noeviction, чтобы стрим-буфер не выселялся под нагрузкой; AOF для durability.
+  redis:
+    image: redis:7-alpine
+    container_name: adorable-redis
+    restart: unless-stopped
+    command:
+      [
+        "redis-server",
+        "--maxmemory-policy",
+        "noeviction",
+        "--appendonly",
+        "yes",
+      ]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - adorable_redis_data:/data
+    networks:
+      - adorable_infra
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Worker — agent loop + publisher стрима. Масштабируется (scale).
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    command: ["npx", "tsx", "worker/index.ts"]
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${WORKER_DATABASE_URL:-postgres://adorable:${APP_POSTGRES_PASSWORD:-adorable_dev_password}@postgres-app:5432/adorable}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      GITEA_URL: ${GITEA_URL:-http://gitea:3001}
+      GITEA_TOKEN: ${GITEA_TOKEN:-}
+      DOCKER_HOST: unix:///var/run/docker.sock
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: platform-worker
+      WORKER_HEALTH_PORT: "8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      postgres-app:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - adorable_infra
+      - adorable_sandboxes
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+
+  # Reaper — sweep застрявших runs. Ровно один инстанс (advisory-lock страхует).
+  reaper:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    command: ["npx", "tsx", "reaper/index.ts"]
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${WORKER_DATABASE_URL:-postgres://adorable:${APP_POSTGRES_PASSWORD:-adorable_dev_password}@postgres-app:5432/adorable}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      GITEA_URL: ${GITEA_URL:-http://gitea:3001}
+      GITEA_TOKEN: ${GITEA_TOKEN:-}
+      DOCKER_HOST: unix:///var/run/docker.sock
+      OTEL_SERVICE_NAME: platform-reaper
+      REAPER_HEALTH_PORT: "8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      postgres-app:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - adorable_infra
+      - adorable_sandboxes
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+
+  # Jaeger — приём OTel-трейсов agent loop (observability/дебаг).
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: adorable-jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "127.0.0.1:16686:16686"
+    networks:
+      - adorable_infra
+
 networks:
   adorable_infra:
     name: adorable_infra
@@ -157,3 +260,4 @@ volumes:
   gitea_data:
   caddy_data:
   caddy_config:
+  adorable_redis_data:

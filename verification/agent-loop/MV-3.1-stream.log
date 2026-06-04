@@ -1,0 +1,38 @@
+06:54:35.934 data: {"type":"data-progress","data":{"stage":"sandbox","message":"Preparing environment…"},"transient":true}
+06:54:35.935 
+06:54:35.936 data: {"type":"data-progress","data":{"stage":"hydrate","message":"Loading project…"},"transient":true}
+06:54:35.937 
+06:54:35.938 data: {"type":"start","messageId":"JVKRqXqJz6DrF87n"}
+06:54:35.939 
+06:54:35.940 data: {"type":"start-step"}
+06:54:35.941 
+06:54:35.942 data: {"type":"text-start","id":"t0"}
+06:54:35.943 
+06:54:36.278 data: {"type":"text-delta","id":"t0","delta":"Creating the file. "}
+06:54:36.280 
+06:54:36.282 data: {"type":"text-end","id":"t0"}
+06:54:36.286 
+06:54:36.289 data: {"type":"tool-input-start","toolCallId":"tc1","toolName":"writeFile"}
+06:54:36.290 
+06:54:36.292 data: {"type":"tool-input-delta","toolCallId":"tc1","inputTextDelta":"{\"path\":\"app.tsx\",\"contents\":\"x\"}"}
+06:54:36.293 
+06:54:36.295 data: {"type":"tool-input-available","toolCallId":"tc1","toolName":"writeFile","input":{"path":"app.tsx","contents":"x"}}
+06:54:36.296 
+06:54:36.298 data: {"type":"tool-output-available","toolCallId":"tc1","output":{"ok":true,"path":"app.tsx"}}
+06:54:36.299 
+06:54:36.300 data: {"type":"finish-step"}
+06:54:36.302 
+06:54:36.303 data: {"type":"start-step"}
+06:54:36.305 
+06:54:36.306 data: {"type":"text-start","id":"t1"}
+06:54:36.308 
+06:54:36.681 data: {"type":"text-delta","id":"t1","delta":"Done — the counter app is ready."}
+06:54:36.684 
+06:54:36.688 data: {"type":"text-end","id":"t1"}
+06:54:36.691 
+06:54:36.692 data: {"type":"finish-step"}
+06:54:36.695 
+06:54:36.699 data: {"type":"finish"}
+06:54:36.702 
+06:54:36.704 data: [DONE]
+06:54:36.706 

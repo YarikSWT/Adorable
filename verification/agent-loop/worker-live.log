@@ -1,0 +1,2 @@
+{"level":"info","msg":"worker started (real agent loop)","service":"platform-worker"}
+{"level":"info","msg":"agent-run job received","service":"platform-worker","jobId":"8f888c16-e0b7-4330-9183-d2eaa238481d","runId":"9b906ec3-39ab-43bb-b344-069f6551b120","projectId":"fbf7b354-1220-41b5-be2c-b255156f10cb"}

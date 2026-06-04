@@ -38,6 +38,7 @@ Goal 6 (quota+usage+auto-retry)
 |---|---|
 | [`RALPH.md`](./RALPH.md) | ralph-loop контракт (фазы 0–6, requires-gate, loop guard) |
 | [`ralph-state.json`](./ralph-state.json) | ledger состояния loop (прогресс/корзины/попытки) |
+| [`MANUAL-VERIFY.md`](./MANUAL-VERIFY.md) | playwright-mcp ручная верификация UX (гейтит фазы 3/5 + финал) |
 
 | Файл | Фаза | §11 пункты | Таксономия (сумма) |
 |---|---|---|---|
@@ -67,8 +68,13 @@ AND part-size cap покрыт тестом».
 - скоуп-тест фазы: `cd adorable && npx vitest run tests/<file>`;
 - `docker compose config` → exit 0 для инфра-проверок.
 
-**Главная зависимость:** раннер `/goal` должен иметь доступ к Docker, иначе интеграционные
-тесты уходят в корзину `external_blocker` (для этого она и есть).
+Поверх backend-тестов фазы 3 и 5 гейтятся **ручной верификацией через playwright-mcp**
+(живой UX: стрим первого хода, reconnect, stop, навигация ≠ stop) с артефактами-скриншотами —
+см. [`MANUAL-VERIFY.md`](./MANUAL-VERIFY.md).
+
+**Главная зависимость:** раннер должен иметь доступ к Docker (Testcontainers), а для
+manual-verify — к playwright-mcp + запущенному app+worker+infra. Чего нет — соответствующие
+единицы уходят в корзину `external_blocker` (для этого она и есть).
 
 ## Параметры контракта
 

@@ -44,6 +44,12 @@ export const projects = pgTable(
       .default(false),
     memory: text("memory").notNull().default(""),
     dataBackend: jsonb("data_backend"),
+    // Project metadata that used to live in the Gitea adorable-meta wrapper repo
+    // (vm/preview/deployments/name/boilerplateVersion). Conversations are NOT
+    // here — they are rows in conversations/messages. Authoritative source after
+    // the Gitea→Postgres metadata migration; the wrapper repo is no longer
+    // created. Shape: RepoMetadata minus `conversations` (see repo-storage.ts).
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
     status: text("status", { enum: ["active", "archived", "deleted"] })
       .notNull()
       .default("active"),
@@ -57,6 +63,12 @@ export const projects = pgTable(
       .notNull()
       .defaultNow(),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
+
+    // Активный run проекта (спец v2.1 §3.4). Поддерживается явным UPDATE в
+    // finalizeRunCAS (queued→running ставит; терминальный статус — NULL). FK на
+    // runs опущен намеренно, чтобы не вводить циклическую зависимость схем
+    // projects ↔ runs (как с publishedSnapshotId ниже).
+    currentRunId: uuid("current_run_id"),
 
     // Publication fields (see publication.ts for snapshot reference). FK on
     // publishedSnapshotId is added through a separate ALTER migration to

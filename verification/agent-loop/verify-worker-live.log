@@ -1,0 +1,7 @@
+PASS: enqueued run (jobId returned)
+PASS: worker processed run → completed (got 'completed')
+PASS: run finalized: activeStreamId cleared
+PASS: run has stepCount + tokenUsage
+PASS: exactly one assistant message persisted (uniq index)
+PASS: assistant message has content
+DONE

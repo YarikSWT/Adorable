@@ -1,0 +1,38 @@
+data: {"type":"data-progress","data":{"stage":"sandbox","message":"Preparing environment…"},"transient":true}
+
+data: {"type":"data-progress","data":{"stage":"hydrate","message":"Loading project…"},"transient":true}
+
+data: {"type":"start","messageId":"yZVtfarMnh1WEeny"}
+
+data: {"type":"start-step"}
+
+data: {"type":"text-start","id":"t0"}
+
+data: {"type":"text-delta","id":"t0","delta":"Creating the file. "}
+
+data: {"type":"text-end","id":"t0"}
+
+data: {"type":"tool-input-start","toolCallId":"tc1","toolName":"writeFile"}
+
+data: {"type":"tool-input-delta","toolCallId":"tc1","inputTextDelta":"{\"path\":\"app.tsx\",\"contents\":\"x\"}"}
+
+data: {"type":"tool-input-available","toolCallId":"tc1","toolName":"writeFile","input":{"path":"app.tsx","contents":"x"}}
+
+data: {"type":"tool-output-available","toolCallId":"tc1","output":{"ok":true,"path":"app.tsx"}}
+
+data: {"type":"finish-step"}
+
+data: {"type":"start-step"}
+
+data: {"type":"text-start","id":"t1"}
+
+data: {"type":"text-delta","id":"t1","delta":"Done — the counter app is ready."}
+
+data: {"type":"text-end","id":"t1"}
+
+data: {"type":"finish-step"}
+
+data: {"type":"finish"}
+
+data: [DONE]
+

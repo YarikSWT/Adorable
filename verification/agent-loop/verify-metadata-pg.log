@@ -1,0 +1,9 @@
+PASS: writeRepoMetadata persisted to projects.metadata (Postgres)
+PASS: preview block stored in Postgres
+PASS: readRepoMetadata returns metadata from Postgres
+PASS: readRepoMetadata preview round-trips
+PASS: boilerplateVersion round-trips
+PASS: migration migrated 1 project + 2 messages
+PASS: migration idempotent (re-run skips, 0 migrated)
+PASS: migrated project readRepoMetadata has the conversation
+DONE
