@@ -67,7 +67,6 @@ export const HomeWelcome: FC = () => {
   const seedComposer = (label: string) => {
     try {
       composer.setText(`Build a ${label.toLowerCase()} app: `);
-      composer.focus();
     } catch {
       // composer runtime unavailable — suggestion is a no-op rather than a crash
     }
