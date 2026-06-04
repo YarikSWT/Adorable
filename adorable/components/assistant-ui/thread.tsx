@@ -286,7 +286,7 @@ const UserMessage: FC = () => {
       <UserMessageAttachments />
 
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
-        <div className="aui-user-message-content rounded-2xl bg-muted px-4 py-2.5 wrap-break-word text-foreground">
+        <div className="aui-user-message-content rounded-[var(--r-lg)] border border-cream-deep bg-cream px-4 py-2.5 wrap-break-word text-ink">
           <MessagePrimitive.Parts />
         </div>
         <div className="aui-user-action-bar-wrapper absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
