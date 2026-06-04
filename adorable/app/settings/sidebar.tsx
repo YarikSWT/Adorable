@@ -13,6 +13,9 @@ export function UserSettingsSidebar() {
   const pathname = usePathname();
   return (
     <nav className="flex flex-col gap-0.5 p-2 text-sm">
+      <div className="px-3 pt-2 pb-1 font-mono text-[11px] tracking-wide text-n-400 uppercase">
+        Personal
+      </div>
       {SECTIONS.map((s) => {
         const href = `/settings/${s.href}`;
         const active = pathname?.startsWith(href);

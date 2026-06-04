@@ -12,13 +12,6 @@ import { cn } from "@/lib/utils";
 import { useRepos } from "@/lib/repos-context";
 import type { RepoItem } from "@/lib/repo-types";
 
-function previewUrl(repo: RepoItem): string | null {
-  if (repo.productionDomain) return `https://${repo.productionDomain}`;
-  const live = repo.deployments.find((d) => d.state === "live");
-  if (live?.url) return live.url;
-  return repo.vm?.previewUrl ?? null;
-}
-
 function statusOf(repo: RepoItem): "live" | "deploying" | "idle" {
   if (repo.deployments.some((d) => d.state === "live")) return "live";
   if (repo.deployments.some((d) => d.state === "deploying")) return "deploying";
@@ -42,6 +35,40 @@ function StatusChip({ status }: { status: "live" | "deploying" | "idle" }) {
     <Chip size="sm" dot>
       Idle
     </Chip>
+  );
+}
+
+// Deterministic warm letter-logo (base44 apps-list uses coloured logo squares).
+const LOGO_COLORS = [
+  "bg-coral",
+  "bg-olive",
+  "bg-ink-2",
+  "bg-coral-deep",
+  "bg-olive-deep",
+  "bg-warning",
+  "bg-info",
+];
+
+function LetterLogo({
+  name,
+  className,
+}: {
+  name: string;
+  className?: string;
+}) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  const color = LOGO_COLORS[h % LOGO_COLORS.length];
+  return (
+    <div
+      className={cn(
+        "flex size-10 shrink-0 items-center justify-center rounded-[var(--r-sm)] text-base font-semibold text-white",
+        color,
+        className,
+      )}
+    >
+      {name.trim()[0]?.toUpperCase() ?? "?"}
+    </div>
   );
 }
 
@@ -115,42 +142,29 @@ export default function AppsPage() {
             <EmptyState hasQuery={query.trim().length > 0} />
           ) : view === "grid" ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((repo) => {
-                const url = previewUrl(repo);
-                return (
-                  <button
-                    key={repo.id}
-                    type="button"
-                    onClick={() => onSelectProject(repo.id)}
-                    className="group flex flex-col overflow-hidden rounded-[var(--r-lg)] border border-cream-deep bg-paper text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--sh-md)]"
-                  >
-                    <div className="relative aspect-16/9 w-full overflow-hidden bg-gradient-to-br from-cream to-cream-deep">
-                      {url ? (
-                        <iframe
-                          src={url}
-                          title={`${repo.name} preview`}
-                          className="pointer-events-none absolute inset-0 h-[200%] w-[200%] origin-top-left scale-50 border-0"
-                          tabIndex={-1}
-                          loading="lazy"
-                          sandbox="allow-scripts allow-same-origin"
-                        />
-                      ) : null}
-                    </div>
-                    <div className="flex flex-1 flex-col gap-2 p-4">
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="truncate text-base font-semibold text-ink">
-                          {repo.name}
-                        </h3>
-                        <StatusChip status={statusOf(repo)} />
-                      </div>
-                      <div className="mt-auto font-mono text-[11px] tracking-wide text-n-400 uppercase">
-                        {repo.deployments.length} deploy
-                        {repo.deployments.length !== 1 ? "s" : ""}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
+              {filtered.map((repo) => (
+                <button
+                  key={repo.id}
+                  type="button"
+                  onClick={() => onSelectProject(repo.id)}
+                  className="group flex flex-col gap-4 rounded-[var(--r-lg)] border border-cream-deep bg-paper p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--sh-md)]"
+                >
+                  <div className="flex items-start gap-3">
+                    <LetterLogo name={repo.name} />
+                    <h3 className="flex-1 truncate pt-0.5 text-base font-semibold text-ink">
+                      {repo.name}
+                    </h3>
+                    <StatusChip status={statusOf(repo)} />
+                  </div>
+                  <div className="flex items-center justify-between font-mono text-[11px] tracking-wide text-n-400 uppercase">
+                    <span>By you</span>
+                    <span>
+                      {repo.deployments.length} deploy
+                      {repo.deployments.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                </button>
+              ))}
             </div>
           ) : (
             <div className="flex flex-col overflow-hidden rounded-[var(--r-lg)] border border-cream-deep bg-paper">
@@ -164,7 +178,7 @@ export default function AppsPage() {
                     i > 0 && "border-t border-cream-deep",
                   )}
                 >
-                  <div className="size-9 shrink-0 rounded-[var(--r-sm)] bg-gradient-to-br from-cream to-cream-deep" />
+                  <LetterLogo name={repo.name} className="size-9 text-sm" />
                   <span className="flex-1 truncate text-sm font-medium text-ink">
                     {repo.name}
                   </span>
