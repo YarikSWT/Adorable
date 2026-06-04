@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Adorable — Workspace: Сбербанк rate calculator</title>
+  <link rel="stylesheet" href="../shared.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body, html { height: 100vh; overflow: hidden; }
+    .app-shell { height: 100vh; }
+    .sidebar { height: 100vh; }
+    .workspace-shell { display: grid; grid-template-rows: auto auto 1fr; height: 100vh; background: var(--bg-page); overflow: hidden; }
+    .ws-header { padding: 16px 32px; border-bottom: 1px solid var(--border-default); display: flex; align-items: center; gap: 12px; background: var(--bg-surface); }
+    .ws-header-logo { width: 40px; height: 40px; border-radius: var(--r-sm); background: var(--olive); color: white; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 600; font-size: 18px; }
+    .ws-title { font-family: var(--font-sans); font-size: 18px; font-weight: 600; color: var(--ink); }
+    .ws-sub { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
+
+    .ws-tabs { display: flex; align-items: center; gap: 2px; padding: 0 32px; border-bottom: 1px solid var(--border-default); background: var(--bg-surface); overflow-x: auto; }
+    .ws-tab { padding: 12px 14px; font-size: 13px; font-weight: 500; color: var(--text-secondary); background: transparent; border-bottom: 2px solid transparent; position: relative; top: 1px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .ws-tab:hover { color: var(--text-primary); }
+    .ws-tab.is-active { color: var(--coral-deep); border-bottom-color: var(--coral); }
+
+    .ws-content { padding: 32px; overflow-y: auto; }
+    .ws-section { margin-bottom: 32px; }
+    .ws-section-title { font-family: var(--font-display); font-size: 22px; font-weight: 500; color: var(--ink); margin-bottom: 16px; letter-spacing: -0.01em; }
+
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat { background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--r-md); padding: 18px 20px; }
+    .stat-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--olive-deep); margin-bottom: 6px; }
+    .stat-num { font-family: var(--font-display); font-size: 28px; font-weight: 600; color: var(--ink); letter-spacing: -0.015em; }
+    .stat-delta { font-size: 12px; color: var(--success); margin-top: 4px; }
+    .stat-delta.is-down { color: var(--danger); }
+
+    .ws-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .ws-card { background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--r-md); padding: 20px; }
+    .ws-card-title { font-size: 16px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+    .ws-card-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 14px; }
+    .ws-card-actions { display: flex; gap: 8px; }
+
+    .activity-list { display: flex; flex-direction: column; }
+    .activity-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border-default); }
+    .activity-item:last-child { border-bottom: 0; }
+    .activity-icon { width: 28px; height: 28px; border-radius: 50%; background: var(--cream); display: flex; align-items: center; justify-content: center; color: var(--coral-deep); flex-shrink: 0; }
+    .activity-content { flex: 1; font-size: 13px; }
+    .activity-time { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); letter-spacing: .06em; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-logo"><span class="logo-dot"></span>Adorable</div>
+      <button class="workspace-switcher">
+        <span class="workspace-avatar">YA</span>
+        <span class="workspace-name">Yaroslav's Workspace</span>
+        <i data-lucide="chevrons-up-down" style="width:14px;height:14px;color:var(--text-muted)"></i>
+      </button>
+      <div class="sidebar-section">
+        <a class="sidebar-item" href="/"><i data-lucide="sparkles" class="sidebar-item-icon"></i> New app</a>
+        <a class="sidebar-item" href="/apps"><i data-lucide="folder" class="sidebar-item-icon"></i> My apps</a>
+        <a class="sidebar-item" href="/templates"><i data-lucide="layout-template" class="sidebar-item-icon"></i> Templates</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Current app</div>
+        <a class="sidebar-item" href="editor.html"><i data-lucide="message-square" class="sidebar-item-icon"></i> Chat</a>
+        <a class="sidebar-item is-active" href="workspace.html"><i data-lucide="layout-dashboard" class="sidebar-item-icon"></i> Workspace</a>
+      </div>
+      <a class="upgrade-card" href="/billing">
+        <div style="flex:1">
+          <div class="upgrade-card-title">Upgrade your plan</div>
+          <div class="upgrade-card-sub">Unlock unlimited apps</div>
+        </div>
+        <i data-lucide="chevron-right" style="width:14px;height:14px;color:var(--coral)"></i>
+      </a>
+      <div class="user-strip"><div class="user-avatar">Y</div></div>
+    </aside>
+
+    <div class="workspace-shell">
+      <div class="ws-header">
+        <div class="ws-header-logo">С</div>
+        <div>
+          <div class="ws-title">Сбербанк rate calculator</div>
+          <div class="ws-sub">v0.3 · deployed 12 min ago</div>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn btn-secondary btn-small"><i data-lucide="external-link" style="width:13px;height:13px"></i> Open live</button>
+        <button class="btn btn-primary btn-small"><i data-lucide="rocket" style="width:13px;height:13px"></i> Deploy</button>
+      </div>
+
+      <div class="ws-tabs">
+        <button class="ws-tab is-active"><i data-lucide="layout-dashboard" style="width:14px;height:14px"></i> Overview</button>
+        <button class="ws-tab"><i data-lucide="database" style="width:14px;height:14px"></i> Data</button>
+        <button class="ws-tab"><i data-lucide="plug" style="width:14px;height:14px"></i> Integrations</button>
+        <button class="ws-tab"><i data-lucide="code" style="width:14px;height:14px"></i> Code</button>
+        <button class="ws-tab"><i data-lucide="terminal" style="width:14px;height:14px"></i> Logs</button>
+        <button class="ws-tab"><i data-lucide="webhook" style="width:14px;height:14px"></i> API</button>
+        <button class="ws-tab"><i data-lucide="settings" style="width:14px;height:14px"></i> Settings</button>
+      </div>
+
+      <div class="ws-content">
+        <section class="ws-section">
+          <div class="stats-row">
+            <div class="stat">
+              <div class="stat-label">Visitors (7d)</div>
+              <div class="stat-num">1<em style="color:var(--coral);font-style:italic">,</em>284</div>
+              <div class="stat-delta">↑ 22% week-over-week</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Conversions</div>
+              <div class="stat-num">37</div>
+              <div class="stat-delta">↑ 4% week-over-week</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Errors (24h)</div>
+              <div class="stat-num">0</div>
+              <div class="stat-delta">no issues</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Build status</div>
+              <div class="stat-num" style="font-size:18px;color:var(--success)">● Live</div>
+              <div class="stat-delta">v0.3 · 12 min ago</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="ws-section">
+          <h2 class="ws-section-title">Quick actions</h2>
+          <div class="ws-cards">
+            <div class="ws-card">
+              <div class="ws-card-title">App Visibility</div>
+              <div class="ws-card-desc">Сделать app публичным, опубликовать в community, или только для workspace.</div>
+              <div class="ws-card-actions">
+                <span class="chip"><span class="chip-dot"></span>Workspace-only</span>
+                <button class="btn btn-ghost btn-small" style="margin-left:auto">Change</button>
+              </div>
+            </div>
+            <div class="ws-card">
+              <div class="ws-card-title">Invite users</div>
+              <div class="ws-card-desc">Пригласить collaborator'ов в этот app. Они смогут видеть, редактировать или только смотреть.</div>
+              <div class="ws-card-actions">
+                <button class="btn btn-secondary btn-small"><i data-lucide="user-plus" style="width:13px;height:13px"></i> Invite</button>
+              </div>
+            </div>
+            <div class="ws-card">
+              <div class="ws-card-title">Custom domain</div>
+              <div class="ws-card-desc">Привязать свой домен вместо calc-sber-rate.adorable.app.</div>
+              <div class="ws-card-actions">
+                <button class="btn btn-brand btn-small"><i data-lucide="globe" style="width:13px;height:13px"></i> Connect domain</button>
+              </div>
+            </div>
+            <div class="ws-card">
+              <div class="ws-card-title">Move to workspace</div>
+              <div class="ws-card-desc">Перенести этот app в другой workspace (если у тебя несколько).</div>
+              <div class="ws-card-actions">
+                <button class="btn btn-ghost btn-small">Move</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="ws-section">
+          <h2 class="ws-section-title">Recent activity</h2>
+          <div class="ws-card">
+            <div class="activity-list">
+              <div class="activity-item">
+                <div class="activity-icon"><i data-lucide="rocket" style="width:14px;height:14px"></i></div>
+                <div class="activity-content">
+                  Deployed <strong>v0.3</strong> — added "первый взнос" field
+                  <div class="activity-time">12 min ago · you</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <div class="activity-icon"><i data-lucide="git-commit" style="width:14px;height:14px"></i></div>
+                <div class="activity-content">
+                  Updated <code style="background:var(--cream);padding:1px 6px;border-radius:4px;font-family:var(--font-mono);font-size:11px;color:var(--coral-deep)">calc-form.tsx</code>
+                  <div class="activity-time">15 min ago · you</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <div class="activity-icon"><i data-lucide="user" style="width:14px;height:14px"></i></div>
+                <div class="activity-content">
+                  37 unique visitors today
+                  <div class="activity-time">live</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <div class="activity-icon"><i data-lucide="database" style="width:14px;height:14px"></i></div>
+                <div class="activity-content">
+                  Initialized Postgres schema (3 tables)
+                  <div class="activity-time">4 hours ago · adorable bot</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

@@ -1,0 +1,182 @@
+{
+  "url": "https://app.base44.com/",
+  "viewport": { "w": 1440, "h": 900 },
+  "cssCustomProperties": {
+    ":root": {
+      "--border": "240 5.9% 90%",
+      "--sidebar-background": "0 0% 98%",
+      "--sidebar-primary-foreground": "0 0% 98%",
+      "--card": "0 0% 100%",
+      "--accent": "240 4.8% 95.9%",
+      "--primary-foreground": "0 0% 98%",
+      "--card-foreground": "240 10% 3.9%",
+      "--secondary-foreground": "240 5.9% 10%",
+      "--sidebar-accent-foreground": "240 5.9% 10%",
+      "--background": "0 0% 100%",
+      "--muted": "240 4.8% 95.9%",
+      "--workspace-badge": "18 27% 93%",
+      "--accent-foreground": "240 5.9% 10%",
+      "--popover": "0 0% 100%",
+      "--ring": "240 10% 3.9%",
+      "--vscode-sash-size": "4px",
+      "--vscode-sash-hover-size": "4px",
+      "--chart-5": "27 87% 67%",
+      "--sidebar-border": "220 13% 91%",
+      "--sidebar-foreground": "240 5.3% 26.1%",
+      "--muted-foreground": "240 3.8% 46.1%",
+      "--sidebar-accent": "240 4.8% 95.9%",
+      "--radius": ".5rem",
+      "--popover-foreground": "240 10% 3.9%",
+      "--input": "240 5.9% 90%",
+      "--destructive": "0 84.2% 60.2%",
+      "--chart-3": "197 37% 24%",
+      "--destructive-foreground": "0 0% 98%",
+      "--chart-4": "43 74% 66%",
+      "--chart-2": "173 58% 39%",
+      "--primary": "240 5.9% 10%",
+      "--foreground": "240 10% 3.9%",
+      "--sidebar-primary": "240 5.9% 10%",
+      "--secondary": "240 4.8% 95.9%",
+      "--sidebar-ring": "217.2 91.2% 59.8%",
+      "--chart-1": "12 76% 61%"
+    }
+  },
+  "fonts": [
+    { "family": "codicon", "weight": "normal", "style": "normal", "status": "unloaded" },
+    { "family": "WixMadeforText", "weight": "400", "style": "normal", "status": "loaded" },
+    { "family": "WixMadeforText", "weight": "400", "style": "italic", "status": "unloaded" },
+    { "family": "WixMadeforText", "weight": "500", "style": "normal", "status": "loaded" },
+    { "family": "WixMadeforText", "weight": "600", "style": "normal", "status": "loaded" },
+    { "family": "WixMadeforText", "weight": "700", "style": "normal", "status": "loaded" },
+    { "family": "WixMadeforText", "weight": "700", "style": "italic", "status": "unloaded" },
+    { "family": "WixMadeforText", "weight": "800", "style": "normal", "status": "unloaded" }
+  ],
+  "usedColors": [
+    { "value": "rgb(229, 231, 235)", "count": 347, "hex": "#E5E7EB", "role": "default border (tailwind gray-200)" },
+    { "value": "rgb(9, 9, 11)", "count": 126, "hex": "#09090B", "role": "primary text (zinc-950)" },
+    { "value": "rgb(0, 0, 0)", "count": 115, "hex": "#000000", "role": "pure black (icons/text)" },
+    { "value": "rgb(12, 10, 9)", "count": 53, "hex": "#0C0A09", "role": "stone-950 (warm dark)" },
+    { "value": "rgb(10, 10, 10)", "count": 36, "hex": "#0A0A0A", "role": "neutral-950" },
+    { "value": "rgb(255, 255, 255)", "count": 9, "hex": "#FFFFFF", "role": "card bg" },
+    { "value": "rgb(229, 229, 229)", "count": 6, "hex": "#E5E5E5", "role": "neutral-200 border" },
+    { "value": "rgb(168, 162, 158)", "count": 6, "hex": "#A8A29E", "role": "stone-400 muted text" },
+    { "value": "rgba(255, 255, 255, 0.69)", "count": 6, "role": "overlay/scrim" },
+    { "value": "rgb(23, 23, 23)", "count": 5, "hex": "#171717", "role": "neutral-900" },
+    { "value": "rgb(255, 99, 31)", "count": 4, "hex": "#FF631F", "role": "base44 BRAND ORANGE — primary CTA/accent" },
+    { "value": "rgba(255, 255, 255, 0.5)", "count": 4, "role": "muted overlay" },
+    { "value": "rgb(245, 243, 241)", "count": 3, "hex": "#F5F3F1", "role": "stone-100 surface alt" },
+    { "value": "rgb(228, 228, 231)", "count": 2, "hex": "#E4E4E7", "role": "zinc-200 border" },
+    { "value": "rgb(146, 64, 14)", "count": 2, "hex": "#92400E", "role": "amber-800 (warning text)" },
+    { "value": "rgb(120, 113, 108)", "count": 2, "hex": "#78716C", "role": "stone-500 muted" },
+    { "value": "rgb(115, 115, 115)", "count": 2, "hex": "#737373", "role": "neutral-500 secondary text" },
+    { "value": "rgb(156, 163, 175)", "count": 2, "hex": "#9CA3AF", "role": "gray-400 muted" },
+    { "value": "rgb(254, 243, 199)", "count": 1, "hex": "#FEF3C7", "role": "amber-100 (warning bg)" },
+    { "value": "rgb(214, 211, 209)", "count": 1, "hex": "#D6D3D1", "role": "stone-300 dashed border" },
+    { "value": "rgb(251, 250, 247)", "count": 1, "hex": "#FBFAF7", "role": "warm cream surface" },
+    { "value": "rgb(228, 228, 228)", "count": 1, "hex": "#E4E4E4", "role": "neutral-200" },
+    { "value": "rgb(35, 35, 35)", "count": 1, "hex": "#232323", "role": "near-black" },
+    { "value": "rgb(117, 117, 117)", "count": 1, "hex": "#757575", "role": "mid gray" },
+    { "value": "rgb(226, 232, 240)", "count": 1, "hex": "#E2E8F0", "role": "slate-200" },
+    { "value": "rgb(71, 85, 105)", "count": 1, "hex": "#475569", "role": "slate-600" },
+    { "value": "rgb(245, 74, 0)", "count": 1, "hex": "#F54A00", "role": "deep brand orange (hover/active)" },
+    { "value": "rgb(236, 234, 231)", "count": 1, "hex": "#ECEAE7", "role": "warm neutral surface" },
+    { "value": "rgb(15, 15, 15)", "count": 1, "hex": "#0F0F0F", "role": "near-black" },
+    { "value": "rgb(212, 212, 212)", "count": 1, "hex": "#D4D4D4", "role": "neutral-300" }
+  ],
+  "usedFontFamilies": [
+    { "value": "ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"", "count": 192 },
+    { "value": "WixMadeforText, system-ui, sans-serif", "count": 170 }
+  ],
+  "usedFontSizes": [
+    { "value": "16px", "count": 240 },
+    { "value": "14px", "count": 106 },
+    { "value": "12px", "count": 13 },
+    { "value": "10px", "count": 2 },
+    { "value": "32px", "count": 1 }
+  ],
+  "usedFontWeights": [
+    { "value": "400", "count": 316 },
+    { "value": "500", "count": 42 },
+    { "value": "700", "count": 2 },
+    { "value": "100", "count": 1 },
+    { "value": "600", "count": 1 }
+  ],
+  "usedLineHeights": [
+    { "value": "24px", "count": 238 },
+    { "value": "20px", "count": 91 },
+    { "value": "21px", "count": 13 },
+    { "value": "16px", "count": 12 },
+    { "value": "14px", "count": 2 },
+    { "value": "15px", "count": 1 },
+    { "value": "10px", "count": 1 },
+    { "value": "12px", "count": 1 },
+    { "value": "48px", "count": 1 },
+    { "value": "17.5px", "count": 1 }
+  ],
+  "usedBorderRadii": [
+    { "value": "8px", "count": 17, "note": "shadcn default --radius .5rem" },
+    { "value": "6px", "count": 16 },
+    { "value": "9999px", "count": 4, "note": "pills" },
+    { "value": "10px", "count": 1 },
+    { "value": "14px", "count": 1 },
+    { "value": "16px", "count": 1 },
+    { "value": "16px 16px 0px 0px", "count": 1, "note": "modal top" },
+    { "value": "0px 0px 12px 12px", "count": 1, "note": "card bottom" },
+    { "value": "24px 24px 0px 0px", "count": 1, "note": "sheet top" }
+  ],
+  "usedBoxShadows": [
+    { "value": "rgba(0, 0, 0, 0.04) 0px 16px 30px 0px", "count": 1, "note": "soft elevated card" },
+    { "value": "rgba(0, 0, 0, 0.05) 0px 1px 2px 0px", "count": 1, "note": "shadow-sm" },
+    { "value": "rgba(0, 0, 0, 0.1) 0px 10px 15px -3px, rgba(0, 0, 0, 0.1) 0px 4px 6px -4px", "count": 1, "note": "shadow-lg" }
+  ],
+  "usedSpacingValues": {
+    "paddings": [
+      { "value": "0px 8px", "count": 9 },
+      { "value": "0px 12px", "count": 6 },
+      { "value": "12px", "count": 3 },
+      { "value": "16px", "count": 2 },
+      { "value": "8px", "count": 2 },
+      { "value": "4px", "count": 2 },
+      { "value": "100px 32px", "count": 1, "note": "hero container" },
+      { "value": "40px 40px 0px", "count": 1 }
+    ],
+    "margins": [
+      { "value": "0px 0px 4px", "count": 3 },
+      { "value": "16px 0px 0px", "count": 2 }
+    ],
+    "gaps": [
+      { "value": "8px", "count": 12 },
+      { "value": "6px", "count": 7 },
+      { "value": "4px", "count": 6 },
+      { "value": "12px", "count": 5 },
+      { "value": "2px", "count": 3 }
+    ]
+  },
+  "usedBorders": [
+    { "value": "1px solid rgb(229, 229, 229)", "count": 6 },
+    { "value": "1px dashed rgb(214, 211, 209)", "count": 1 }
+  ],
+  "mediaQueries": [
+    "(hover: hover)",
+    "(hover: hover) and (pointer: fine)",
+    "(hover: none) and (pointer: coarse)",
+    "(max-width: 600px)",
+    "(min-width: 320px)",
+    "(min-width: 410px)",
+    "(min-width: 470px)",
+    "(min-width: 640px)",
+    "(min-width: 768px)",
+    "(min-width: 1024px)",
+    "(min-width: 1200px)",
+    "(min-width: 1280px)",
+    "(min-width: 1400px)",
+    "(min-width: 1536px)",
+    "(pointer: coarse)",
+    "(pointer: fine)",
+    "(prefers-reduced-motion)"
+  ],
+  "_meta": {
+    "note": "Raw audit from base44 home (= workspace dashboard). Since base44 is an SPA, :root CSS vars are global — same on all pages. usedColors/sizes vary per page; component inventory captures per-page specifics.",
+    "filteredOut": "Removed --tw-* internal Tailwind utility vars (not design tokens, ~50 entries). Removed empty-string values."
+  }
+}

@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Adorable — Mobile Editor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,ital@9..144,400,0;9..144,500,0;9..144,500,1;9..144,600,0&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../shared.css">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+  <style>
+    body { background: #eaeaea; padding: 20px 0; min-height: 100vh; }
+    .device {
+      width: 375px;
+      margin: 0 auto;
+      height: 812px;
+      background: var(--bg-page);
+      border-radius: 24px;
+      box-shadow: 0 24px 80px rgba(0,0,0,.25);
+      overflow: hidden;
+      display: flex; flex-direction: column;
+      position: relative;
+    }
+
+    .m-top {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-default);
+      flex-shrink: 0;
+    }
+    .m-back { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-md); color: var(--text-primary); }
+    .m-title { flex: 1; min-width: 0; }
+    .m-title-name { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .m-title-status {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10px; color: var(--text-muted);
+    }
+    .m-title-status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+    .m-publish {
+      padding: 6px 12px;
+      background: var(--brand);
+      color: white;
+      border-radius: var(--r-md);
+      font-size: 12px; font-weight: 600;
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+
+    /* Toggle chat/preview */
+    .m-toggle-wrap { padding: 8px 12px; background: var(--bg-surface); border-bottom: 1px solid var(--border-default); flex-shrink: 0; }
+    .m-toggle { display: grid; grid-template-columns: 1fr 1fr; background: var(--bg-muted); border-radius: var(--r-md); padding: 3px; gap: 2px; }
+    .m-toggle-btn { padding: 7px 10px; font-size: 13px; color: var(--text-secondary); border-radius: 5px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500; }
+    .m-toggle-btn.is-active { background: var(--bg-surface); color: var(--text-primary); box-shadow: var(--sh-sm); }
+
+    /* Chat */
+    .m-chat { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 2px; }
+    .m-write {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 8px;
+      border-radius: var(--r-sm);
+      font-size: 13px;
+    }
+    .m-write .verb { color: var(--text-secondary); font-weight: 500; min-width: 38px; }
+    .m-write .name { color: var(--text-primary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .m-write svg { color: var(--text-muted); width: 14px; height: 14px; flex-shrink: 0; }
+
+    .m-prompt-msg {
+      padding: 12px 14px;
+      margin: 12px 0;
+      background: var(--bg-muted);
+      border-radius: var(--r-md);
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text-primary);
+    }
+    .m-meta {
+      display: flex; align-items: center; gap: 8px;
+      padding: 4px 4px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .m-meta-av {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: var(--bg-workspace-pill);
+      color: #7B5C32;
+      font-size: 9px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .m-sec-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); padding: 14px 8px 6px; }
+    .m-sug {
+      display: block;
+      padding: 10px 12px;
+      border: 1px solid var(--border-default);
+      border-radius: var(--r-md);
+      font-size: 13px;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+      background: var(--bg-surface);
+    }
+
+    /* Bottom input */
+    .m-input-wrap {
+      padding: 8px 12px 14px;
+      border-top: 1px solid var(--border-default);
+      background: var(--bg-surface-alt);
+      flex-shrink: 0;
+    }
+    .m-input {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--r-lg);
+      padding: 4px;
+    }
+    .m-input-text { padding: 10px 12px 4px; font-size: 13px; color: var(--text-muted); min-height: 40px; }
+    .m-input-tools { display: flex; align-items: center; padding: 2px 4px 4px; gap: 4px; }
+    .m-input-tools .m-back { width: 28px; height: 28px; color: var(--text-secondary); }
+    .m-input-spacer { flex: 1; }
+    .m-input-send { width: 28px; height: 28px; border-radius: var(--r-md); background: #D4D4D4; color: rgba(255,255,255,.6); display: inline-flex; align-items: center; justify-content: center; }
+  </style>
+</head>
+<body>
+  <div class="device">
+    <header class="m-top">
+      <button class="m-back"><i data-lucide="chevron-left" width="18" height="18"></i></button>
+      <div class="m-title">
+        <div class="m-title-name">Сбербанк rate calculator</div>
+        <div class="m-title-status">Live · v0.3</div>
+      </div>
+      <button class="m-publish"><i data-lucide="rocket" width="12" height="12"></i> Publish</button>
+    </header>
+
+    <div class="m-toggle-wrap">
+      <div class="m-toggle">
+        <button class="m-toggle-btn is-active"><i data-lucide="message-square" width="13" height="13"></i> Chat</button>
+        <button class="m-toggle-btn"><i data-lucide="monitor" width="13" height="13"></i> Preview</button>
+      </div>
+    </div>
+
+    <div class="m-chat">
+      <div class="m-write"><i data-lucide="file-code"></i><span class="verb">Wrote</span><span class="name">tailwind.config.ts</span></div>
+      <div class="m-write"><i data-lucide="file-code"></i><span class="verb">Wrote</span><span class="name">calc-form.tsx</span></div>
+      <div class="m-write"><i data-lucide="file-code"></i><span class="verb">Wrote</span><span class="name">lib/annuity.ts</span></div>
+      <div class="m-write"><i data-lucide="image"></i><span class="verb">Generated</span><span class="name">hero-texture.png</span></div>
+      <div class="m-write"><i data-lucide="file-code"></i><span class="verb">Wrote</span><span class="name">app/page.tsx</span></div>
+
+      <div class="m-prompt-msg">
+        Сделай калькулятор ипотеки для розничного банка. Аннуитет. Mobile-first.
+      </div>
+      <div class="m-meta">
+        <span class="m-meta-av">Y</span>
+        <span>5 hours ago</span>
+      </div>
+
+      <div class="m-write"><i data-lucide="git-commit"></i><span class="verb">Updated</span><span class="name">calc-form.tsx</span></div>
+      <div class="m-write"><i data-lucide="git-commit"></i><span class="verb">Updated</span><span class="name">lib/annuity.ts</span></div>
+
+      <div class="m-sec-title">Suggestions</div>
+      <a class="m-sug">Сравнение с ключевой ставкой ЦБ</a>
+      <a class="m-sug">Экспорт результата в PDF</a>
+    </div>
+
+    <div class="m-input-wrap">
+      <div class="m-input">
+        <div class="m-input-text">Опиши следующее изменение...</div>
+        <div class="m-input-tools">
+          <button class="m-back"><i data-lucide="plus" width="14" height="14"></i></button>
+          <button class="m-back"><i data-lucide="image" width="14" height="14"></i></button>
+          <div class="m-input-spacer"></div>
+          <button class="m-back"><i data-lucide="mic" width="14" height="14"></i></button>
+          <button class="m-input-send"><i data-lucide="arrow-right" width="14" height="14"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+    else window.addEventListener('load', () => lucide && lucide.createIcons && lucide.createIcons());
+  </script>
+</body>
+</html>

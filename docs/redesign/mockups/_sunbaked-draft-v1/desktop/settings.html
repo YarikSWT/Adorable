@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Adorable — Settings</title>
+  <link rel="stylesheet" href="../shared.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    .settings-shell { display: grid; grid-template-columns: 220px 1fr; gap: 32px; max-width: 1100px; margin: 0 auto; }
+    .settings-nav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 32px; height: fit-content; }
+    .settings-nav-title { font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--olive-deep); padding: 8px 12px 4px; }
+    .settings-nav-item { padding: 8px 12px; border-radius: var(--r-sm); font-size: 13px; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .settings-nav-item:hover { background: var(--cream); color: var(--text-primary); }
+    .settings-nav-item.is-active { background: var(--cream); color: var(--coral-deep); font-weight: 500; }
+
+    .settings-content { min-width: 0; }
+    .settings-h1 { font-family: var(--font-display); font-size: 36px; font-weight: 500; color: var(--ink); margin-bottom: 8px; letter-spacing: -0.015em; }
+    .settings-sub { color: var(--text-secondary); margin-bottom: 32px; }
+    .settings-section { background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--r-md); padding: 24px 28px; margin-bottom: 16px; }
+    .settings-section-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+    .settings-section-title { font-size: 17px; font-weight: 600; color: var(--ink); }
+    .settings-section-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+    .settings-row { display: grid; grid-template-columns: 180px 1fr; gap: 24px; padding: 14px 0; border-top: 1px solid var(--border-default); align-items: center; }
+    .settings-row:first-of-type { border-top: 0; }
+    .settings-label { font-size: 13px; font-weight: 500; color: var(--ink); }
+    .settings-help { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .settings-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-default); }
+
+    .avatar-row { display: flex; align-items: center; gap: 16px; }
+    .avatar-big { width: 64px; height: 64px; border-radius: 50%; background: var(--coral); color: white; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 600; font-size: 24px; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-logo"><span class="logo-dot"></span>Adorable</div>
+      <button class="workspace-switcher">
+        <span class="workspace-avatar">YA</span>
+        <span class="workspace-name">Yaroslav's Workspace</span>
+        <i data-lucide="chevrons-up-down" style="width:14px;height:14px;color:var(--text-muted)"></i>
+      </button>
+      <div class="sidebar-section">
+        <a class="sidebar-item" href="/"><i data-lucide="sparkles" class="sidebar-item-icon"></i> New app</a>
+        <a class="sidebar-item" href="/apps"><i data-lucide="folder" class="sidebar-item-icon"></i> My apps</a>
+        <a class="sidebar-item" href="/templates"><i data-lucide="layout-template" class="sidebar-item-icon"></i> Templates</a>
+        <a class="sidebar-item is-active" href="/settings"><i data-lucide="settings" class="sidebar-item-icon"></i> Settings</a>
+      </div>
+      <a class="upgrade-card" href="/billing">
+        <div style="flex:1">
+          <div class="upgrade-card-title">Upgrade your plan</div>
+          <div class="upgrade-card-sub">Unlock unlimited apps</div>
+        </div>
+        <i data-lucide="chevron-right" style="width:14px;height:14px;color:var(--coral)"></i>
+      </a>
+      <div class="user-strip"><div class="user-avatar">Y</div></div>
+    </aside>
+
+    <main class="main">
+      <div class="settings-shell">
+        <nav class="settings-nav">
+          <div class="settings-nav-title">Personal</div>
+          <a class="settings-nav-item is-active" href="#"><i data-lucide="user" style="width:14px;height:14px"></i> Profile</a>
+          <a class="settings-nav-item" href="#"><i data-lucide="shield" style="width:14px;height:14px"></i> Account & security</a>
+          <a class="settings-nav-item" href="#"><i data-lucide="bell" style="width:14px;height:14px"></i> Notifications</a>
+          <a class="settings-nav-item" href="#"><i data-lucide="key" style="width:14px;height:14px"></i> API keys</a>
+
+          <div class="settings-nav-title" style="margin-top:8px">Workspace</div>
+          <a class="settings-nav-item" href="#"><i data-lucide="users" style="width:14px;height:14px"></i> Members</a>
+          <a class="settings-nav-item" href="#"><i data-lucide="credit-card" style="width:14px;height:14px"></i> Billing</a>
+          <a class="settings-nav-item" href="#"><i data-lucide="plug" style="width:14px;height:14px"></i> Integrations</a>
+        </nav>
+
+        <div class="settings-content">
+          <h1 class="settings-h1">Profile</h1>
+          <p class="settings-sub">Так тебя видят коллеги и community.</p>
+
+          <div class="settings-section">
+            <div class="settings-section-head"><div class="settings-section-title">Аватар и имя</div></div>
+            <div class="settings-section-sub">Имя и фото отображаются в комментариях, на app-cards и в URL твоего публичного workspace.</div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Аватар</div>
+                <div class="settings-help">PNG / JPG, до 2 MB.</div>
+              </div>
+              <div class="avatar-row">
+                <div class="avatar-big">Y</div>
+                <button class="btn btn-secondary btn-small"><i data-lucide="upload" style="width:13px;height:13px"></i> Upload</button>
+                <button class="btn btn-ghost btn-small" style="color:var(--danger)">Remove</button>
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Имя</div>
+                <div class="settings-help">Видят все.</div>
+              </div>
+              <input class="input" value="Yaroslav Y." style="max-width:400px">
+            </div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Username</div>
+                <div class="settings-help">Будет в URL твоего workspace.</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;max-width:400px">
+                <span class="t-mono">adorable.app/u/</span>
+                <input class="input" value="yaroslav" style="flex:1">
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Email</div>
+                <div class="settings-help">Используется для входа и уведомлений.</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;max-width:400px">
+                <input class="input" value="yaroyudini@gmail.com" style="flex:1" readonly>
+                <span class="chip chip-olive"><span class="chip-dot"></span>Verified</span>
+              </div>
+            </div>
+
+            <div class="settings-row" style="align-items:flex-start">
+              <div>
+                <div class="settings-label">Bio</div>
+                <div class="settings-help">Несколько строк о тебе. Markdown поддерживается.</div>
+              </div>
+              <textarea class="input" style="max-width:400px;min-height:80px;padding:10px 12px;resize:vertical">Делаю продукты для российских банков и команд. Vibeli founder.</textarea>
+            </div>
+
+            <div class="settings-actions">
+              <button class="btn btn-ghost">Отмена</button>
+              <button class="btn btn-primary">Сохранить изменения</button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-section-head"><div class="settings-section-title">Предпочтения</div></div>
+            <div class="settings-section-sub">Тема и язык интерфейса.</div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Тема</div>
+                <div class="settings-help">Sunbaked одинаково хороша и в светлой, и тёмной.</div>
+              </div>
+              <div class="segmented" style="background:var(--cream);padding:2px;display:inline-flex;gap:2px">
+                <button class="seg-btn is-active" style="padding:6px 12px;font-size:13px;color:var(--text-primary);background:var(--bg-surface);border:1px solid var(--border-default);border-radius:calc(var(--r-sm) - 2px);box-shadow:var(--sh-1)">Light</button>
+                <button class="seg-btn" style="padding:6px 12px;font-size:13px;color:var(--text-secondary);background:transparent;border:0">Dark</button>
+                <button class="seg-btn" style="padding:6px 12px;font-size:13px;color:var(--text-secondary);background:transparent;border:0">System</button>
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Язык</div>
+                <div class="settings-help">UI язык. Чат всегда отвечает на языке промпта.</div>
+              </div>
+              <select class="input" style="max-width:200px">
+                <option>Русский</option>
+                <option>English</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

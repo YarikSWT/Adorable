@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Adorable — Mobile Home</title>
+  <link rel="stylesheet" href="../shared.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* === Mobile preview frame (375×812-ish, центрировано на десктопе для удобства просмотра) === */
+    body { background: #ddd; padding: 20px 0; min-height: 100vh; }
+    .device {
+      width: 375px;
+      margin: 0 auto;
+      background: var(--bg-page);
+      min-height: 812px;
+      border: 1px dashed var(--n-300);
+      box-shadow: var(--sh-3);
+      overflow: hidden;
+      position: relative;
+    }
+    .device .app { display: block; min-height: 812px; }
+
+    /* === Mobile top bar (replaces desktop sidebar) === */
+    .m-topbar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-default);
+      background: var(--bg-surface);
+      position: sticky; top: 0; z-index: 10;
+    }
+    .m-hamburger { width: 36px; height: 36px; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; }
+    .m-hamburger:hover { background: var(--cream); }
+    .m-logo { display: flex; align-items: center; gap: 6px; font-family: var(--font-display); font-size: 18px; font-weight: 500; color: var(--ink); }
+    .m-logo .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--coral); }
+    .m-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--coral); color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+
+    /* === Mobile main === */
+    .m-main { padding: 16px; }
+    .m-hero {
+      text-align: center;
+      padding: 24px 0 16px;
+    }
+    .m-hero .t-eyebrow { justify-content: center; margin-bottom: 14px; font-size: 9px; }
+    .m-hero-title {
+      font-family: var(--font-display);
+      font-size: 32px;
+      line-height: 1.1;
+      font-weight: 500;
+      color: var(--ink);
+      letter-spacing: -0.022em;
+      max-width: 280px;
+      margin: 0 auto;
+    }
+    .m-hero-title em { font-style: italic; color: var(--coral-deep); }
+    .m-hero-title .olive-mark { font-style: italic; color: var(--olive-deep); }
+    .m-hero-sub { margin-top: 12px; font-size: 14px; color: var(--text-secondary); max-width: 280px; margin-left: auto; margin-right: auto; }
+
+    /* === Mobile prompt card === */
+    .m-prompt {
+      margin-top: 18px;
+      position: relative;
+      background:
+        linear-gradient(var(--paper), var(--paper)),
+        radial-gradient(circle at 0% 100%, var(--coral) 0%, transparent 26%);
+      border: 1px solid transparent;
+      border-radius: 14px;
+      box-shadow: var(--sh-prompt);
+      padding: 4px;
+      overflow: hidden;
+    }
+    .m-prompt-textarea {
+      width: 100%; min-height: 70px;
+      padding: 14px 16px 6px;
+      font-size: 15px; font-weight: 300;
+      background: transparent; border: 0; outline: none; resize: none;
+      color: var(--text-primary);
+    }
+    .m-prompt-textarea::placeholder { color: var(--text-muted); }
+    .m-prompt-toolbar { display: flex; align-items: center; gap: 4px; padding: 4px 6px 8px; }
+    .m-prompt-toolbar .btn-icon { width: 30px; height: 30px; padding: 6px; color: var(--text-muted); }
+    .m-send {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--coral); color: white;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: var(--sh-coral);
+    }
+
+    /* === Mobile suggestions horizontal scroll === */
+    .m-suggestions {
+      display: flex; gap: 8px;
+      overflow-x: auto;
+      padding: 12px 16px;
+      margin: 12px -16px 0;
+      scrollbar-width: none;
+    }
+    .m-suggestions::-webkit-scrollbar { display: none; }
+    .m-suggestion {
+      flex-shrink: 0;
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px;
+      background: var(--cream);
+      border: 1px solid var(--cream-deep);
+      border-radius: var(--r-sm);
+      font-size: 13px; font-weight: 500;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    /* === Mobile recent === */
+    .m-recent-title { font-family: var(--font-display); font-size: 22px; font-weight: 500; color: var(--ink); margin-top: 32px; margin-bottom: 14px; padding: 0 4px; }
+    .m-app-list { display: flex; flex-direction: column; gap: 10px; }
+    .m-app-item {
+      display: flex; gap: 12px; align-items: center;
+      padding: 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--r-md);
+      text-decoration: none; color: inherit;
+    }
+    .m-app-logo { width: 40px; height: 40px; border-radius: var(--r-sm); background: var(--cream); display: flex; align-items: center; justify-content: center; color: var(--coral-deep); font-family: var(--font-display); font-weight: 600; font-size: 16px; flex-shrink: 0; }
+    .m-app-meta { flex: 1; min-width: 0; }
+    .m-app-name { font-size: 14px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .m-app-time { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); margin-top: 2px; letter-spacing: .06em; text-transform: uppercase; }
+
+    /* === Bottom nav (mobile only) === */
+    .m-bottom-nav {
+      position: sticky;
+      bottom: 0;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border-default);
+      padding: 8px 0 12px;
+      gap: 0;
+      margin-top: 32px;
+    }
+    .m-nav-item {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 6px;
+      font-size: 10px;
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+    .m-nav-item.is-active { color: var(--coral-deep); }
+    .m-nav-item i { width: 20px; height: 20px; }
+  </style>
+</head>
+<body>
+  <div class="device">
+    <div class="app">
+      <div class="m-topbar">
+        <button class="m-hamburger"><i data-lucide="menu" style="width:18px;height:18px"></i></button>
+        <div class="m-logo"><span class="logo-dot"></span>Adorable</div>
+        <div class="spacer"></div>
+        <div class="m-avatar">Y</div>
+      </div>
+
+      <main class="m-main">
+        <div class="m-hero">
+          <div class="t-eyebrow">Build with warmth</div>
+          <h1 class="m-hero-title">Что <em>построим</em> <span class="olive-mark">сегодня?</span></h1>
+          <p class="m-hero-sub">Опиши app — соберём прототип за минуты.</p>
+        </div>
+
+        <div class="m-prompt">
+          <textarea class="m-prompt-textarea" placeholder="Опиши приложение..."></textarea>
+          <div class="m-prompt-toolbar">
+            <button class="btn-icon"><i data-lucide="paperclip" style="width:14px;height:14px"></i></button>
+            <button class="btn-icon"><i data-lucide="image" style="width:14px;height:14px"></i></button>
+            <div class="spacer"></div>
+            <span class="t-mono" style="color:var(--text-muted);font-size:10px">opus-4-7</span>
+            <button class="m-send"><i data-lucide="arrow-up" style="width:16px;height:16px"></i></button>
+          </div>
+        </div>
+
+        <div class="m-suggestions">
+          <button class="m-suggestion"><i data-lucide="check-square" style="width:13px;height:13px"></i> Tasks</button>
+          <button class="m-suggestion"><i data-lucide="users" style="width:13px;height:13px"></i> CRM</button>
+          <button class="m-suggestion"><i data-lucide="file-text" style="width:13px;height:13px"></i> Content</button>
+          <button class="m-suggestion"><i data-lucide="dollar-sign" style="width:13px;height:13px"></i> Finance</button>
+          <button class="m-suggestion"><i data-lucide="calendar" style="width:13px;height:13px"></i> Booking</button>
+          <button class="m-suggestion">More <i data-lucide="chevron-down" style="width:13px;height:13px"></i></button>
+        </div>
+
+        <h2 class="m-recent-title">Recent</h2>
+        <div class="m-app-list">
+          <a class="m-app-item" href="#">
+            <div class="m-app-logo">С</div>
+            <div class="m-app-meta">
+              <div class="m-app-name">Сбербанк rate calculator</div>
+              <div class="m-app-time">Edited 4h ago</div>
+            </div>
+            <i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--text-muted)"></i>
+          </a>
+          <a class="m-app-item" href="#">
+            <div class="m-app-logo" style="background:var(--olive);color:white">R</div>
+            <div class="m-app-meta">
+              <div class="m-app-name">Team retro tracker</div>
+              <div class="m-app-time">2 days ago</div>
+            </div>
+            <i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--text-muted)"></i>
+          </a>
+          <a class="m-app-item" href="#">
+            <div class="m-app-logo" style="background:var(--ink);color:var(--cream)">O</div>
+            <div class="m-app-meta">
+              <div class="m-app-name">Obsidian VPN landing</div>
+              <div class="m-app-time">5h ago</div>
+            </div>
+            <i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--text-muted)"></i>
+          </a>
+        </div>
+      </main>
+
+      <nav class="m-bottom-nav">
+        <a class="m-nav-item is-active" href="#"><i data-lucide="sparkles"></i> New</a>
+        <a class="m-nav-item" href="#"><i data-lucide="folder"></i> Apps</a>
+        <a class="m-nav-item" href="#"><i data-lucide="layout-template"></i> Templates</a>
+        <a class="m-nav-item" href="#"><i data-lucide="user"></i> Me</a>
+      </nav>
+    </div>
+  </div>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

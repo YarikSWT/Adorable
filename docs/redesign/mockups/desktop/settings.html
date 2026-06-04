@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Adorable — Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,ital@9..144,400,0;9..144,500,0;9..144,500,1;9..144,600,0&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../shared.css">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+  <style>
+    /* Settings page — base44 не имеет /settings (404), используем общий SaaS pattern */
+    .main { background: var(--bg-page); padding: 32px 40px 80px; min-height: 100vh; }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 40px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* Sub-nav */
+    .sub-nav { position: sticky; top: 32px; height: fit-content; display: flex; flex-direction: column; gap: 2px; }
+    .sub-nav-title { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; padding: 8px 12px 4px; }
+    .sub-nav-item { padding: 8px 12px; border-radius: var(--r-md); font-size: 14px; color: var(--text-primary); cursor: pointer; display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .sub-nav-item:hover { background: var(--bg-muted); }
+    .sub-nav-item.is-active { background: var(--bg-muted); font-weight: 500; }
+
+    /* Content */
+    .settings-h1 { font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; letter-spacing: -0.01em; }
+    .settings-sub { font-size: 14px; color: var(--text-secondary); margin-bottom: 28px; }
+
+    .settings-section { background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--r-lg); padding: 24px 28px; margin-bottom: 16px; }
+    .settings-section-title { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+    .settings-section-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+
+    .settings-row { display: grid; grid-template-columns: 160px 1fr; gap: 24px; padding: 14px 0; border-top: 1px solid var(--border-default); align-items: center; }
+    .settings-row:first-of-type { border-top: 0; padding-top: 0; }
+    .settings-label { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+    .settings-help { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    .avatar-row { display: flex; align-items: center; gap: 16px; }
+    .avatar-big { width: 56px; height: 56px; border-radius: 50%; background: var(--brand); color: white; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 600; }
+
+    .settings-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-default); }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- SIDEBAR (consistent with other pages) -->
+    <aside class="sidebar">
+      <div class="sb-header">
+        <a class="sb-logo" href="/">
+          <span class="sb-logo-mark">
+            <svg width="28" height="22" viewBox="0 0 28 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <line x1="6" y1="3" x2="22" y2="3" stroke="#FF631F" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="4" y1="7" x2="24" y2="7" stroke="#FF631F" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M3 21 A11 11 0 0 1 25 21 Z" fill="#FF631F"/>
+            </svg>
+          </span>
+        </a>
+        <button class="sb-icon-btn"><i data-lucide="search" width="18" height="18"></i></button>
+        <button class="sb-icon-btn"><i data-lucide="panel-left" width="18" height="18"></i></button>
+      </div>
+      <button class="sb-workspace">
+        <span class="sb-workspace-badge">Yw</span>
+        <span class="sb-workspace-name">Yaroslav's Workspace</span>
+        <span class="sb-workspace-chev"><i data-lucide="chevrons-up-down" width="14" height="14"></i></span>
+      </button>
+      <div class="sb-cards">
+        <a href="#" class="sb-card"><i data-lucide="layout-grid" width="16" height="16"></i> Apps</a>
+        <a href="#" class="sb-card"><i data-lucide="briefcase" width="16" height="16"></i> Superagents</a>
+      </div>
+      <nav class="sb-nav">
+        <a href="/" class="sb-item"><i data-lucide="home" width="16" height="16"></i> Home</a>
+        <a href="/apps" class="sb-item"><i data-lucide="grid-3x3" width="16" height="16"></i> All apps</a>
+        <a href="/templates" class="sb-item"><i data-lucide="layout" width="16" height="16"></i> Templates</a>
+        <a href="/integrations" class="sb-item"><i data-lucide="plug" width="16" height="16"></i> Integrations</a>
+        <a href="/settings" class="sb-item is-active"><i data-lucide="settings" width="16" height="16"></i> Settings</a>
+      </nav>
+      <a href="/billing" class="sb-upgrade">
+        <div style="flex:1">
+          <div class="sb-upgrade-title">Upgrade your plan</div>
+          <div class="sb-upgrade-sub">Get more out of your apps</div>
+        </div>
+        <i data-lucide="gem" width="16" height="16" class="sb-upgrade-icon"></i>
+      </a>
+      <div class="sb-bottom">
+        <div class="sb-avatar">Y</div>
+        <button class="sb-icon-btn"><i data-lucide="message-circle" width="16" height="16"></i></button>
+        <button class="sb-icon-btn"><i data-lucide="gift" width="16" height="16"></i></button>
+        <button class="sb-icon-btn has-dot"><i data-lucide="bell" width="16" height="16"></i></button>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+      <div class="settings-grid">
+
+        <nav class="sub-nav">
+          <div class="sub-nav-title">Personal</div>
+          <a class="sub-nav-item is-active"><i data-lucide="user" width="14" height="14"></i> Profile</a>
+          <a class="sub-nav-item"><i data-lucide="shield" width="14" height="14"></i> Account &amp; security</a>
+          <a class="sub-nav-item"><i data-lucide="bell" width="14" height="14"></i> Notifications</a>
+          <a class="sub-nav-item"><i data-lucide="key" width="14" height="14"></i> API keys</a>
+
+          <div class="sub-nav-title" style="margin-top:8px">Workspace</div>
+          <a class="sub-nav-item"><i data-lucide="users" width="14" height="14"></i> Members</a>
+          <a class="sub-nav-item"><i data-lucide="credit-card" width="14" height="14"></i> Billing</a>
+          <a class="sub-nav-item"><i data-lucide="plug" width="14" height="14"></i> Integrations</a>
+        </nav>
+
+        <div>
+          <h1 class="settings-h1">Profile</h1>
+          <p class="settings-sub">Так тебя видят коллеги и community.</p>
+
+          <div class="settings-section">
+            <div class="settings-section-title">Аватар и имя</div>
+            <div class="settings-section-sub">Отображаются в комментариях, app cards, public profile.</div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Аватар</div>
+                <div class="settings-help">PNG / JPG, до 2 MB.</div>
+              </div>
+              <div class="avatar-row">
+                <div class="avatar-big">Y</div>
+                <button class="btn btn-secondary btn-small"><i data-lucide="upload" width="13" height="13"></i> Upload</button>
+                <button class="btn btn-ghost btn-small" style="color: var(--danger)">Remove</button>
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Имя</div>
+                <div class="settings-help">Видят все.</div>
+              </div>
+              <input class="input" value="Yaroslav Y." style="max-width: 360px">
+            </div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Username</div>
+                <div class="settings-help">Будет в URL workspace.</div>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px; max-width:360px">
+                <span style="font-family:var(--font-mono); font-size:13px; color: var(--text-secondary)">adorable.app/u/</span>
+                <input class="input" value="yaroslav" style="flex:1">
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Email</div>
+                <div class="settings-help">Используется для входа и уведомлений.</div>
+              </div>
+              <input class="input" value="yaroyudini@gmail.com" style="max-width: 360px" readonly>
+            </div>
+
+            <div class="settings-actions">
+              <button class="btn btn-ghost">Отмена</button>
+              <button class="btn btn-primary">Сохранить</button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-section-title">Предпочтения</div>
+            <div class="settings-section-sub">Тема и язык интерфейса.</div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Тема</div>
+                <div class="settings-help">Светлая / тёмная / системная.</div>
+              </div>
+              <div style="display:inline-flex; background: var(--bg-muted); padding:3px; border-radius: var(--r-md); gap:2px;">
+                <button style="padding:5px 12px; font-size:13px; background: var(--bg-surface); color: var(--text-primary); border-radius: 5px; box-shadow: var(--sh-sm); font-weight: 500;">Light</button>
+                <button style="padding:5px 12px; font-size:13px; color: var(--text-secondary); background: transparent; border-radius: 5px;">Dark</button>
+                <button style="padding:5px 12px; font-size:13px; color: var(--text-secondary); background: transparent; border-radius: 5px;">System</button>
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Язык</div>
+                <div class="settings-help">UI язык. Чат отвечает на языке промпта.</div>
+              </div>
+              <select class="input" style="max-width: 200px">
+                <option>Русский</option>
+                <option>English</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+    else window.addEventListener('load', () => lucide && lucide.createIcons && lucide.createIcons());
+  </script>
+</body>
+</html>

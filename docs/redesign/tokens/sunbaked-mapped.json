@@ -1,0 +1,78 @@
+{
+  "_meta": {
+    "generated": "2026-06-03",
+    "source": "tokens/raw/01-home.json + design-system-C1-sunbaked.html",
+    "framework_origin": "base44 = Tailwind v3 + shadcn/ui + WixMadeforText + brand orange #FF631F",
+    "framework_target": "stack-agnostic CSS vars; Tailwind v4 @theme as bonus; DTCG as future-proof"
+  },
+  "semantic": {
+    "color": {
+      "bg-page":           { "base44": "#FFFFFF (--background)",                  "sunbaked": "#FBF7EC", "var": "--paper" },
+      "bg-surface":        { "base44": "#FFFFFF (--card)",                        "sunbaked": "#FBF7EC", "var": "--paper" },
+      "bg-surface-alt":    { "base44": "#FAFAFA (--sidebar-background)",          "sunbaked": "#F0E8D2", "var": "--n-100" },
+      "bg-surface-warm":   { "base44": "#FBFAF7 (upgrade-card bg)",               "sunbaked": "#F3EBD7", "var": "--cream" },
+      "bg-elevated":       { "base44": "#FFFFFF (--popover)",                     "sunbaked": "#FBF7EC", "var": "--paper" },
+      "bg-muted":          { "base44": "#F4F4F5 (--muted hsl(240 4.8% 95.9%))",   "sunbaked": "#F0E8D2", "var": "--n-100" },
+      "bg-accent":         { "base44": "#F4F4F5 (--accent)",                      "sunbaked": "#E5D9BB", "var": "--cream-deep" },
+      "bg-workspace":      { "base44": "#F0E8DB (--workspace-badge)",             "sunbaked": "#E5D9BB", "var": "--cream-deep" },
+      "border-default":    { "base44": "#E4E4E7 (--border zinc-200)",             "sunbaked": "#E5D9BB", "var": "--cream-deep" },
+      "border-strong":     { "base44": "#D4D4D4 (neutral-300)",                   "sunbaked": "#DDD2B5", "var": "--n-200" },
+      "border-muted":      { "base44": "#E5E5E5 (used in toggle)",                "sunbaked": "#E5D9BB", "var": "--cream-deep" },
+      "text-primary":      { "base44": "#09090B (--foreground zinc-950)",         "sunbaked": "#2A2419", "var": "--ink" },
+      "text-primary-warm": { "base44": "#0C0A09 (stone-950)",                     "sunbaked": "#2A2419", "var": "--ink" },
+      "text-secondary":    { "base44": "#71717A (--muted-foreground zinc-500)",   "sunbaked": "#5C5240", "var": "--n-500" },
+      "text-muted":        { "base44": "#A8A29E (stone-400)",                     "sunbaked": "#8B7F62", "var": "--n-400" },
+      "text-inverse":      { "base44": "#FAFAFA (button text on dark bg)",        "sunbaked": "#F3EBD7", "var": "--cream" },
+      "action-primary":    { "base44": "#18181B (--primary zinc-900 — dark btn)", "sunbaked": "#2A2419", "var": "--ink" },
+      "action-primary-hover": { "base44": "(zinc-800)",                           "sunbaked": "#3A3327", "var": "--ink-2" },
+      "action-brand":      { "base44": "#FF631F (orange — used in prompt-card glow & implied send-active)", "sunbaked": "#E84E2F", "var": "--coral" },
+      "action-brand-hover":   { "base44": "#F54A00 (deeper orange)",              "sunbaked": "#B83A1F", "var": "--coral-deep" },
+      "action-brand-soft":    { "base44": "—",                                    "sunbaked": "#F47A5E", "var": "--coral-soft" },
+      "action-secondary":  { "base44": "(neutral grays — нет дедикейтед secondary brand)", "sunbaked": "#6B7C3E", "var": "--olive", "_note": "Sunbaked даёт olive как secondary-brand, base44 этого не имеет — наш бонус" },
+      "action-ghost-hover":{ "base44": "#FAFAFA (zinc-50)",                       "sunbaked": "#F3EBD7", "var": "--cream" },
+      "focus-ring":        { "base44": "rgba(59,130,246,0.5) (Tailwind blue)",    "sunbaked": "rgba(232,78,47,.15)", "var": "rgb(232 78 47 / .15) shadow ring" },
+      "success":           { "base44": "(не выделен — implied green)",            "sunbaked": "#5C7C3E", "var": "--success" },
+      "warning":           { "base44": "#FEF3C7 bg / #92400E text (amber)",       "sunbaked": "#C77A1E", "var": "--warning" },
+      "danger":            { "base44": "#EF4444 (--destructive)",                 "sunbaked": "#C7392E", "var": "--danger" },
+      "info":              { "base44": "(не выделен)",                            "sunbaked": "#4A6B8A", "var": "--info" }
+    },
+    "gradient": {
+      "prompt-glow":       { "base44": "linear-gradient(#fff,#fff), radial-gradient(circle at 0% 100%, #FF6B21 0%, transparent 21%)", "sunbaked": "linear-gradient(var(--paper), var(--paper)), radial-gradient(circle at 0% 100%, var(--coral) 0%, transparent 21%)", "_note": "Брендовый glow под prompt-card. Адаптирован 1:1 — coral на месте orange." },
+      "hero-backdrop":     { "base44": "(нет — clean bg)",                                                                            "sunbaked": "radial-gradient(ellipse at 90% 0%, var(--cream) 0%, transparent 55%), var(--paper)", "_note": "Дополнение из sunbaked design-system hero — добавляем для гламура на главной" },
+      "app-card-preview":  { "base44": "(использует превью app-screenshot)",                                                          "sunbaked": "linear-gradient(135deg, var(--cream), var(--cream-deep))", "_note": "Fallback для app-card когда нет thumbnail" },
+      "cta-glow":          { "base44": "(нет)",                                                                                       "sunbaked": "linear-gradient(135deg, var(--coral), var(--coral-deep))", "_note": "Дополнительный градиент для featured CTA / plan-card highlights" }
+    },
+    "typography": {
+      "font-display":      { "base44": "(нет — sans-only)",                       "sunbaked": "'Fraunces', Georgia, serif",                     "var": "--font-display", "_note": "Наш display serif — добавляем для hero, plan-prices, accent" },
+      "font-sans":         { "base44": "WixMadeforText, system-ui, sans-serif",   "sunbaked": "'Geist', -apple-system, sans-serif",             "var": "--font-sans" },
+      "font-mono":         { "base44": "ui-monospace (system mono)",              "sunbaked": "'Geist Mono', ui-monospace, monospace",          "var": "--font-mono" }
+    },
+    "radius": {
+      "sm":                { "base44": "6px (button)",                            "sunbaked": "6px",  "var": "--r-sm" },
+      "md":                { "base44": "8px (--radius .5rem — default)",          "sunbaked": "10px", "var": "--r-md", "_note": "Наш чуть крупнее для warm-friendly feel" },
+      "lg":                { "base44": "14px (prompt-card)",                      "sunbaked": "16px", "var": "--r-lg" },
+      "xl":                { "base44": "(не выделен)",                            "sunbaked": "24px", "var": "--r-xl" },
+      "pill":              { "base44": "9999px",                                  "sunbaked": "9999px" }
+    },
+    "shadow": {
+      "sh-1":              { "base44": "shadow-sm: 0 1px 2px rgba(0,0,0,.05)",            "sunbaked": "0 1px 2px rgba(42,36,25,.05), 0 1px 1px rgba(42,36,25,.04)", "var": "--sh-1" },
+      "sh-2":              { "base44": "(не выделен в audit, но shadow-md predict)",      "sunbaked": "0 4px 14px rgba(42,36,25,.07), 0 2px 4px rgba(42,36,25,.04)", "var": "--sh-2" },
+      "sh-3":              { "base44": "shadow-lg: 0 10px 15px -3px rgba(0,0,0,.1) + 0 4px 6px -4px", "sunbaked": "0 16px 40px rgba(42,36,25,.12)",              "var": "--sh-3" },
+      "sh-coral":          { "base44": "(нет)",                                           "sunbaked": "0 8px 24px rgba(232,78,47,.22)",                              "var": "--sh-coral", "_note": "Coral brand glow для primary CTAs" },
+      "sh-prompt":         { "base44": "0 16px 30px rgba(0,0,0,.04)",                     "sunbaked": "0 16px 30px rgba(42,36,25,.05)",                              "_note": "Specific для prompt-card — soft warm shadow" }
+    },
+    "spacing": {
+      "_note": "Base44 использует стандартный Tailwind spacing scale (4px base). Sunbaked также 4px base. Прямой перенос без маппинга — используй те же значения (px-2 = 8px, px-3 = 12px, etc.)",
+      "primary_paddings_observed": ["8px", "12px", "16px", "24px"],
+      "primary_gaps_observed": ["4px", "6px", "8px", "12px"]
+    },
+    "breakpoints": {
+      "_note": "Base44 использует Wix-custom + стандартные. Берём reasonable подмножество.",
+      "sm":  "640px",
+      "md":  "768px",
+      "lg":  "1024px",
+      "xl":  "1280px",
+      "2xl": "1536px"
+    }
+  }
+}

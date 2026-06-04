@@ -1,0 +1,87 @@
+{
+  "$description": "Adorable × Sunbaked tokens in DTCG (Design Tokens Community Group) format. Drop into Style Dictionary / Tokens Studio / любую DTCG-compatible pipeline.",
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "color": {
+    "brand": {
+      "coral":       { "$value": "#E84E2F", "$type": "color", "$description": "Primary brand — coral lineage" },
+      "coral-soft":  { "$value": "#F47A5E", "$type": "color" },
+      "coral-deep":  { "$value": "#B83A1F", "$type": "color" },
+      "olive":       { "$value": "#6B7C3E", "$type": "color", "$description": "Secondary brand — olive lineage" },
+      "olive-soft":  { "$value": "#8A9E5C", "$type": "color" },
+      "olive-deep":  { "$value": "#4A5829", "$type": "color" }
+    },
+    "neutral": {
+      "paper":       { "$value": "#FBF7EC", "$type": "color", "$description": "Warm page background — main canvas" },
+      "cream":       { "$value": "#F3EBD7", "$type": "color" },
+      "cream-deep":  { "$value": "#E5D9BB", "$type": "color" },
+      "ink":         { "$value": "#2A2419", "$type": "color", "$description": "Warm dark — primary text & headings" },
+      "ink-2":       { "$value": "#3A3327", "$type": "color" },
+      "n-100":       { "$value": "#F0E8D2", "$type": "color" },
+      "n-200":       { "$value": "#DDD2B5", "$type": "color" },
+      "n-300":       { "$value": "#BFB290", "$type": "color" },
+      "n-400":       { "$value": "#8B7F62", "$type": "color" },
+      "n-500":       { "$value": "#5C5240", "$type": "color" },
+      "n-700":       { "$value": "#3D3527", "$type": "color" }
+    },
+    "semantic": {
+      "success":     { "$value": "#5C7C3E", "$type": "color" },
+      "warning":     { "$value": "#C77A1E", "$type": "color" },
+      "danger":      { "$value": "#C7392E", "$type": "color" },
+      "info":        { "$value": "#4A6B8A", "$type": "color" }
+    },
+    "alias": {
+      "bg-page":         { "$value": "{color.neutral.paper}",       "$type": "color" },
+      "bg-surface":      { "$value": "{color.neutral.paper}",       "$type": "color" },
+      "bg-surface-alt":  { "$value": "{color.neutral.n-100}",       "$type": "color" },
+      "bg-surface-warm": { "$value": "{color.neutral.cream}",       "$type": "color" },
+      "border-default":  { "$value": "{color.neutral.cream-deep}",  "$type": "color" },
+      "text-primary":    { "$value": "{color.neutral.ink}",         "$type": "color" },
+      "text-secondary":  { "$value": "{color.neutral.n-500}",       "$type": "color" },
+      "text-muted":      { "$value": "{color.neutral.n-400}",       "$type": "color" },
+      "text-inverse":    { "$value": "{color.neutral.cream}",       "$type": "color" },
+      "action-primary":  { "$value": "{color.neutral.ink}",         "$type": "color" },
+      "action-brand":    { "$value": "{color.brand.coral}",         "$type": "color" }
+    }
+  },
+  "font": {
+    "family": {
+      "display":     { "$value": "Fraunces, Georgia, serif",           "$type": "fontFamily" },
+      "sans":        { "$value": "Geist, -apple-system, sans-serif",   "$type": "fontFamily" },
+      "mono":        { "$value": "Geist Mono, ui-monospace, monospace","$type": "fontFamily" }
+    },
+    "weight": {
+      "light":       { "$value": 300, "$type": "fontWeight" },
+      "regular":     { "$value": 400, "$type": "fontWeight" },
+      "medium":      { "$value": 500, "$type": "fontWeight" },
+      "semibold":    { "$value": 600, "$type": "fontWeight" },
+      "bold":        { "$value": 700, "$type": "fontWeight" }
+    },
+    "size": {
+      "xs":          { "$value": "11px", "$type": "dimension" },
+      "sm":          { "$value": "13px", "$type": "dimension" },
+      "base":        { "$value": "15px", "$type": "dimension" },
+      "md":          { "$value": "16px", "$type": "dimension" },
+      "lg":          { "$value": "18px", "$type": "dimension" },
+      "xl":          { "$value": "22px", "$type": "dimension" },
+      "2xl":         { "$value": "26px", "$type": "dimension" },
+      "3xl":         { "$value": "38px", "$type": "dimension" },
+      "4xl":         { "$value": "56px", "$type": "dimension" },
+      "5xl":         { "$value": "72px", "$type": "dimension" },
+      "6xl":         { "$value": "96px", "$type": "dimension" }
+    }
+  },
+  "radius": {
+    "sm":            { "$value": "6px",   "$type": "dimension" },
+    "md":            { "$value": "10px",  "$type": "dimension" },
+    "lg":            { "$value": "16px",  "$type": "dimension" },
+    "xl":            { "$value": "24px",  "$type": "dimension" },
+    "pill":          { "$value": "9999px","$type": "dimension" }
+  },
+  "shadow": {
+    "sh-1":          { "$value": "0 1px 2px rgba(42,36,25,.05), 0 1px 1px rgba(42,36,25,.04)",  "$type": "shadow" },
+    "sh-2":          { "$value": "0 4px 14px rgba(42,36,25,.07), 0 2px 4px rgba(42,36,25,.04)", "$type": "shadow" },
+    "sh-3":          { "$value": "0 16px 40px rgba(42,36,25,.12)",                              "$type": "shadow" },
+    "sh-coral":      { "$value": "0 8px 24px rgba(232,78,47,.22)",                              "$type": "shadow" },
+    "sh-prompt":     { "$value": "0 16px 30px rgba(42,36,25,.05)",                              "$type": "shadow" }
+  }
+}

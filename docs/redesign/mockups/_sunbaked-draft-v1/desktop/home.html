@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Adorable — что построим сегодня?</title>
+  <link rel="stylesheet" href="../shared.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* === Home-specific === */
+    .home-hero {
+      max-width: 720px;
+      margin: 60px auto 24px;
+      text-align: center;
+    }
+    .home-hero-eyebrow { justify-content: center; margin-bottom: 18px; }
+    .home-hero-title {
+      font-size: clamp(36px, 5vw, 52px);
+      line-height: 1.05; max-width: 600px;
+      margin: 0 auto;
+    }
+    .home-hero-sub {
+      margin-top: 14px;
+      color: var(--text-secondary);
+      font-size: 15px;
+      max-width: 480px;
+      margin-left: auto; margin-right: auto;
+    }
+
+    /* === Prompt card with brand glow === */
+    .prompt-card {
+      position: relative;
+      max-width: 760px;
+      margin: 0 auto;
+      background:
+        linear-gradient(var(--paper), var(--paper)),
+        radial-gradient(circle at 0% 100%, var(--coral) 0%, transparent 24%);
+      border: 1px solid transparent;
+      border-radius: 14px;
+      box-shadow: var(--sh-prompt);
+      padding: 4px;
+      overflow: hidden;
+    }
+    .prompt-textarea {
+      width: 100%;
+      min-height: 90px;
+      padding: 16px 20px 8px;
+      font-family: var(--font-sans);
+      font-size: 16px;
+      font-weight: 300;
+      line-height: 1.5;
+      background: transparent;
+      border: 0;
+      outline: none;
+      resize: none;
+      color: var(--text-primary);
+    }
+    .prompt-textarea::placeholder { color: var(--text-muted); font-weight: 300; }
+    .prompt-toolbar {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 8px 8px;
+    }
+    .prompt-toolbar .btn-icon { width: 32px; height: 32px; padding: 7px; color: var(--text-muted); }
+    .prompt-toolbar .btn-icon:hover { color: var(--text-primary); }
+    .prompt-model {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 0 6px;
+    }
+    .prompt-send {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--coral);
+      color: white;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: var(--sh-coral);
+    }
+    .prompt-send:hover { background: var(--coral-deep); }
+
+    /* === Suggestions === */
+    .suggestions {
+      max-width: 760px;
+      margin: 20px auto 0;
+      display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+    }
+    .suggestion {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px;
+      background: var(--cream);
+      border: 1px solid var(--cream-deep);
+      border-radius: var(--r-sm);
+      font-size: 13px; font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .suggestion:hover {
+      background: var(--bg-surface);
+      color: var(--coral-deep);
+      border-color: var(--coral);
+      box-shadow: var(--sh-1);
+    }
+
+    /* === Recent section === */
+    .recent-section { max-width: 1100px; margin: 60px auto 0; }
+    .recent-tabs {
+      display: flex; align-items: center; gap: 4px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-default);
+    }
+    .recent-tab {
+      padding: 10px 14px;
+      font-size: 14px; font-weight: 500;
+      color: var(--text-secondary);
+      background: transparent;
+      border-bottom: 2px solid transparent;
+      position: relative; top: 1px;
+    }
+    .recent-tab.is-active {
+      color: var(--coral-deep);
+      border-bottom-color: var(--coral);
+    }
+    .recent-tab:hover:not(.is-active) { color: var(--text-primary); }
+    .recent-view-all { margin-left: auto; padding-bottom: 8px; color: var(--text-muted); font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
+    .recent-view-all:hover { color: var(--coral-deep); }
+
+    .recent-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .app-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--r-md);
+      overflow: hidden;
+      cursor: pointer;
+      transition: box-shadow .2s, transform .2s;
+      text-decoration: none;
+      color: inherit;
+    }
+    .app-card:hover { box-shadow: var(--sh-2); transform: translateY(-2px); }
+    .app-card-preview {
+      aspect-ratio: 16/9;
+      background: var(--gradient-app-card-preview);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--olive-deep); font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+    }
+    .app-card-preview-1 { background: linear-gradient(135deg, var(--ink), var(--ink-2)); color: var(--coral-soft); }
+    .app-card-preview-2 { background: linear-gradient(135deg, var(--cream), var(--cream-deep)); color: var(--olive-deep); }
+    .app-card-preview-3 { background: linear-gradient(135deg, var(--olive), var(--olive-deep)); color: var(--cream); }
+    .app-card-body { padding: 16px 20px 18px; }
+    .app-card-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+    .app-card-title { font-size: 17px; font-weight: 600; color: var(--ink); line-height: 1.3; flex: 1; }
+    .app-card-actions { display: flex; gap: 2px; color: var(--text-muted); }
+    .app-card-actions .btn-icon { width: 28px; height: 28px; padding: 6px; }
+    .app-card-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 14px;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .app-card-meta {
+      display: flex; justify-content: space-between;
+      font-family: var(--font-mono); font-size: 10px;
+      color: var(--text-muted); letter-spacing: .06em; text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-logo"><span class="logo-dot"></span>Adorable</div>
+      <button class="workspace-switcher">
+        <span class="workspace-avatar">YA</span>
+        <span class="workspace-name">Yaroslav's Workspace</span>
+        <i data-lucide="chevrons-up-down" style="width:14px;height:14px;color:var(--text-muted)"></i>
+      </button>
+
+      <div class="sidebar-section">
+        <a class="sidebar-item is-active" href="/"><i data-lucide="sparkles" class="sidebar-item-icon"></i> New app</a>
+        <a class="sidebar-item" href="/apps"><i data-lucide="folder" class="sidebar-item-icon"></i> My apps</a>
+        <a class="sidebar-item" href="/templates"><i data-lucide="layout-template" class="sidebar-item-icon"></i> Templates</a>
+        <a class="sidebar-item" href="/integrations"><i data-lucide="plug" class="sidebar-item-icon"></i> Integrations</a>
+        <a class="sidebar-item" href="/community"><i data-lucide="users" class="sidebar-item-icon"></i> Community</a>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Recents</div>
+        <a class="sidebar-item" href="#"><i data-lucide="file" class="sidebar-item-icon"></i> Сбербанк rate calculator</a>
+        <a class="sidebar-item" href="#"><i data-lucide="file" class="sidebar-item-icon"></i> Team retro tracker</a>
+        <a class="sidebar-item" href="#"><i data-lucide="file" class="sidebar-item-icon"></i> Obsidian VPN landing</a>
+        <a class="sidebar-item" href="/apps" style="color:var(--text-muted);font-size:12px;">View all →</a>
+      </div>
+
+      <a class="upgrade-card" href="/billing">
+        <div style="flex:1">
+          <div class="upgrade-card-title">Upgrade your plan</div>
+          <div class="upgrade-card-sub">Unlock unlimited apps</div>
+        </div>
+        <i data-lucide="chevron-right" style="width:14px;height:14px;color:var(--coral)"></i>
+      </a>
+
+      <div class="user-strip">
+        <div class="user-avatar">Y</div>
+        <button class="btn-icon"><i data-lucide="message-circle" style="color:var(--text-muted)"></i></button>
+        <button class="btn-icon"><i data-lucide="gift" style="color:var(--text-muted)"></i></button>
+        <button class="btn-icon" style="margin-left:auto"><i data-lucide="more-horizontal" style="color:var(--text-muted)"></i></button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="top-bar">
+        <div class="spacer"></div>
+        <button class="btn btn-ghost btn-small"><i data-lucide="github" style="width:14px;height:14px"></i> Star on GitHub</button>
+        <button class="btn btn-secondary btn-small"><i data-lucide="bell" style="width:14px;height:14px"></i></button>
+      </div>
+
+      <div class="home-hero">
+        <div class="t-eyebrow home-hero-eyebrow">Build with warmth</div>
+        <h1 class="t-display-l home-hero-title">Что <em>построим</em> <span class="olive-mark">сегодня?</span></h1>
+        <p class="home-hero-sub">Опиши приложение — Adorable соберёт прототип за минуты.</p>
+      </div>
+
+      <div class="prompt-card">
+        <textarea class="prompt-textarea" placeholder="Опиши app, который хочешь создать..."></textarea>
+        <div class="prompt-toolbar">
+          <button class="btn-icon"><i data-lucide="paperclip"></i></button>
+          <button class="btn-icon"><i data-lucide="image"></i></button>
+          <button class="btn-icon"><i data-lucide="plug" style="width:14px;height:14px"></i></button>
+          <div class="spacer"></div>
+          <span class="prompt-model">claude-opus-4-7</span>
+          <button class="prompt-send"><i data-lucide="arrow-up" style="width:18px;height:18px"></i></button>
+        </div>
+      </div>
+
+      <div class="suggestions">
+        <button class="suggestion"><i data-lucide="check-square" style="width:14px;height:14px"></i> Tasks & Workflows</button>
+        <button class="suggestion"><i data-lucide="users" style="width:14px;height:14px"></i> CRM & Sales</button>
+        <button class="suggestion"><i data-lucide="file-text" style="width:14px;height:14px"></i> Content & Sites</button>
+        <button class="suggestion"><i data-lucide="dollar-sign" style="width:14px;height:14px"></i> Finance</button>
+        <button class="suggestion"><i data-lucide="calendar" style="width:14px;height:14px"></i> Booking</button>
+        <button class="suggestion">More <i data-lucide="chevron-down" style="width:14px;height:14px"></i></button>
+      </div>
+
+      <section class="recent-section">
+        <div class="recent-tabs">
+          <button class="recent-tab is-active">Recent apps</button>
+          <button class="recent-tab">Templates</button>
+          <a class="recent-view-all" href="/apps">View all <i data-lucide="arrow-right" style="width:12px;height:12px"></i></a>
+        </div>
+        <div class="recent-grid">
+          <a class="app-card" href="#">
+            <div class="app-card-preview app-card-preview-1">screenshot</div>
+            <div class="app-card-body">
+              <div class="app-card-head">
+                <div class="app-card-title">Сбербанк rate calculator</div>
+                <div class="app-card-actions">
+                  <button class="btn-icon"><i data-lucide="heart" style="width:14px;height:14px"></i></button>
+                  <button class="btn-icon"><i data-lucide="more-horizontal" style="width:14px;height:14px"></i></button>
+                </div>
+              </div>
+              <div class="app-card-desc">Калькулятор ставок по ипотеке и кредитам для розничного банка. Сравнение тарифов в реальном времени.</div>
+              <div class="app-card-meta">
+                <span>By you</span>
+                <span>Edited 4h ago</span>
+              </div>
+            </div>
+          </a>
+          <a class="app-card" href="#">
+            <div class="app-card-preview app-card-preview-2">no preview</div>
+            <div class="app-card-body">
+              <div class="app-card-head">
+                <div class="app-card-title">Team retro tracker</div>
+                <div class="app-card-actions">
+                  <button class="btn-icon"><i data-lucide="heart" style="width:14px;height:14px;color:var(--coral)" fill="currentColor"></i></button>
+                  <button class="btn-icon"><i data-lucide="more-horizontal" style="width:14px;height:14px"></i></button>
+                </div>
+              </div>
+              <div class="app-card-desc">Доска для еженедельного retro команды — что заработало, что сломалось, что попробовать.</div>
+              <div class="app-card-meta">
+                <span>By you</span>
+                <span>2 days ago</span>
+              </div>
+            </div>
+          </a>
+          <a class="app-card" href="#">
+            <div class="app-card-preview app-card-preview-3">screenshot</div>
+            <div class="app-card-body">
+              <div class="app-card-head">
+                <div class="app-card-title">Obsidian VPN landing</div>
+                <div class="app-card-actions">
+                  <button class="btn-icon"><i data-lucide="heart" style="width:14px;height:14px"></i></button>
+                  <button class="btn-icon"><i data-lucide="more-horizontal" style="width:14px;height:14px"></i></button>
+                </div>
+              </div>
+              <div class="app-card-desc">Лендинг VPN-сервиса с editorial typography и брутальной чёрной палитрой.</div>
+              <div class="app-card-meta">
+                <span>By you</span>
+                <span>5h ago</span>
+              </div>
+            </div>
+          </a>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+/*
+ * Adorable × Sunbaked — drop-in CSS variables
+ * Generated from sunbaked-mapped.json + design-system-C1-sunbaked.html
+ * 2026-06-03
+ *
+ * Import: @import url('path/to/tokens.css');
+ * Use:    color: var(--text-primary); background: var(--bg-page);
+ */
+
+:root {
+  /* === Brand — coral lineage === */
+  --coral:        #E84E2F;
+  --coral-soft:   #F47A5E;
+  --coral-deep:   #B83A1F;
+
+  /* === Brand — olive lineage (наш secondary brand, base44 этого не имеет) === */
+  --olive:        #6B7C3E;
+  --olive-soft:   #8A9E5C;
+  --olive-deep:   #4A5829;
+
+  /* === Cream + warm ink === */
+  --cream:        #F3EBD7;
+  --cream-deep:   #E5D9BB;
+  --ink:          #2A2419;
+  --ink-2:        #3A3327;
+
+  /* === Paper (page background) + neutral scale === */
+  --paper:        #FBF7EC;
+  --n-100:        #F0E8D2;
+  --n-200:        #DDD2B5;
+  --n-300:        #BFB290;
+  --n-400:        #8B7F62;
+  --n-500:        #5C5240;
+  --n-700:        #3D3527;
+  --n-900:        var(--ink);
+
+  /* === Semantic colors === */
+  --success:      #5C7C3E;
+  --warning:      #C77A1E;
+  --danger:       #C7392E;
+  --info:         #4A6B8A;
+
+  /* === Typography === */
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-sans:    'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono:    'Geist Mono', ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace;
+
+  /* === Radius scale === */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+  --r-pill: 9999px;
+
+  /* === Shadow scale === */
+  --sh-1:      0 1px 2px rgba(42, 36, 25, .05), 0 1px 1px rgba(42, 36, 25, .04);
+  --sh-2:      0 4px 14px rgba(42, 36, 25, .07), 0 2px 4px rgba(42, 36, 25, .04);
+  --sh-3:      0 16px 40px rgba(42, 36, 25, .12);
+  --sh-coral:  0 8px 24px rgba(232, 78, 47, .22);
+  --sh-prompt: 0 16px 30px rgba(42, 36, 25, .05);
+
+  /* === Semantic aliases (используются приложением напрямую) === */
+  --bg-page:           var(--paper);
+  --bg-surface:        var(--paper);
+  --bg-surface-alt:    var(--n-100);
+  --bg-surface-warm:   var(--cream);
+  --bg-elevated:       var(--paper);
+  --bg-muted:          var(--n-100);
+  --bg-accent:         var(--cream-deep);
+  --bg-workspace:      var(--cream-deep);
+
+  --border-default:    var(--cream-deep);
+  --border-strong:     var(--n-200);
+  --border-muted:      var(--cream-deep);
+
+  --text-primary:      var(--ink);
+  --text-secondary:    var(--n-500);
+  --text-muted:        var(--n-400);
+  --text-inverse:      var(--cream);
+
+  --action-primary:        var(--ink);
+  --action-primary-hover:  var(--ink-2);
+  --action-brand:          var(--coral);
+  --action-brand-hover:    var(--coral-deep);
+  --action-brand-soft:     var(--coral-soft);
+  --action-secondary:      var(--olive);
+  --action-ghost-hover:    var(--cream);
+
+  --focus-ring:        0 0 0 3px rgba(232, 78, 47, .15);
+
+  /* === Brand gradients === */
+  --gradient-prompt-glow:
+    linear-gradient(var(--paper), var(--paper)),
+    radial-gradient(circle at 0% 100%, var(--coral) 0%, transparent 21%);
+
+  --gradient-hero-backdrop:
+    radial-gradient(ellipse at 90% 0%, var(--cream) 0%, transparent 55%),
+    var(--paper);
+
+  --gradient-app-card-preview:
+    linear-gradient(135deg, var(--cream), var(--cream-deep));
+
+  --gradient-cta-glow:
+    linear-gradient(135deg, var(--coral), var(--coral-deep));
+}
+
+/* === Reset (можно убрать если уже есть в проекте) === */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection { background: var(--coral); color: white; }

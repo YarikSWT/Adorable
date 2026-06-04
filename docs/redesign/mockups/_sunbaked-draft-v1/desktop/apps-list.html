@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Adorable — My apps</title>
+  <link rel="stylesheet" href="../shared.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    .apps-header { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
+    .apps-title { font-family: var(--font-display); font-size: 44px; font-weight: 500; color: var(--ink); letter-spacing: -0.018em; }
+    .apps-controls { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+    .filter-btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; height: 36px; border: 1px solid var(--border-default); background: var(--bg-surface); color: var(--text-primary); font-size: 13px; font-weight: 500; border-radius: var(--r-sm); }
+    .filter-btn:hover { background: var(--cream); }
+    .segmented { display: inline-flex; background: var(--cream); border-radius: var(--r-sm); padding: 2px; gap: 2px; }
+    .seg-btn { padding: 6px 10px; font-size: 13px; color: var(--text-secondary); border-radius: calc(var(--r-sm) - 2px); display: flex; align-items: center; }
+    .seg-btn.is-active { background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-default); box-shadow: var(--sh-1); }
+
+    .apps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .app-card { background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--r-md); overflow: hidden; cursor: pointer; transition: box-shadow .2s, transform .2s; text-decoration: none; color: inherit; }
+    .app-card:hover { box-shadow: var(--sh-2); transform: translateY(-2px); }
+    .app-card-preview { aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+    .app-card-body { padding: 16px 20px 18px; }
+    .app-card-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+    .app-card-logo { width: 36px; height: 36px; border-radius: var(--r-sm); background: var(--cream); display: flex; align-items: center; justify-content: center; color: var(--coral-deep); font-family: var(--font-display); font-weight: 600; font-size: 16px; flex-shrink: 0; }
+    .app-card-title-block { flex: 1; min-width: 0; }
+    .app-card-title { font-size: 17px; font-weight: 600; color: var(--ink); line-height: 1.3; }
+    .app-card-actions { display: flex; gap: 2px; color: var(--text-muted); }
+    .app-card-actions .btn-icon { width: 28px; height: 28px; padding: 6px; }
+    .app-card-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .app-card-meta { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); letter-spacing: .06em; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-logo"><span class="logo-dot"></span>Adorable</div>
+      <button class="workspace-switcher">
+        <span class="workspace-avatar">YA</span>
+        <span class="workspace-name">Yaroslav's Workspace</span>
+        <i data-lucide="chevrons-up-down" style="width:14px;height:14px;color:var(--text-muted)"></i>
+      </button>
+      <div class="sidebar-section">
+        <a class="sidebar-item" href="/"><i data-lucide="sparkles" class="sidebar-item-icon"></i> New app</a>
+        <a class="sidebar-item is-active" href="/apps"><i data-lucide="folder" class="sidebar-item-icon"></i> My apps</a>
+        <a class="sidebar-item" href="/templates"><i data-lucide="layout-template" class="sidebar-item-icon"></i> Templates</a>
+        <a class="sidebar-item" href="/integrations"><i data-lucide="plug" class="sidebar-item-icon"></i> Integrations</a>
+        <a class="sidebar-item" href="/community"><i data-lucide="users" class="sidebar-item-icon"></i> Community</a>
+      </div>
+      <a class="upgrade-card" href="/billing">
+        <div style="flex:1">
+          <div class="upgrade-card-title">Upgrade your plan</div>
+          <div class="upgrade-card-sub">Unlock unlimited apps</div>
+        </div>
+        <i data-lucide="chevron-right" style="width:14px;height:14px;color:var(--coral)"></i>
+      </a>
+      <div class="user-strip">
+        <div class="user-avatar">Y</div>
+        <button class="btn-icon"><i data-lucide="message-circle" style="color:var(--text-muted)"></i></button>
+        <button class="btn-icon" style="margin-left:auto"><i data-lucide="more-horizontal" style="color:var(--text-muted)"></i></button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="apps-header">
+        <h1 class="apps-title">My <em style="font-style:italic;color:var(--coral-deep)">apps</em></h1>
+        <div class="spacer"></div>
+        <button class="btn btn-secondary"><i data-lucide="folder-plus" style="width:14px;height:14px"></i> New folder</button>
+        <button class="btn btn-primary"><i data-lucide="plus" style="width:14px;height:14px"></i> Create new app</button>
+      </div>
+
+      <div class="apps-controls">
+        <div class="search-wrap" style="flex:1;max-width:360px">
+          <i data-lucide="search" class="search-icon"></i>
+          <input class="input input-with-icon" placeholder="Search apps">
+        </div>
+        <button class="filter-btn"><i data-lucide="user" style="width:14px;height:14px"></i> Created by me <i data-lucide="chevron-down" style="width:12px;height:12px;color:var(--text-muted)"></i></button>
+        <button class="filter-btn"><i data-lucide="clock" style="width:14px;height:14px"></i> Last updated <i data-lucide="chevron-down" style="width:12px;height:12px;color:var(--text-muted)"></i></button>
+        <div class="spacer"></div>
+        <div class="segmented">
+          <button class="seg-btn is-active"><i data-lucide="grid-3x3" style="width:14px;height:14px"></i></button>
+          <button class="seg-btn"><i data-lucide="list" style="width:14px;height:14px"></i></button>
+        </div>
+      </div>
+
+      <div class="apps-grid">
+        <a class="app-card" href="#">
+          <div class="app-card-preview" style="background:linear-gradient(135deg,var(--ink),var(--ink-2));color:var(--coral-soft)">obsidian-vpn</div>
+          <div class="app-card-body">
+            <div class="app-card-head">
+              <div class="app-card-logo">O</div>
+              <div class="app-card-title-block"><div class="app-card-title">Obsidian VPN landing</div></div>
+              <div class="app-card-actions">
+                <button class="btn-icon"><i data-lucide="heart" style="width:14px;height:14px"></i></button>
+                <button class="btn-icon"><i data-lucide="more-horizontal" style="width:14px;height:14px"></i></button>
+              </div>
+            </div>
+            <div class="app-card-desc">Лендинг VPN-сервиса с editorial typography и брутальной чёрной палитрой.</div>
+            <div class="app-card-meta"><span>By you</span><span>5h ago</span></div>
+          </div>
+        </a>
+
+        <a class="app-card" href="#">
+          <div class="app-card-preview" style="background:linear-gradient(135deg,#1d9bf0,#0c7abf);color:white">calc-sber</div>
+          <div class="app-card-body">
+            <div class="app-card-head">
+              <div class="app-card-logo" style="background:var(--olive);color:white">С</div>
+              <div class="app-card-title-block"><div class="app-card-title">Сбербанк rate calculator</div></div>
+              <div class="app-card-actions">
+                <button class="btn-icon"><i data-lucide="heart" fill="currentColor" style="width:14px;height:14px;color:var(--coral)"></i></button>
+                <button class="btn-icon"><i data-lucide="more-horizontal" style="width:14px;height:14px"></i></button>
+              </div>
+            </div>
+            <div class="app-card-desc">Калькулятор ставок по ипотеке и кредитам. Аннуитет, сравнение тарифов, mobile-first.</div>
+            <div class="app-card-meta"><span>By you</span><span>4h ago</span></div>
+          </div>
+        </a>
+
+        <a class="app-card" href="#">
+          <div class="app-card-preview" style="background:linear-gradient(135deg,var(--cream),var(--cream-deep));color:var(--olive-deep)">no preview</div>
+          <div class="app-card-body">
+            <div class="app-card-head">
+              <div class="app-card-logo">R</div>
+              <div class="app-card-title-block"><div class="app-card-title">Team retro tracker</div></div>
+              <div class="app-card-actions">
+                <button class="btn-icon"><i data-lucide="heart" style="width:14px;height:14px"></i></button>
+                <button class="btn-icon"><i data-lucide="more-horizontal" style="width:14px;height:14px"></i></button>
+              </div>
+            </div>
+            <div class="app-card-desc">Доска для еженедельного retro команды — что заработало, что сломалось, что попробовать.</div>
+            <div class="app-card-meta"><span>By you</span><span>2 days ago</span></div>
+          </div>
+        </a>
+
+        <a class="app-card" href="#">
+          <div class="app-card-preview" style="background:linear-gradient(135deg,#ff6b9d,#ec4899);color:white">leadgen</div>
+          <div class="app-card-body">
+            <div class="app-card-head">
+              <div class="app-card-logo" style="background:#ec4899;color:white">L</div>
+              <div class="app-card-title-block"><div class="app-card-title">PDF lead-magnet generator</div></div>
+              <div class="app-card-actions">
+                <button class="btn-icon"><i data-lucide="heart" style="width:14px;height:14px"></i></button>
+                <button class="btn-icon"><i data-lucide="more-horizontal" style="width:14px;height:14px"></i></button>
+              </div>
+            </div>
+            <div class="app-card-desc">Форма + Stripe Checkout + автоматическая отправка PDF на email. 4 секции, минимум полей.</div>
+            <div class="app-card-meta"><span>By you</span><span>1 week ago</span></div>
+          </div>
+        </a>
+
+        <a class="app-card" href="#">
+          <div class="app-card-preview" style="background:linear-gradient(135deg,var(--olive),var(--olive-deep));color:var(--cream)">pomodoro</div>
+          <div class="app-card-body">
+            <div class="app-card-head">
+              <div class="app-card-logo" style="background:var(--olive);color:white">P</div>
+              <div class="app-card-title-block"><div class="app-card-title">Pomodoro analytics</div></div>
+              <div class="app-card-actions">
+                <button class="btn-icon"><i data-lucide="heart" style="width:14px;height:14px"></i></button>
+                <button class="btn-icon"><i data-lucide="more-horizontal" style="width:14px;height:14px"></i></button>
+              </div>
+            </div>
+            <div class="app-card-desc">Таймер 25/5 + дневник продуктивности с агрегированной статистикой по неделям.</div>
+            <div class="app-card-meta"><span>By you</span><span>2 weeks ago</span></div>
+          </div>
+        </a>
+
+        <a class="app-card" href="#">
+          <div class="app-card-preview" style="background:linear-gradient(135deg,#475569,#1e293b);color:#94a3b8">onboarding</div>
+          <div class="app-card-body">
+            <div class="app-card-head">
+              <div class="app-card-logo">O</div>
+              <div class="app-card-title-block"><div class="app-card-title">Customer onboarding flow</div></div>
+              <div class="app-card-actions">
+                <button class="btn-icon"><i data-lucide="heart" style="width:14px;height:14px"></i></button>
+                <button class="btn-icon"><i data-lucide="more-horizontal" style="width:14px;height:14px"></i></button>
+              </div>
+            </div>
+            <div class="app-card-desc">Wizard для нового клиента B2B-SaaS: 6 шагов от signup до first-value.</div>
+            <div class="app-card-meta"><span>By you</span><span>1 month ago</span></div>
+          </div>
+        </a>
+      </div>
+    </main>
+  </div>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

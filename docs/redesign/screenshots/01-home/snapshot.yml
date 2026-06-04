@@ -1,0 +1,93 @@
+# base44 Home page — accessibility snapshot
+# URL: https://app.base44.com/
+# Viewport: 1440×900
+# Captured: 2026-06-03
+# Note: PNG screenshots unavailable in this environment (playwright-mcp FS isolation).
+# This accessibility tree + DOM extraction in dom-key.md provide the same structural info.
+
+generic:
+  alert_banner: "We're aware of a technical issue affecting some services... [Status Page link] [Dismiss]"
+
+  complementary (sidebar, ~240px):
+    top_zone:
+      logo_link: "/" + image
+      search_button: icon
+      notif_button: icon (probably)
+
+    workspace_switcher: "Yw" badge + "Yaroslav's Workspace" + dropdown caret
+
+    primary_tabs:
+      - "Apps" (icon + label)
+      - "Superagents" (icon + label)
+
+    nav_section_1: (active=Apps)
+      - link "Home" → "/" (icon + label)
+      - link "All apps" → "/apps" (icon + label)
+      - link "Templates" → "/app-templates" (icon + label)
+      - link "Integrations" → "/integrations-catalog" (icon + label)
+      - button "Community" with submenu indicator (icon + label + chevron)
+
+    nav_section_2: "Favorite apps"
+      collapsible_header: "Favorite apps" + chevron
+      empty_state: "No favorite apps yet. Add your apps for quick access"
+
+    nav_section_3: "Recents"
+      collapsible_header: "Recents" + chevron
+      items:
+        - link "Obsidian VPN" → "/apps/{id}/editor/preview" + dots-menu button
+      footer_link: "View all" → "/apps"
+
+    bottom_zone:
+      upgrade_card:
+        link → "/billing"
+        content: "Upgrade your plan" + "Get more out of your apps" + chevron-right
+
+      user_strip:
+        - button "Y" (avatar — single letter on warm bg)
+        - button "Feedback" (icon)
+        - button "Referral" (icon)
+        - button "..." (settings/more, icon)
+
+  main (content area):
+    hero:
+      h1: "What will you build next?"
+
+    prompt_card:
+      textarea_placeholder: "Describe the app you want to create..."
+      toolbar_bottom_left:
+        - icon button (attach? plus?)
+        - button "Connectors" (icon + label)
+        - icon button (image upload?)
+      toolbar_bottom_right:
+        - label "Plan" + toggle switch (off by default)
+        - button "Speech to text" (mic icon)
+        - button "Send message" (paper plane, disabled when empty)
+
+    suggestion_pills:  # below prompt
+      - "Tasks & Workflows"
+      - "CRM & Sales"
+      - "Content & Sites"
+      - "Finance"
+      - "Booking"
+      - "More" (with chevron)
+
+    recent_section:
+      tabs:
+        - "Recent apps" (active)
+        - "Templates"
+        - "View all" (button with chevron, right-aligned)
+      content:
+        app_card:
+          link → "/apps/{id}/editor/preview"
+          img: "Obsidian VPN Logo" (rounded)
+          h3: "Obsidian VPN"
+          info_icon: (next to title)
+          description: "High-fashion, luxury-grade digital privacy..."
+          meta: "Edited 4 hours ago"
+
+  cookie_dialog:  # bottom modal
+    text: "We use essential and non-essential cookies..."
+    buttons:
+      - "Manage preferences"
+      - "Deny"
+      - "Accept all"

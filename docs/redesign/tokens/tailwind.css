@@ -1,0 +1,73 @@
+/*
+ * Adorable × Sunbaked — Tailwind v4 @theme block
+ *
+ * Use: импортируй ОДНИМ из двух способов:
+ *
+ *   1) Drop-in (если tailwind v4 уже настроен):
+ *      @import 'tailwindcss';
+ *      @import './tokens/tailwind.css';
+ *
+ *   2) Inline в твоём globals.css:
+ *      @import 'tailwindcss';
+ *      @theme { ... содержимое из этого файла без @theme обёртки ... }
+ *
+ * Шрифты подключаются через Google Fonts ниже.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,ital@9..144,400,0;9..144,500,0;9..144,600,0;9..144,500,1&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
+
+@theme {
+  /* === Colors === */
+  --color-coral:        #E84E2F;
+  --color-coral-soft:   #F47A5E;
+  --color-coral-deep:   #B83A1F;
+
+  --color-olive:        #6B7C3E;
+  --color-olive-soft:   #8A9E5C;
+  --color-olive-deep:   #4A5829;
+
+  --color-cream:        #F3EBD7;
+  --color-cream-deep:   #E5D9BB;
+  --color-ink:          #2A2419;
+  --color-ink-2:        #3A3327;
+
+  --color-paper:        #FBF7EC;
+  --color-n-100:        #F0E8D2;
+  --color-n-200:        #DDD2B5;
+  --color-n-300:        #BFB290;
+  --color-n-400:        #8B7F62;
+  --color-n-500:        #5C5240;
+  --color-n-700:        #3D3527;
+
+  --color-success:      #5C7C3E;
+  --color-warning:      #C77A1E;
+  --color-danger:       #C7392E;
+  --color-info:         #4A6B8A;
+
+  /* === Fonts === */
+  --font-display:       'Fraunces', Georgia, serif;
+  --font-sans:          'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-mono:          'Geist Mono', ui-monospace, monospace;
+
+  /* === Radii === */
+  --radius-sm:          6px;
+  --radius-md:          10px;
+  --radius-lg:          16px;
+  --radius-xl:          24px;
+
+  /* === Shadows === */
+  --shadow-1:           0 1px 2px rgb(42 36 25 / .05), 0 1px 1px rgb(42 36 25 / .04);
+  --shadow-2:           0 4px 14px rgb(42 36 25 / .07), 0 2px 4px rgb(42 36 25 / .04);
+  --shadow-3:           0 16px 40px rgb(42 36 25 / .12);
+  --shadow-coral:       0 8px 24px rgb(232 78 47 / .22);
+  --shadow-prompt:      0 16px 30px rgb(42 36 25 / .05);
+
+  /* === Spacing (Tailwind default 4px scale работает — оставляем) === */
+}
+
+/*
+ * Использование в JSX:
+ *   <div className="bg-paper text-ink rounded-md shadow-1">
+ *   <h1 className="font-display text-coral-deep">
+ *   <button className="bg-coral hover:bg-coral-deep shadow-coral text-cream">
+ */

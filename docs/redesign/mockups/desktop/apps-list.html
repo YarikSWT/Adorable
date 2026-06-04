@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Adorable — All apps</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,ital@9..144,400,0;9..144,500,0;9..144,500,1;9..144,600,0&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../shared.css">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+  <style>
+    .main {
+      background: var(--bg-page);
+      padding: 32px 40px 80px;
+      display: flex; flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* === Page header: small + subtle divider === */
+    .apps-head {
+      display: flex; align-items: center; gap: 12px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-default);
+      margin-bottom: 24px;
+    }
+    .apps-title {
+      font-size: 16px; font-weight: 600;
+      color: var(--text-primary);
+    }
+    .apps-head .spacer { flex: 1; }
+
+    /* === App grid === */
+    .apps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .app-card {
+      display: flex; flex-direction: column;
+      padding: 18px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--r-lg);
+      text-decoration: none;
+      color: inherit;
+      transition: box-shadow .15s, transform .15s;
+    }
+    .app-card:hover {
+      box-shadow: var(--sh-md);
+    }
+    .app-card-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .app-card-logo {
+      width: 36px; height: 36px;
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700;
+      color: white;
+      flex-shrink: 0;
+    }
+    .app-card-name {
+      font-size: 15px; font-weight: 600;
+      color: var(--text-primary);
+      flex: 1;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .app-card-desc {
+      font-size: 13px; line-height: 1.5;
+      color: var(--text-secondary);
+      margin-bottom: 14px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .app-card-meta {
+      margin-top: auto;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- SIDEBAR (same as home) -->
+    <aside class="sidebar">
+      <div class="sb-header">
+        <a class="sb-logo" href="/">
+          <span class="sb-logo-mark">
+            <svg width="28" height="22" viewBox="0 0 28 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <line x1="6" y1="3" x2="22" y2="3" stroke="#FF631F" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="4" y1="7" x2="24" y2="7" stroke="#FF631F" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M3 21 A11 11 0 0 1 25 21 Z" fill="#FF631F"/>
+            </svg>
+          </span>
+        </a>
+        <button class="sb-icon-btn" aria-label="Search"><i data-lucide="search" width="18" height="18"></i></button>
+        <button class="sb-icon-btn" aria-label="Toggle"><i data-lucide="panel-left" width="18" height="18"></i></button>
+      </div>
+
+      <button class="sb-workspace">
+        <span class="sb-workspace-badge">Yw</span>
+        <span class="sb-workspace-name">Yaroslav's Workspace</span>
+        <span class="sb-workspace-chev"><i data-lucide="chevrons-up-down" width="14" height="14"></i></span>
+      </button>
+
+      <div class="sb-cards">
+        <a href="#" class="sb-card is-active"><i data-lucide="layout-grid" width="16" height="16"></i> Apps</a>
+        <a href="#" class="sb-card"><i data-lucide="briefcase" width="16" height="16"></i> Superagents</a>
+      </div>
+
+      <nav class="sb-nav">
+        <a href="/" class="sb-item"><i data-lucide="home" width="16" height="16"></i> Home</a>
+        <a href="/apps" class="sb-item is-active"><i data-lucide="grid-3x3" width="16" height="16"></i> All apps</a>
+        <a href="/templates" class="sb-item"><i data-lucide="layout" width="16" height="16"></i> Templates</a>
+        <a href="/integrations" class="sb-item"><i data-lucide="plug" width="16" height="16"></i> Integrations</a>
+        <a href="#" class="sb-item">
+          <i data-lucide="users" width="16" height="16"></i> Community
+          <i data-lucide="chevron-right" width="14" height="14" class="chev-right"></i>
+        </a>
+      </nav>
+
+      <div class="sb-section">
+        <button class="sb-section-head">Favorite apps <i data-lucide="chevron-down" width="14" height="14" class="chev"></i></button>
+        <div class="sb-empty">No favorite apps yet.<br><span class="sb-empty-sub">Add your apps for quick access</span></div>
+      </div>
+
+      <div class="sb-section">
+        <button class="sb-section-head">Recents <i data-lucide="chevron-down" width="14" height="14" class="chev"></i></button>
+        <div class="sb-list">
+          <a href="#">Obsidian VPN</a>
+          <a href="#">Сбербанк rate calculator</a>
+          <a href="#">Team retro tracker</a>
+          <a href="/apps" class="sb-list-more">View all</a>
+        </div>
+      </div>
+
+      <a href="/billing" class="sb-upgrade">
+        <div style="flex:1">
+          <div class="sb-upgrade-title">Upgrade your plan</div>
+          <div class="sb-upgrade-sub">Get more out of your apps</div>
+        </div>
+        <i data-lucide="gem" width="16" height="16" class="sb-upgrade-icon"></i>
+      </a>
+
+      <div class="sb-bottom">
+        <div class="sb-avatar">Y</div>
+        <button class="sb-icon-btn"><i data-lucide="message-circle" width="16" height="16"></i></button>
+        <button class="sb-icon-btn"><i data-lucide="gift" width="16" height="16"></i></button>
+        <button class="sb-icon-btn has-dot"><i data-lucide="bell" width="16" height="16"></i></button>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+      <div class="apps-head">
+        <h2 class="apps-title">All apps</h2>
+        <div class="spacer"></div>
+        <button class="btn btn-secondary btn-small">
+          <i data-lucide="folder-plus" width="14" height="14"></i>
+          New folder
+        </button>
+        <button class="btn btn-primary btn-small">
+          <i data-lucide="plus" width="14" height="14"></i>
+          New app
+        </button>
+      </div>
+
+      <div class="apps-grid">
+        <a href="#" class="app-card">
+          <div class="app-card-row">
+            <div class="app-card-logo" style="background: linear-gradient(135deg, #1c1917, #000);">O</div>
+            <div class="app-card-name">Obsidian VPN</div>
+          </div>
+          <p class="app-card-desc">Лэндинг VPN сервиса. Editorial typography, brutalist palette.</p>
+          <div class="app-card-meta">
+            <span>By you</span>
+            <span>Edited 5h ago</span>
+          </div>
+        </a>
+
+        <a href="#" class="app-card">
+          <div class="app-card-row">
+            <div class="app-card-logo" style="background: linear-gradient(135deg, #0a6d3a, #21A179);">С</div>
+            <div class="app-card-name">Сбербанк rate calculator</div>
+          </div>
+          <p class="app-card-desc">Калькулятор ипотеки. Аннуитет, сравнение тарифов, mobile-first.</p>
+          <div class="app-card-meta">
+            <span>By you</span>
+            <span>Edited 4h ago</span>
+          </div>
+        </a>
+
+        <a href="#" class="app-card">
+          <div class="app-card-row">
+            <div class="app-card-logo" style="background: linear-gradient(135deg, #4a3933, #8a6a5d);">R</div>
+            <div class="app-card-name">Team retro tracker</div>
+          </div>
+          <p class="app-card-desc">Еженедельный retro команды. Колонки «работает», «сломалось», «попробуем».</p>
+          <div class="app-card-meta">
+            <span>By you</span>
+            <span>2 days ago</span>
+          </div>
+        </a>
+
+        <a href="#" class="app-card">
+          <div class="app-card-row">
+            <div class="app-card-logo" style="background: linear-gradient(135deg, #ec4899, #be185d);">L</div>
+            <div class="app-card-name">PDF lead-magnet</div>
+          </div>
+          <p class="app-card-desc">Форма + Stripe Checkout + email с PDF. 4 секции, минимум полей.</p>
+          <div class="app-card-meta">
+            <span>By you</span>
+            <span>1 week ago</span>
+          </div>
+        </a>
+
+        <a href="#" class="app-card">
+          <div class="app-card-row">
+            <div class="app-card-logo" style="background: linear-gradient(135deg, #c2410c, #ea580c);">P</div>
+            <div class="app-card-name">Pomodoro analytics</div>
+          </div>
+          <p class="app-card-desc">Таймер 25/5 + дневник продуктивности с агрегированной статистикой по неделям.</p>
+          <div class="app-card-meta">
+            <span>By you</span>
+            <span>2 weeks ago</span>
+          </div>
+        </a>
+
+        <a href="#" class="app-card">
+          <div class="app-card-row">
+            <div class="app-card-logo" style="background: linear-gradient(135deg, #1e293b, #475569);">O</div>
+            <div class="app-card-name">Onboarding wizard</div>
+          </div>
+          <p class="app-card-desc">Wizard для нового клиента B2B-SaaS: 6 шагов от signup до first-value.</p>
+          <div class="app-card-meta">
+            <span>By you</span>
+            <span>1 month ago</span>
+          </div>
+        </a>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+    else window.addEventListener('load', () => lucide && lucide.createIcons && lucide.createIcons());
+  </script>
+</body>
+</html>
