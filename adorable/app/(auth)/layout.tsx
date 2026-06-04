@@ -6,7 +6,13 @@ import type { ReactNode } from "react";
 // paths and bypass themselves, so this layout sees a bare `{children}`.
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-svh w-full items-center justify-center bg-background px-4 py-10">
+    <div
+      className="flex min-h-svh w-full items-center justify-center px-4 py-10"
+      style={{
+        background:
+          "radial-gradient(ellipse at 50% 120%, var(--cream) 0%, transparent 60%), var(--paper)",
+      }}
+    >
       <div className="w-full max-w-[400px]">{children}</div>
     </div>
   );
