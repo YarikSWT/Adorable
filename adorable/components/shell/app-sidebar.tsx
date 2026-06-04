@@ -10,6 +10,7 @@ import {
   ChevronsUpDownIcon,
   GemIcon,
   HomeIcon,
+  LayoutGridIcon,
   LayoutTemplateIcon,
   PanelLeftIcon,
   PlugIcon,
@@ -324,7 +325,7 @@ function Recents({ repos }: { repos: RecentRepo[] | null }) {
               </Link>
             ))}
         <Link
-          href="/"
+          href="/apps"
           className="px-2 pt-1 text-[13px] text-n-500 underline underline-offset-[3px] hover:text-ink"
         >
           View all
@@ -460,6 +461,7 @@ export function AppSidebar({
   const repos = useRecentRepos(me != null);
 
   const isHome = pathname === "/";
+  const isApps = pathname.startsWith("/apps");
   const isSettings = pathname.startsWith("/settings");
 
   return (
@@ -504,6 +506,12 @@ export function AppSidebar({
       {/* Primary nav */}
       <nav className="flex flex-col gap-0.5">
         <NavItem href="/" icon={HomeIcon} label="Home" active={isHome} />
+        <NavItem
+          href="/apps"
+          icon={LayoutGridIcon}
+          label="All apps"
+          active={isApps}
+        />
         <NavItemDisabled icon={LayoutTemplateIcon} label="Templates" />
         <NavItemDisabled icon={PlugIcon} label="Integrations" />
         <NavItemDisabled icon={UsersIcon} label="Community" />
