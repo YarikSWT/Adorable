@@ -102,7 +102,13 @@ services:
     container_name: adorable-caddy
     restart: unless-stopped
     # JSON — нативный формат Caddy, --adapter не нужен (json-adapter встроен).
-    command: ["caddy", "run", "--config", "/etc/caddy/caddy.init.json"]
+    # --resume: при рестарте/пересоздании поднимать ПОСЛЕДНИЙ autosave
+    # (/config/caddy/autosave.json) с динамически добавленными preview-роутами,
+    # а не пустой init.json. Без него каждый рестарт Caddy терял все роуты,
+    # а static-проекты их не перерегистрируют (wake для них — no-op) →
+    # превью существующих проектов умирало навсегда. На первом запуске
+    # (autosave ещё нет) Caddy фолбэчится на --config init.json.
+    command: ["caddy", "run", "--config", "/etc/caddy/caddy.init.json", "--resume"]
     ports:
       # HTTP/HTTPS для preview-роутов.
       - "${CADDY_HTTP_PORT:-8080}:80"
