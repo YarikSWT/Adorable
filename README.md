@@ -21,7 +21,9 @@ Upstream-фичи: чат с AI, live preview, embedded-терминал, one-cl
 ## Архитектура запуска
 
 ### Инфра-сервисы — всегда в docker-compose
-`docker-compose.yml` поднимает Postgres (app), Postgres (Gitea), Gitea и Caddy.
+`docker-compose.yml` поднимает всю инфраструктуру: Postgres (app), Postgres
+(Gitea), Gitea, Caddy, Redis, agent-loop (`worker` + `reaper`) и Jaeger. Полная
+карта образов и контекстов — в разделе [Docker-обстановка](#docker-обстановка).
 
 ```bash
 cp .env.example .env
@@ -42,6 +44,45 @@ npm run dev
 ```bash
 npm run prod:up
 ```
+
+## Docker-обстановка
+
+Весь Docker в проекте — это **два compose-файла** и **три образа** под `docker/`.
+
+### Compose-файлы
+
+| Файл | Роль | Сервисы |
+|---|---|---|
+| `docker-compose.yml` | dev / база | `postgres-app`, `postgres-gitea`, `gitea`, `caddy`, `redis`, `worker`, `reaper`, `jaeger` |
+| `docker-compose.prod.yml` | overlay для prod-симуляции | добавляет `builder` (контейнеризованное Next.js-приложение) |
+
+- `npm run dev:infra:up` → `docker compose up -d` поднимает **все** сервисы базового файла. В dev само Next.js-приложение запускается **на хосте** через `npm run dev` (быстрый HMR), а не в контейнере.
+- `npm run prod:up` → `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d` добавляет к ним `builder`. Нужен только для финального e2e перед релизом.
+
+### Образы
+
+Все Dockerfile'ы лежат под `docker/` по единой схеме `docker/<name>/Dockerfile`.
+
+| Образ | Dockerfile | Base | Build-context | Кто использует |
+|---|---|---|---|---|
+| **app** (билдер) | `docker/app/Dockerfile` | `node:22-slim` | корень репо | `docker-compose.prod.yml` → `builder`; Kamal ([config/deploy.yml](./config/deploy.yml)) |
+| **worker + reaper** | `docker/worker/Dockerfile` | `node:22-alpine` | корень репо | `docker-compose.yml` → `worker`, `reaper` (один образ, разный `command`) |
+| **build-runner-react** | `docker/build-runner-react/Dockerfile` | `node:22-slim` | `adorable/` | собирается **вручную** (см. [adorable/README.md](./adorable/README.md)); запускается кодом через dockerode |
+
+Для первых двух `context`/`dockerfile` заданы в compose; для третьего — в команде сборки.
+
+#### Почему у build-runner context = `adorable/`
+
+Эфемерный образ для `vite build` копирует ровно два поддерева — `templates/vite-react/**` и `scripts/build-runner/init-volume.sh`. Их ближайший общий предок — `adorable/`, поэтому он и стоит контекстом; остального содержимого `adorable/` образу не нужно, и оно отсекается через `adorable/.dockerignore`. Команды сборки образа и заполнения named volume — пошагово в [adorable/README.md](./adorable/README.md).
+
+### `.dockerignore`
+
+| Файл | Контекст | Главное, что исключает |
+|---|---|---|
+| `.dockerignore` | корень (app, worker) | `node_modules`, `.next`, `.git`, `docs/`, `verification/` и — важно — `.env` (секреты не попадают в образ) |
+| `adorable/.dockerignore` | build-runner | `node_modules` (~6 МБ), `.next`, `.env`, TS-кэши |
+
+Без них `COPY . .` тащил бы в build-context хостовые `node_modules` и секретный `.env`.
 
 ## Секреты
 
@@ -84,8 +125,8 @@ npm run prod:up
 │   ├── dev-infra.sh          # up/down/logs/status/wait-healthy
 │   └── init-gitea.sh         # idempotent admin+token bootstrap
 ├── verification/screenshots/ # Playwright MCP артефакты
-├── docker-compose.yml        # Postgres×2 + Gitea + Caddy
-├── docker-compose.prod.yml   # override: + builder
+├── docker-compose.yml        # dev-стек: Postgres×2, Gitea, Caddy, Redis, worker/reaper, Jaeger
+├── docker-compose.prod.yml   # override: + builder (см. раздел «Docker-обстановка»)
 ├── docker/                   # все Dockerfile'ы (context указан в compose)
 │   ├── app/Dockerfile        # образ билдера (prod-симуляция), context=.
 │   ├── worker/Dockerfile     # worker + reaper (один образ), context=.
