@@ -121,6 +121,29 @@ export const parseBuildErrors = (input: ParseInput): BuildError[] => {
     });
   }
 
+  // 1b. esbuild's location-prefixed error — the most actionable form:
+  //   /workspace/src/App.jsx:14:26: ERROR: Unexpected ";"
+  // Pattern #2 only keys on the `[ERROR]` bracket form, so this slipped
+  // through to the generic transform/config matchers, which produced a
+  // vague "Transform failed with 1 error:" (and, worse, mis-attributed the
+  // file to a URL from the deprecation banner). Capture it directly: exact
+  // file:line:col + message. Strip ANSI colour codes and the container
+  // /workspace/ prefix so the path is project-relative.
+  // eslint-disable-next-line no-control-regex -- intentional ANSI CSI escape
+  const stripAnsi = (s: string): string => s.replace(/\u001b\[[0-9;]*m/g, "");
+  for (const match of text.matchAll(
+    /([^\s:]+\.(?:tsx?|jsx?|css|scss|html|json)):(\d+):(\d+):\s*ERROR:\s*([^\n]+)/g,
+  )) {
+    push({
+      code: "syntax-error",
+      message: stripAnsi(match[4]).trim(),
+      file: stripAnsi(match[1]).replace(/^\/workspace\//, ""),
+      line: Number.parseInt(match[2], 10),
+      column: Number.parseInt(match[3], 10),
+      raw: stripAnsi(match[0]).trim(),
+    });
+  }
+
   // 2. Syntax errors — esbuild emits `ERROR: Expected ... but got ...`.
   for (const match of text.matchAll(
     /^\s*(?:✘?\s*)?\[?ERROR\]?:\s*(Expected[^]+?)(?:\n|$)/gm,
@@ -246,6 +269,10 @@ const extractFileLocation = (text: string, atIndex: number): FileLocation => {
     const candidate: FileLocation = { file: m[1] };
     if (m[2]) candidate.line = Number.parseInt(m[2], 10);
     if (m[3]) candidate.column = Number.parseInt(m[3], 10);
+    // Skip URLs — the Vite CJS-deprecation banner carries
+    // `https://vite.dev/...troubleshooting.html`, whose `.html` tail would
+    // otherwise be mistaken for a source file and shown to the user.
+    if (candidate.file && /^https?:\/\//i.test(candidate.file)) continue;
     // Пропускаем абсолютные / node_modules пути:
     if (
       candidate.file &&

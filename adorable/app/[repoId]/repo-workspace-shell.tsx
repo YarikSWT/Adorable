@@ -483,6 +483,7 @@ export function RepoWorkspaceShell({
               {showWorkspacePanel &&
                 (selectedRepo?.vm?.previewUrl ? (
                   <AppPreview
+                    projectId={selectedRepo.id}
                     metadata={selectedRepo.vm}
                     iframeRef={iframeRef}
                     threadIsRunning={threadIsRunning}
@@ -573,11 +574,29 @@ function PreviewPlaceholder() {
   );
 }
 
+// Mirror of the server's BuildJobStatus / BuildEvent shape (lib/adapters/
+// preview.ts), redeclared locally so this client component never imports the
+// server-only preview module. Only the fields the preview pane consumes.
+type BuildJobStatus =
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "cancelled"
+  | "superseded";
+type BuildFailure = { message: string; file?: string; line?: number };
+type BuildStatusEvent = {
+  status: BuildJobStatus;
+  result?: { errors?: BuildFailure[] };
+};
+
 function AppPreview({
+  projectId,
   metadata,
   iframeRef,
   threadIsRunning,
 }: {
+  projectId: string;
   metadata: RepoVmInfo;
   iframeRef: React.RefObject<HTMLIFrameElement | null>;
   threadIsRunning: boolean;
@@ -598,6 +617,62 @@ function AppPreview({
   const markTerminalLoaded = useCallback((id: string) => {
     setLoadedTerminals((prev) => new Set(prev).add(id));
   }, []);
+
+  // Live build status from the post-turn build queue (SSE). Without this the
+  // pane only ever shows "Loading preview…": a failed `vite build` leaves the
+  // previous (or placeholder) bundle in place, the iframe loads it fine, and
+  // the user never learns the build broke. We surface building/failed states.
+  const [buildStatus, setBuildStatus] = useState<BuildJobStatus | null>(null);
+  const [buildErrors, setBuildErrors] = useState<BuildFailure[]>([]);
+  const [retrying, setRetrying] = useState(false);
+
+  useEffect(() => {
+    if (!projectId) return;
+    setBuildStatus(null);
+    setBuildErrors([]);
+    const source = new EventSource(
+      `/api/projects/${encodeURIComponent(projectId)}/build-status`,
+    );
+    const onStatus = (e: MessageEvent<string>) => {
+      let event: BuildStatusEvent;
+      try {
+        event = JSON.parse(e.data) as BuildStatusEvent;
+      } catch {
+        return;
+      }
+      setBuildStatus(event.status);
+      if (event.status === "failed") {
+        setBuildErrors(event.result?.errors ?? []);
+      } else {
+        setBuildErrors([]);
+        // Fresh successful build — force the iframe to re-fetch so the new
+        // bundle replaces whatever was on screen.
+        if (event.status === "succeeded") setReloadKey((k) => k + 1);
+      }
+    };
+    source.addEventListener("status", onStatus);
+    return () => {
+      source.removeEventListener("status", onStatus);
+      source.close();
+    };
+  }, [projectId]);
+
+  const retryBuild = useCallback(async () => {
+    if (!projectId || retrying) return;
+    setRetrying(true);
+    try {
+      // SSE then reports queued → running → succeeded/failed and the
+      // overlay updates itself; we just kick off the rebuild here.
+      await fetch(
+        `/api/projects/${encodeURIComponent(projectId)}/rebuild`,
+        { method: "POST" },
+      );
+    } catch {
+      /* network error — leave the failed panel up so the user can retry */
+    } finally {
+      setRetrying(false);
+    }
+  }, [projectId, retrying]);
 
   useEffect(() => {
     setIframeLoaded(false);
@@ -673,7 +748,63 @@ function AppPreview({
         )}
       >
         <div className="relative min-h-0 flex-1 bg-muted/30">
-          {!iframeLoaded && (
+          {buildStatus === "failed" ? (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/95 p-6">
+              <div className="flex w-full max-w-md flex-col gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-destructive text-[11px] font-bold text-destructive-foreground">
+                    !
+                  </span>
+                  <p className="text-sm font-semibold text-foreground">
+                    Build failed
+                  </p>
+                </div>
+                {buildErrors.length > 0 ? (
+                  <ul className="max-h-48 space-y-1.5 overflow-auto">
+                    {buildErrors.slice(0, 8).map((err, i) => (
+                      <li
+                        key={i}
+                        className="rounded bg-background/60 px-2 py-1 font-mono text-xs leading-relaxed text-muted-foreground"
+                      >
+                        {err.file ? (
+                          <span className="text-foreground/70">
+                            {err.file}
+                            {err.line != null ? `:${err.line}` : ""} —{" "}
+                          </span>
+                        ) : null}
+                        {err.message}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    The preview build failed. Ask the agent to fix the error,
+                    or retry the build.
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={retryBuild}
+                  disabled={retrying}
+                  className="inline-flex items-center gap-1.5 self-start rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+                >
+                  <RotateCwIcon
+                    className={cn("size-3.5", retrying && "animate-spin")}
+                  />
+                  {retrying ? "Rebuilding…" : "Retry build"}
+                </button>
+              </div>
+            </div>
+          ) : buildStatus === "queued" || buildStatus === "running" ? (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2Icon className="size-6 animate-spin text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground/40">
+                  Building preview…
+                </p>
+              </div>
+            </div>
+          ) : !iframeLoaded ? (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-background">
               <div className="flex flex-col items-center gap-3">
                 <Loader2Icon className="size-6 animate-spin text-muted-foreground/40" />
@@ -682,7 +813,7 @@ function AppPreview({
                 </p>
               </div>
             </div>
-          )}
+          ) : null}
           <iframe
             // key=reloadKey пере-mount'ит iframe и заставит браузер
             // сделать новый запрос — нужно во время wake-bootstrap'а,
