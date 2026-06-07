@@ -169,7 +169,7 @@ services:
   worker:
     build:
       context: .
-      dockerfile: Dockerfile.worker
+      dockerfile: docker/worker/Dockerfile
     command: ["npx", "tsx", "worker/index.ts"]
     restart: unless-stopped
     environment:
@@ -201,7 +201,7 @@ services:
   reaper:
     build:
       context: .
-      dockerfile: Dockerfile.worker
+      dockerfile: docker/worker/Dockerfile
     command: ["npx", "tsx", "reaper/index.ts"]
     restart: unless-stopped
     environment:

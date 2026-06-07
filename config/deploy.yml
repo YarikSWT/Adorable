@@ -46,7 +46,7 @@ registry:
 builder:
   arch: amd64
   remote: ssh://deploy@<your-build-server-ip>
-  dockerfile: Dockerfile
+  dockerfile: docker/app/Dockerfile
 
 env:
   clear:

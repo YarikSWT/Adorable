@@ -86,7 +86,10 @@ npm run prod:up
 ├── verification/screenshots/ # Playwright MCP артефакты
 ├── docker-compose.yml        # Postgres×2 + Gitea + Caddy
 ├── docker-compose.prod.yml   # override: + builder
-├── Dockerfile                # образ билдера (prod-симуляция)
+├── docker/                   # все Dockerfile'ы (context указан в compose)
+│   ├── app/Dockerfile        # образ билдера (prod-симуляция), context=.
+│   ├── worker/Dockerfile     # worker + reaper (один образ), context=.
+│   └── build-runner-react/   # эфемерный sandbox превью, context=adorable/
 ├── MIGRATION_PLAN.md         # что сделано, что нет
 ├── STATE.md / PROGRESS.md    # состояние форка
 ├── FREESTYLE_INVENTORY.md    # все точки интеграции

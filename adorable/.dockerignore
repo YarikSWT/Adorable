@@ -1,0 +1,22 @@
+# Build context = adorable/. Used by docker/build-runner-react/Dockerfile,
+# which only COPYs templates/vite-react/** and scripts/build-runner/init-volume.sh.
+# Everything below just bloats the context (node_modules alone is ~6 MB).
+
+node_modules
+**/node_modules
+.next
+.adorable
+.claude
+.git
+
+# Secrets & local env.
+.env
+.env.*
+
+# TS caches.
+*.tsbuildinfo
+next-env.d.ts
+
+# Logs & OS cruft.
+*.log
+.DS_Store

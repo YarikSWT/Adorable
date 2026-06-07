@@ -1,0 +1,45 @@
+# Build context = repo root. Used by docker/app/Dockerfile (builder) and
+# docker/worker/Dockerfile (worker + reaper). Keep this in sync with the
+# COPY steps in those Dockerfiles — never exclude build inputs (source,
+# package*.json, config/, scripts/).
+
+# Dependencies — reinstalled via `npm ci` in the deps stage. Excluding host
+# node_modules also stops the `COPY . .` in docker/worker from clobbering the
+# freshly-installed ones.
+node_modules
+**/node_modules
+
+# Build outputs / TS incremental caches — recompiled inside the image.
+adorable/.next
+**/.next
+/out
+/build
+**/*.tsbuildinfo
+adorable/next-env.d.ts
+
+# Secrets & local env — must never be baked into an image.
+.env
+.env.*
+adorable/.env
+adorable/.env.*
+
+# VCS, CI metadata, editor/agent tooling.
+.git
+.gitignore
+.github
+.claude
+adorable/.claude
+adorable/.adorable
+
+# Docs, verification evidence & throwaway session artifacts — not runtime inputs.
+docs
+verification
+.playwright-mcp
+screen-shot.png
+landing-*.png
+*.md
+
+# Logs & OS cruft.
+*.log
+npm-debug.log*
+.DS_Store
